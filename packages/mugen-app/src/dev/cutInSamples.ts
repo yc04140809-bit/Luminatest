@@ -5,22 +5,29 @@
 // file is reachable only from the debug preview (src/dev), which a
 // release build does not contain.
 //
-// THE PICTURES ARE v18's OWN, UNCHANGED. kaos-cast and hero-battle-idle
-// are the same bytes as v18's and were already in the game's assets;
-// levi-battle and aria-cutin were copied from the v18 hand-off as they
-// were (checked against its FILE_MANIFEST.sha256). No picture is a
-// stand-in for another.
+// THE FIGURES ARE THE AUTHOR'S MOVING BUSTS (作者 2026-10-25), one each:
+// ケイオス and 主人公 the game's own (ui/battle/cutin/cutInFigures.ts);
+// レヴィ and アリア here, the only place their cut-ins are shown (a
+// release build never loads this file, so never ships them). v18's
+// pictures (kaos-cast, hero-battle-idle, levi-battle, aria-cutin) stay
+// in the assets, where the fight and the scenes still draw them.
 //
 // THE WORDS ARE v18's TOO — its names are PROVISIONAL (仮称), which is
 // why every sample says so on its bottom line. v18's lines naming stat
 // changes (ATK/SPD/CRIT UP, DEF/RESIST DOWN) are left off: the game has
 // no such stats, and a sample should not suggest it does.
 
-import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
-import heroBattleIdle from '@mugen/assets/files/characters/hero/hero-battle-idle.png';
-import leviBattle from '@mugen/assets/files/characters/levi/levi-battle.png';
-import ariaCutin from '@mugen/assets/files/characters/aria/aria-cutin.png';
+import leviVideo from '@mugen/assets/files/characters/levi/levi-cutin.webm';
+import leviStill from '@mugen/assets/files/characters/levi/levi-cutin-poster.webp';
+import ariaVideo from '@mugen/assets/files/characters/aria/aria-cutin.webm';
+import ariaStill from '@mugen/assets/files/characters/aria/aria-cutin-poster.webp';
 import type { CutInSpec } from '../ui/battle/cutin/CutIn';
+import { HERO_FIGURE, KAOS_FIGURE, type CutInFigure } from '../ui/battle/cutin/cutInFigures';
+
+/** レヴィ: her lance down across her, looking left. */
+const LEVI_FIGURE: CutInFigure = { art: leviStill, motion: { video: leviVideo, face: { x: 0.56, y: 0.54 } } };
+/** アリア: her bow drawn, looking left. */
+const ARIA_FIGURE: CutInFigure = { art: ariaStill, motion: { video: ariaVideo, face: { x: 0.56, y: 0.5 } } };
 
 export interface CutInSample {
   id: string;
@@ -38,7 +45,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
     spec: {
       theme: 'chaos',
       tier: 'SKILL',
-      art: kaosCast,
+      art: KAOS_FIGURE.art,
+      motion: KAOS_FIGURE.motion,
       word: 'CHAOS',
       kicker: 'CHAOS ARCANUM',
       name: '双極崩界',
@@ -52,7 +60,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
       theme: 'hero',
       // v18 shows this one as the hero's 必殺.
       tier: 'FINISHER',
-      art: heroBattleIdle,
+      art: HERO_FIGURE.art,
+      motion: HERO_FIGURE.motion,
       word: 'ZERO',
       kicker: 'ZERO BLADE ARTS',
       name: '零閃・天衝',
@@ -65,7 +74,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
     spec: {
       theme: 'levi',
       tier: 'SKILL',
-      art: leviBattle,
+      art: LEVI_FIGURE.art,
+      motion: LEVI_FIGURE.motion,
       word: 'LEVI',
       kicker: 'LEVI ABYSS LANCE',
       name: '冥槍・黒葬封界',
@@ -79,7 +89,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
       theme: 'aria',
       // v18's long, readability-fixed cut-in.
       tier: 'FINISHER',
-      art: ariaCutin,
+      art: ARIA_FIGURE.art,
+      motion: ARIA_FIGURE.motion,
       word: 'ARIA',
       kicker: 'ARIA CELESTIAL ARCHERY',
       name: '天弓・蒼薔薇祝界',

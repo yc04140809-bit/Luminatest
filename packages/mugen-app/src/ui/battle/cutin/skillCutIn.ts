@@ -3,25 +3,23 @@
 // and not only 攻撃's チュンッ).
 //
 // THE TABLE IS THE WHOLE OF IT, as her spells' (magic/spellCutIn.ts): a skill listed here by its id
-// in the game's data plays this cut-in before its blow; one not listed goes straight on. Nothing is
-// drawn new — each figure is the one the fight already draws for them (battleArt), and the colours
-// are a cut-in look that already exists:
+// in the game's data plays this cut-in before its blow; one not listed goes straight on. The figure is
+// each one's moving bust (cutInFigures.ts — 作者 2026-10-25, replacing the battle drawings):
 //
-//   主人公   《瞬断》      his battle drawing, his own look (red and black, ZERO)
-//   グレイヴ 重撃・豪断   his battle drawing, the blue-and-old-gold look (v18's Levi colours —
-//                          the nearest to his own blue and gold; there is no third look to make)
-//   主人公   《彼岸花》    his battle drawing, his own look — a finisher's long cut-in
+//   主人公   《瞬断》      his moving bust, his own look (red and black, ZERO)
+//   グレイヴ 重撃・豪断   his moving bust, his own look (forge-bronze and steel — it borrowed
+//                          v18's Levi colours before), his face in the middle of the screen
+//   主人公   《彼岸花》    his moving bust, his own look — a finisher's long cut-in
 //
 // The name is the game's own (heroSkills / partyMembers), never a provisional one.
 
-import heroBattle from '@mugen/assets/files/characters/hero/hero-battle-v2.png';
-import graveBattle from '@mugen/assets/files/characters/grave/grave-battle-v2.png';
 import type { CutInSpec, CutInTheme } from './CutIn';
+import { GRAVE_FIGURE, HERO_FIGURE, type CutInFigure } from './cutInFigures';
 import type { CutInTier } from './cutInTiming';
 
 interface SkillCutInArt {
-  /** Whose picture, by file — shown in the table so nobody has to guess. */
-  art: string;
+  /** Whose figure — shown in the table so nobody has to guess. */
+  figure: CutInFigure;
   theme: CutInTheme;
   /** The large faint word behind. */
   word: string;
@@ -31,8 +29,8 @@ interface SkillCutInArt {
   tier?: CutInTier;
 }
 
-const HERO: SkillCutInArt = { art: heroBattle, theme: 'hero', word: 'ZERO', kicker: 'ZERO BLADE ARTS' };
-const GRAVE: SkillCutInArt = { art: graveBattle, theme: 'levi', word: 'GRAVE', kicker: 'GREATSWORD ARTS' };
+const HERO: SkillCutInArt = { figure: HERO_FIGURE, theme: 'hero', word: 'ZERO', kicker: 'ZERO BLADE ARTS' };
+const GRAVE: SkillCutInArt = { figure: GRAVE_FIGURE, theme: 'grave', word: 'GRAVE', kicker: 'GREATSWORD ARTS' };
 /** 《彼岸花》, his finisher (作者 2026-10-24): his own look, the long cut-in. */
 const HERO_FINISHER: SkillCutInArt = { ...HERO, word: 'HIGANBANA', kicker: 'ZERO BLADE ARTS — FINISHER', tier: 'FINISHER' };
 
@@ -50,7 +48,8 @@ export function skillCutIn(skill: { id: string; name: string } | undefined | nul
   return {
     theme: look.theme,
     tier: look.tier ?? 'SKILL',
-    art: look.art,
+    art: look.figure.art,
+    motion: look.figure.motion,
     word: look.word,
     kicker: look.kicker,
     name: skill.name,

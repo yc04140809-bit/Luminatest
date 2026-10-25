@@ -9,12 +9,26 @@ describe('skillCutIn', () => {
     const cut = skillCutIn(SHUNDAN)!;
     expect(cut).toMatchObject({ theme: 'hero', tier: 'SKILL', word: 'ZERO', name: SHUNDAN.name });
     expect(cut.art).toBeTruthy();
+    // His moving bust (作者 2026-10-25), its first frame as the picture.
+    expect(cut.motion?.video).toMatch(/hero-cutin.*\.webm/);
+    expect(cut.art).toMatch(/hero-cutin-poster/);
   });
 
-  it('重撃・豪断: グレイヴ\'s own drawing and name, in the blue-and-gold look', () => {
+  it('重撃・豪断: グレイヴ\'s own moving bust and name, in his own forge-bronze look', () => {
     const cut = skillCutIn(GOUDAN)!;
-    expect(cut).toMatchObject({ theme: 'levi', tier: 'SKILL', word: 'GRAVE', name: GOUDAN.name });
+    expect(cut).toMatchObject({ theme: 'grave', tier: 'SKILL', word: 'GRAVE', name: GOUDAN.name });
+    expect(cut.motion?.video).toMatch(/grave-cutin.*\.webm/);
     expect(cut.art).not.toBe(skillCutIn(SHUNDAN)!.art);
+  });
+
+  it('every moving figure says where its face is, inside the frame', () => {
+    for (const id of ['shundan', 'goudan', 'higanbana']) {
+      const face = skillCutIn({ id, name: id })!.motion!.face;
+      for (const v of [face.x, face.y]) {
+        expect(v).toBeGreaterThan(0.3);
+        expect(v).toBeLessThan(0.7);
+      }
+    }
   });
 
   it('a skill not in the table plays none (月影の構え, anything unknown)', () => {

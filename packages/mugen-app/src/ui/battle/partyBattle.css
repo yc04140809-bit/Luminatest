@@ -746,46 +746,63 @@
 
 /* 4b. A GIANT's plate stands upright down the left edge (作者 実機 2026-10-23: 横長の枠は大きさの表現の
    邪魔で、第2形態の顔にもかかる — 左端に縦で). Same corner, same plate and colours, narrow: the name
-   written down it, HP and BREAK as two rails rising from the bottom, the number under them. It stops
-   above WORLD MEMORY. */
+   written down it, HP and BREAK as two rails rising from the bottom, the number under them.
+   作者 実機 2026-10-25 (大きくてかなり邪魔、演出が見れない): slimmer and shorter — a thin frame, about half
+   the screen's height — with its 防御DOWN / 速度DOWN outside it, and quiet (faint) while a move of
+   theirs plays (data-showing), back the moment its last blow lands. */
 .pb-screen .pb-enemy-plate.upright,
 .pb-screen .pb-enemy-plate.upright[data-boss] {
   width: auto;
   min-width: 0;
-  bottom: calc(max(6px, env(safe-area-inset-bottom)) + clamp(76px, 25vh, 104px) + 8px);
+  height: clamp(132px, 50vh, 210px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 2px 0;
-  border-width: 14px 10px;
-  border-image-width: 14px 10px;
+  gap: 2px;
+  padding: 1px 0;
+  border-width: 9px 6px;
+  border-image-width: 9px 6px;
+  transition: opacity 320ms ease;
+}
+.pb-screen[data-showing='yes'] .pb-enemy-plate.upright {
+  opacity: 0.28;
+  transition-duration: 160ms;
 }
 .pb-enemy-plate.upright .pb-enemy-name {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  letter-spacing: 0.06em;
-  font-size: clamp(11px, 3.6vh, 14px);
-  line-height: 1.1;
+  letter-spacing: 0.02em;
+  font-size: clamp(10px, 3vh, 12px);
+  line-height: 1.05;
   overflow: visible;
 }
-.pb-upright-gauges { flex: 1 1 auto; min-height: 24px; display: flex; gap: 3px; justify-content: center; }
-.pb-screen .pb-bar.upright { width: clamp(7px, 2.2vh, 10px); height: auto; }
+.pb-upright-gauges { flex: 1 1 auto; min-height: 20px; display: flex; gap: 2px; justify-content: center; }
+.pb-screen .pb-bar.upright { width: clamp(5px, 1.6vh, 7px); height: auto; }
 .pb-screen .pb-bar.upright .pb-bar-fill,
 .pb-screen .pb-bar.upright .pb-bar-trail { inset: auto 0 0 0; width: auto; }
 .pb-screen .pb-bar.upright .pb-bar-fill { transition: height 240ms ease; background: linear-gradient(90deg, var(--mz-hp-a), var(--mz-hp-b)); }
 .pb-screen .pb-bar.upright .pb-bar-trail { transition: height 0.55s ease-out 0.38s; }
-.pb-screen .pb-break-gauge.upright { width: clamp(4px, 1.4vh, 6px); height: auto; }
+.pb-screen .pb-break-gauge.upright { width: clamp(3px, 1vh, 4px); height: auto; }
 .pb-break-gauge.upright .pb-break-fill { inset: auto 0 0 0; transition: height 240ms ease; background: linear-gradient(0deg, #d8a03c, #ffd36b); }
 .pb-break-gauge.upright.broken .pb-break-fill { background: linear-gradient(0deg, #ff6a3d, #ffb347); }
 .pb-break-gauge.upright::after {
   background: repeating-linear-gradient(0deg, transparent 0, transparent calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10)));
 }
-.pb-enemy-plate.upright .pb-num { font-size: 11px; line-height: 1.05; text-align: center; display: flex; flex-direction: column; align-items: center; }
-.pb-enemy-plate.upright .pb-num small { font-size: 8px; }
-.pb-enemy-plate.upright .pb-break-label { font-size: 7px; letter-spacing: 0.04em; }
-/* Its 防御DOWN beside it, out on the field's side, never under the rails. */
-.pb-enemy-plate.upright .pb-break-badge { position: absolute; left: calc(100% + 12px); top: 0; }
+.pb-enemy-plate.upright .pb-num { font-size: 10px; line-height: 1; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.pb-enemy-plate.upright .pb-num small { font-size: 7px; }
+.pb-enemy-plate.upright .pb-break-label { font-size: 6px; letter-spacing: 0; }
+/* Its 防御DOWN / 速度DOWN: small, one under the other, out on the field's side at its top. */
+.pb-upright-status {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: -4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.pb-upright-status .pb-break-badge,
+.pb-upright-status .pb-slow-badge { font-size: 9px; padding: 0 4px; line-height: 1.45; }
 
 /* 5. Each one's own colour, only on the frame's light and a hairline (the shape is everyone's). */
 .pb-screen [data-actor='hero'] { --acc: #e0343f; --acc-2: #1a0608; }

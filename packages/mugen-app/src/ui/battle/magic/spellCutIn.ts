@@ -11,27 +11,27 @@
 //         log print it — never v18's provisional names (双極崩界 stays a
 //         preview-only sample, src/dev/cutInSamples.ts)
 //   sub   the spell's own line from the same data
-//   art   the picture the table names — today all five are hers, and the
-//         one picture of her casting there is: kaos-cast.png, the file
-//         v18's Kaos cut-in used and the battle draws while she casts
-//   look  v18's Kaos cut-in colours (theme 'chaos')
+//   figure  whose figure the table names — today all five are hers: her
+//           moving bust (cutin/cutInFigures.ts — 作者 2026-10-25; it was
+//           kaos-cast.png, v18's picture, before)
+//   look    v18's Kaos cut-in colours (theme 'chaos')
 
-import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import type { CutInSpec, CutInTheme } from '../cutin/CutIn';
+import { KAOS_FIGURE, type CutInFigure } from '../cutin/cutInFigures';
 import { spellShowOf } from './spellShow';
 
 interface SpellCutInArt {
-  /** Whose picture, by file — shown in the table so nobody has to guess. */
-  art: string;
+  /** Whose figure — shown in the table so nobody has to guess. */
+  figure: CutInFigure;
   theme: CutInTheme;
   /** The large faint word behind, and whose spell the small line names. */
   word: string;
 }
 
-/** Kaos, casting: kaos-cast.png, v18's Kaos colours. */
+/** Kaos, casting: her moving bust, v18's Kaos colours. */
 // ケイオス in letters is CHAOS (混沌 — the author, 2026-10-09), never KAOS.
-const KAOS_CASTING: SpellCutInArt = { art: kaosCast, theme: 'chaos', word: 'CHAOS' };
+const KAOS_CASTING: SpellCutInArt = { figure: KAOS_FIGURE, theme: 'chaos', word: 'CHAOS' };
 
 /** Spell id → the cut-in it plays. Absent: no cut-in (未接続). */
 export const SPELL_CUT_INS: Readonly<Record<string, SpellCutInArt>> = {
@@ -49,7 +49,8 @@ export function spellCutIn(def: MagicDef): CutInSpec | null {
   return {
     theme: look.theme,
     tier: spellShowOf(def).tier,
-    art: look.art,
+    art: look.figure.art,
+    motion: look.figure.motion,
     word: look.word,
     kicker: `${look.word} · ${def.element} ${def.type}`,
     name: def.name,

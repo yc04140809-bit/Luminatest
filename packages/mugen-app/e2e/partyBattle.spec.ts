@@ -307,6 +307,10 @@ for (const size of [
     await expect(page.getByTestId('pb-log')).toContainText('速度DOWN');
     await expect(page.getByTestId('pb-slow-badge')).toHaveText('速度DOWN 残り3');
     await onScreen(page, 'pb-slow-badge');
+    // Its words beside the giant's narrow plate, never widening it (作者 実機 2026-10-25: 縦型ステータスバーが大きくて邪魔).
+    const plate = await box(page, 'pb-enemy-plate');
+    expect(plate.width).toBeLessThan(size.width * 0.06);
+    expect((await box(page, 'pb-slow-badge')).x).toBeGreaterThanOrEqual(plate.x + plate.width);
     await expect(page.getByTestId('pb-foe').getByTestId('pb-float-slow')).toHaveText('SPEED DOWN');
     // Slowed: in the coming turns it stands after the hero and Grave (as it did not: Kaos, it, him, Grave).
     const ahead = await page.getByTestId('pb-turn-order').locator('[data-actor]').evaluateAll((els) => els.map((e) => e.getAttribute('data-actor')));
@@ -729,7 +733,7 @@ test('星癒の羽 on グレイヴ: 「星癒 3T」 on his card, Kaos\'s MP unto
 
 // A GIANT's plate stands upright down the left edge (作者 実機 2026-10-23): the same corner, narrow and
 // tall, clear of WORLD MEMORY — and off the giant's head. A fight of several keeps the wide plate.
-test('a giant\'s plate stands upright down the left edge: narrow, tall, clear of WORLD MEMORY; others keep the wide one', async ({ page }) => {
+test('a giant\'s plate stands upright down the left edge: slim, half the height, clear of WORLD MEMORY; others keep the wide one', async ({ page }) => {
   for (const size of [
     { width: 640, height: 300 },
     { width: 844, height: 390 },
@@ -743,8 +747,10 @@ test('a giant\'s plate stands upright down the left edge: narrow, tall, clear of
     const b = await box(page, 'pb-enemy-plate');
     expect(b.x).toBeLessThan(size.width * 0.05);
     expect(b.y).toBeLessThan(size.height * 0.05);
-    expect(b.width).toBeLessThan(size.width * 0.09);
+    // Slim and about half the height (作者 実機 2026-10-25: 大きくて邪魔、演出が見れない).
+    expect(b.width).toBeLessThan(size.width * 0.06);
     expect(b.height).toBeGreaterThan(size.height * 0.45);
+    expect(b.height).toBeLessThan(size.height * 0.6);
     expect(apart(b, await box(page, 'bx-world-memory'))).toBe(true);
     await onScreen(page, 'pb-break-gauge');
     await expect(page.getByTestId('pb-enemy-hp')).toContainText('500');
@@ -768,7 +774,14 @@ test('グレイヴ\'s 重撃・豪断: its cut-in with its name first, the comma
   await page.getByTestId('pb-cmd-tech-goudan').click();
   await expect(page.getByTestId('pb-cinematic')).toBeVisible();
   await expect(page.getByTestId('cut-in-name')).toHaveText('重撃・豪断');
+  await expect(page.getByTestId('cut-in')).toHaveAttribute('data-theme', 'grave');
   await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'yes');
+  // While his move plays the giant's plate steps back (作者 実機 2026-10-25: 演出が見れない) — and is back
+  // the moment his last blow lands.
+  await expect(screen(page)).toHaveAttribute('data-showing', 'yes');
+  await expect.poll(() => page.getByTestId('pb-enemy-plate').evaluate((e) => Number(getComputedStyle(e).opacity))).toBeLessThan(0.5);
   await expect(page.getByTestId('pb-cinematic')).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveAttribute('data-tier', 'big');
+  await expect(screen(page)).toHaveAttribute('data-showing', 'no', { timeout: 5000 });
+  await expect.poll(() => page.getByTestId('pb-enemy-plate').evaluate((e) => Number(getComputedStyle(e).opacity))).toBeGreaterThan(0.95);
 });

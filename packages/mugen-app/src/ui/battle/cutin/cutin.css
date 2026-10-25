@@ -15,10 +15,36 @@
      is fully shown from 17% to 88%. cutInTiming.ts depends on those two
      numbers and its test reads them from here.
    - Its place in the battle screen's layers is set by the layer that
-     holds it (`.bp-cinematic`, battle.layers.css), above the HUD. */
+     holds it (`.bp-cinematic`, battle.layers.css), above the HUD.
+
+   作者 実機 2026-10-25 (カットインの素材を綺麗に — 文字（技名）・背景の帯・光の線; キャラは動く立ち絵に;
+   グレイヴの顔を中央に):
+   - THE FIGURE moves (cutInFigures.ts) and its face is the middle of the screen: a window in the band
+     whose middle is the face, its edges fading into the band (`.ci-figure`). A still figure (a boss's)
+     stands where it did.
+   - THE BAND is cleaner: v18's thick coloured side bars and loud stripes become hairlines of light;
+     a glint runs along its top and bottom rails; thin light lines stream across it (`.ci-lines`)
+     the way it swept in.
+   - THE NAME is set like a title: heavier, a light-to-gold fill, a dark edge and its glow, struck in
+     large and settling, a shine passing over it once, a line drawn under it; the faint word behind is
+     an outline drifting slowly.
+   - Each look's colours are custom properties (--ci-a, --ci-b, …) so the new parts follow the theme. */
 
 .ci {
   --ci-ms: 1400ms;
+  /* Each look's two lights, their glows, the name's lower colour and edge, the line's colour. */
+  --ci-a: #ffd36b;
+  --ci-b: #6fc4ff;
+  --ci-glow-a: rgba(255, 210, 107, 0.72);
+  --ci-glow-b: rgba(91, 185, 255, 0.5);
+  --ci-name-lo: #ffe2a0;
+  --ci-name-edge: rgba(45, 25, 57, 0.95);
+  --ci-rim: rgba(137, 93, 198, 0.55);
+  --ci-line: rgba(214, 232, 255, 0.95);
+  /* Where the face stands in the panel (the panel is a little off the screen at one end: this is the
+     screen's middle), and how wide its window is. */
+  --ci-face-at: 40%;
+  --ci-win: 50%;
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -58,9 +84,10 @@
   background:
     radial-gradient(circle at 74% 38%, rgba(137, 93, 198, 0.52), transparent 34%),
     linear-gradient(112deg, rgba(23, 15, 34, 0.99) 0 44%, rgba(20, 31, 66, 0.98) 72%, rgba(6, 10, 19, 0.99));
+  /* Hairlines of the two lights down its ends (v18's were 12px bars). */
   box-shadow:
-    inset 12px 0 0 rgba(255, 210, 104, 0.86),
-    inset -12px 0 0 rgba(85, 190, 255, 0.86),
+    inset 3px 0 0 var(--ci-a),
+    inset -3px 0 0 var(--ci-b),
     0 0 42px rgba(0, 0, 0, 0.92);
   animation: ci-panel-hold var(--ci-ms) cubic-bezier(.2,.75,.2,1) both;
 }
@@ -73,25 +100,26 @@
   pointer-events: none;
 }
 
+/* Its rails: a fine bright line at the top and the bottom, each with a soft light inside. */
 .ci-panel::before {
   z-index: 6;
-  border-top: clamp(2px, 0.55vh, 4px) solid rgba(255, 224, 144, 0.92);
-  border-bottom: clamp(2px, 0.55vh, 4px) solid rgba(105, 199, 255, 0.92);
+  border-top: 2px solid var(--ci-a);
+  border-bottom: 2px solid var(--ci-b);
   box-shadow:
-    inset 0 10px 26px rgba(255, 204, 91, 0.1),
-    inset 0 -10px 26px rgba(75, 166, 255, 0.12);
+    inset 0 8px 18px -6px var(--ci-glow-a),
+    inset 0 -8px 18px -6px var(--ci-glow-b);
 }
 
+/* A faint fine grain over the band (v18's loud stripes, quietened). */
 .ci-panel::after {
   z-index: 1;
-  opacity: 0.4;
+  opacity: 0.16;
   background: repeating-linear-gradient(
     -14deg,
-    transparent 0 15px,
-    rgba(255, 255, 255, 0.14) 16px 18px,
-    transparent 19px 34px
+    transparent 0 9px,
+    rgba(255, 255, 255, 0.22) 9px 10px,
+    transparent 10px 22px
   );
-  transform: translateX(18%);
 }
 
 .ci-energy {
@@ -107,21 +135,53 @@
   animation: ci-energy var(--ci-ms) ease-out both;
 }
 
+/* The large word behind: an outline, drifting slowly the way the band came. */
 .ci-word {
   position: absolute;
   z-index: 1;
   right: 4%;
-  top: 1%;
-  color: rgba(255, 255, 255, 0.075);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(64px, 15vw, 150px);
+  top: 0;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.16);
+  font-family: var(--font-ui);
+  font-size: clamp(60px, 14vw, 140px);
   font-style: italic;
-  font-weight: 700;
+  font-weight: 900;
   line-height: 1;
-  letter-spacing: -0.06em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
+  animation: ci-word-drift var(--ci-ms) linear both;
 }
 
+/* ---- THE LIGHT LINES: thin streaks across the band, the way it swept in ---- */
+.ci-lines {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  animation: ci-lines var(--ci-ms) linear both;
+}
+/* Each line is a row the band's width with its streak drawn at one end, the row carried across: the
+   streak runs from past one end of the band to past the other, whatever its length. */
+.ci-lines > i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ci-line) 55%, #fff 82%, transparent) no-repeat 0 0 / var(--len, 30%) 100%;
+  transform: translate3d(100%, 0, 0);
+  animation-name: ci-line;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.ci-lines > i.thick {
+  height: 2px;
+}
+
+/* ---- THE FIGURE ---- */
+
+/* A still one (a boss's drawing): where v18 put it. */
 .ci-art {
   position: absolute;
   z-index: 3;
@@ -138,6 +198,76 @@
   animation: ci-art-hold var(--ci-ms) cubic-bezier(.2,.78,.18,1) both;
 }
 
+/* A moving one: a window in the band, its middle the face (the screen's middle), fading at its edges. */
+.ci-figure {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--ci-face-at) - var(--ci-win) / 2);
+  width: var(--ci-win);
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse 50% 66% at 50% 50%, #000 50%, rgba(0, 0, 0, 0.5) 76%, transparent 96%);
+  mask-image: radial-gradient(ellipse 50% 66% at 50% 50%, #000 50%, rgba(0, 0, 0, 0.5) 76%, transparent 96%);
+  transform-origin: 50% 46%;
+  animation: ci-art-hold var(--ci-ms) cubic-bezier(.2,.78,.18,1) both;
+}
+.ci-video {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Tall enough that it is wider than its window whichever face it centres (the faces sit at 0.49–0.59
+     across): no edge of the frame ever shows. */
+  height: 180%;
+  width: auto;
+  max-width: none;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  /* The face onto the window's middle. */
+  transform: translate(calc(var(--ci-fx, 0.5) * -100%), calc(var(--ci-fy, 0.5) * -100%));
+}
+/* The look's light round it, over the dark of its ground (and a little over its edges). */
+.ci-figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 52% 60% at 50% 48%, transparent 46%, var(--ci-rim) 100%);
+  mix-blend-mode: screen;
+}
+
+/* A glint running once along each rail. */
+.ci-rails {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  pointer-events: none;
+}
+.ci-rails::before,
+.ci-rails::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 26%;
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0;
+  transform: translate3d(-100%, 0, 0);
+}
+.ci-rails::before {
+  top: -1px;
+  background: linear-gradient(90deg, transparent, #fff 60%, transparent);
+  box-shadow: 0 0 12px 2px var(--ci-glow-a);
+  animation: ci-glint var(--ci-ms) cubic-bezier(.35,0,.25,1) both;
+}
+.ci-rails::after {
+  bottom: -1px;
+  background: linear-gradient(90deg, transparent, #fff 60%, transparent);
+  box-shadow: 0 0 12px 2px var(--ci-glow-b);
+  animation: ci-glint-back var(--ci-ms) cubic-bezier(.35,0,.25,1) both;
+}
+
+/* ---- THE NAME ---- */
+
 .ci-copy {
   position: absolute;
   z-index: 5;
@@ -145,48 +275,106 @@
   bottom: 12%;
   display: grid;
   align-items: start;
+  justify-items: start;
+  isolation: isolate;
   opacity: 0;
-  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.96);
   animation: ci-copy-hold var(--ci-ms) cubic-bezier(.18,.76,.2,1) both;
+}
+/* A dark slanted plate under it, so it reads over the figure. */
+.ci-copy::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -16% -22% -20% -26%;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.66) 20%, rgba(0, 0, 0, 0.5) 72%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 34%, #000 78%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 34%, #000 78%, transparent);
+  transform: skewX(-16deg);
+}
+/* A line of the two lights drawn under it. */
+.ci-copy::after {
+  content: "";
+  justify-self: stretch;
+  height: 2px;
+  margin-top: 4px;
+  background: linear-gradient(90deg, var(--ci-a), var(--ci-b) 65%, transparent);
+  box-shadow: 0 0 8px var(--ci-glow-a);
+  transform-origin: left center;
+  animation: ci-underline var(--ci-ms) cubic-bezier(.2,.8,.2,1) both;
 }
 
 .ci-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: max-content;
-  margin-bottom: 2px;
-  padding: 2px 8px 3px;
-  border-left: 3px solid #ffd271;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.76), transparent);
-  color: #ffe7a8;
-  font-size: clamp(8px, 1.25vw, 12px);
+  margin-bottom: 3px;
+  color: var(--ci-a);
+  font-size: clamp(8px, 1.2vw, 12px);
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.3em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+.ci-kicker::before {
+  content: "";
+  width: clamp(14px, 2.6vw, 26px);
+  height: 1px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .ci-name {
-  color: #fffdf2;
-  font-size: clamp(25px, 5.8vw, 54px);
-  font-weight: 800;
+  position: relative;
+  display: inline-block;
+  font-size: clamp(28px, 6.6vw, 62px);
+  font-weight: 900;
   line-height: 1.06;
-  letter-spacing: 0.08em;
-  text-shadow:
-    0 3px 0 rgba(45, 25, 57, 0.95),
-    0 0 12px rgba(255, 210, 107, 0.72),
-    0 0 22px rgba(91, 185, 255, 0.5);
+  letter-spacing: 0.1em;
   white-space: nowrap;
+  /* Light at the top, the look's gold below — the fill is the background, clipped to the letters, so
+     its edge and glow are a filter (a text-shadow would be drawn over the fill). */
+  color: #fffaf0;
+  background: linear-gradient(180deg, #ffffff 0%, #fff9ea 40%, var(--ci-name-lo) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0.6px var(--ci-name-edge);
+  filter:
+    drop-shadow(0 2px 0 var(--ci-name-edge))
+    drop-shadow(0 0 9px var(--ci-glow-a))
+    drop-shadow(0 0 20px var(--ci-glow-b));
+  transform-origin: left 60%;
+  animation: ci-name-strike var(--ci-ms) cubic-bezier(.2,.9,.25,1) both;
+}
+/* A shine passing over the letters once, as it settles. */
+.ci-name::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 0 40%, rgba(255, 255, 255, 0.95) 50%, transparent 60% 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0;
+  animation: ci-name-shine var(--ci-ms) ease-out both;
 }
 
 .ci-sub {
-  margin-top: 4px;
-  color: rgba(232, 239, 255, 0.78);
+  margin-top: 5px;
+  color: rgba(232, 239, 255, 0.8);
   font-size: clamp(7px, 1vw, 10px);
   font-weight: 700;
   letter-spacing: 0.14em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
 }
 
+/* ---- THE LIGHT EDGES sweeping across with it: fine bright lines now, with a wide soft glow ---- */
 .ci-edge {
   z-index: 4;
   top: -20%;
-  width: clamp(5px, 0.85vw, 9px);
+  width: clamp(2px, 0.32vw, 3px);
   height: 145%;
   opacity: 0;
   transform: rotate(11deg);
@@ -194,15 +382,15 @@
 
 .ci-edge-gold {
   left: 17%;
-  background: linear-gradient(180deg, transparent, #fff5bd 22%, #f6b738 52%, #fff5bd 78%, transparent);
-  box-shadow: 0 0 16px 5px rgba(255, 194, 67, 0.7);
+  background: linear-gradient(180deg, transparent, #fff 22%, var(--ci-a) 52%, #fff 78%, transparent);
+  box-shadow: 0 0 10px 2px var(--ci-glow-a), 0 0 34px 8px var(--ci-glow-a);
   animation: ci-edge-gold var(--ci-ms) ease-out both;
 }
 
 .ci-edge-blue {
   right: 3%;
-  background: linear-gradient(180deg, transparent, #dff6ff 22%, #56bfff 52%, #dff6ff 78%, transparent);
-  box-shadow: 0 0 16px 5px rgba(69, 172, 255, 0.72);
+  background: linear-gradient(180deg, transparent, #fff 22%, var(--ci-b) 52%, #fff 78%, transparent);
+  box-shadow: 0 0 10px 2px var(--ci-glow-b), 0 0 34px 8px var(--ci-glow-b);
   animation: ci-edge-blue var(--ci-ms) ease-out both;
 }
 
@@ -244,10 +432,54 @@
   97%, 100% { opacity: 0; transform: translate3d(-22px, 0, 0); }
 }
 
+/* The name struck in large, settling inside the name's own appearing (9%–17%): whole and still by 17%. */
+@keyframes ci-name-strike {
+  0%, 9% { transform: scale(1.42); }
+  14% { transform: scale(0.97); }
+  17%, 100% { transform: scale(1); }
+}
+@keyframes ci-name-shine {
+  0%, 17% { background-position: 100% 0; }
+  42%, 100% { background-position: 0 0; }
+}
+@keyframes ci-underline {
+  0%, 12% { transform: scaleX(0); opacity: 0; }
+  26%, 100% { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes ci-word-drift {
+  0% { transform: translate3d(8%, 0, 0); }
+  100% { transform: translate3d(-6%, 0, 0); }
+}
+
 @keyframes ci-energy {
   0% { opacity: 0; transform: scale(0.66) rotate(-12deg); }
   26% { opacity: 1; }
   100% { opacity: 0.68; transform: scale(1.16) rotate(9deg); }
+}
+
+/* The lines: in with the band, gone before it leaves; each one streaming right to left. */
+@keyframes ci-lines {
+  0%, 6% { opacity: 0; }
+  14%, 84% { opacity: 1; }
+  94%, 100% { opacity: 0; }
+}
+@keyframes ci-line {
+  0% { transform: translate3d(100%, 0, 0); }
+  100% { transform: translate3d(-60%, 0, 0); }
+}
+
+@keyframes ci-glint {
+  0%, 10% { opacity: 0; transform: translate3d(-100%, 0, 0); }
+  14% { opacity: 1; }
+  46% { opacity: 1; transform: translate3d(390%, 0, 0); }
+  50%, 100% { opacity: 0; transform: translate3d(390%, 0, 0); }
+}
+@keyframes ci-glint-back {
+  0%, 18% { opacity: 0; transform: translate3d(390%, 0, 0); }
+  22% { opacity: 1; }
+  54% { opacity: 1; transform: translate3d(-100%, 0, 0); }
+  58%, 100% { opacity: 0; transform: translate3d(-100%, 0, 0); }
 }
 
 @keyframes ci-edge-gold {
@@ -272,6 +504,19 @@
 
 /* ---- HERO: from the left, crimson and gold (v18 .hero-cut-in) ---- */
 
+.ci[data-theme='hero'] {
+  --ci-a: #ffd271;
+  --ci-b: #e0233f;
+  --ci-glow-a: rgba(255, 210, 107, 0.78);
+  --ci-glow-b: rgba(204, 25, 52, 0.62);
+  --ci-name-lo: #ffd98f;
+  --ci-name-edge: rgba(57, 8, 18, 0.96);
+  --ci-rim: rgba(178, 18, 44, 0.55);
+  --ci-line: rgba(255, 214, 200, 0.95);
+  /* Its panel runs off the left: the screen's middle is further along it. */
+  --ci-face-at: 60%;
+}
+
 .ci[data-theme='hero'] .ci-veil {
   background:
     radial-gradient(circle at 30% 44%, rgba(145, 18, 42, 0.38), transparent 46%),
@@ -286,29 +531,24 @@
     radial-gradient(circle at 27% 40%, rgba(146, 21, 42, 0.56), transparent 35%),
     linear-gradient(248deg, rgba(30, 18, 19, 0.99) 0 42%, rgba(77, 16, 26, 0.98) 70%, rgba(7, 8, 12, 0.99));
   box-shadow:
-    inset -12px 0 0 rgba(255, 205, 103, 0.9),
-    inset 12px 0 0 rgba(183, 22, 48, 0.9),
+    inset -3px 0 0 var(--ci-a),
+    inset 3px 0 0 var(--ci-b),
     0 0 42px rgba(0, 0, 0, 0.94);
   transform: translate3d(-112%, 0, 0);
   animation-name: ci-panel-hold-left;
 }
 
 .ci[data-theme='hero'] .ci-panel::before {
-  border-top-color: rgba(255, 225, 145, 0.94);
-  border-bottom-color: rgba(214, 34, 61, 0.92);
-  box-shadow:
-    inset 0 10px 26px rgba(255, 204, 91, 0.12),
-    inset 0 -10px 28px rgba(179, 18, 46, 0.18);
+  border-bottom-color: var(--ci-b);
 }
 
 .ci[data-theme='hero'] .ci-panel::after {
   background: repeating-linear-gradient(
     14deg,
-    transparent 0 17px,
-    rgba(255, 236, 191, 0.13) 18px 20px,
-    transparent 21px 37px
+    transparent 0 9px,
+    rgba(255, 236, 191, 0.22) 9px 10px,
+    transparent 10px 22px
   );
-  transform: translateX(-18%);
 }
 
 .ci[data-theme='hero'] .ci-energy {
@@ -321,7 +561,14 @@
 .ci[data-theme='hero'] .ci-word {
   right: auto;
   left: 4%;
-  color: rgba(255, 221, 177, 0.075);
+  -webkit-text-stroke-color: rgba(255, 221, 177, 0.17);
+  animation-name: ci-word-drift-left;
+}
+
+.ci[data-theme='hero'] .ci-lines > i {
+  background: linear-gradient(270deg, transparent, var(--ci-line) 55%, #fff 82%, transparent) no-repeat 100% 0 / var(--len, 30%) 100%;
+  transform: translate3d(-100%, 0, 0);
+  animation-name: ci-line-left;
 }
 
 .ci[data-theme='hero'] .ci-art {
@@ -336,6 +583,13 @@
   animation-name: ci-art-hold-left;
 }
 
+.ci[data-theme='hero'] .ci-figure {
+  animation-name: ci-art-hold-left;
+}
+
+.ci[data-theme='hero'] .ci-rails::before { animation-name: ci-glint-back; }
+.ci[data-theme='hero'] .ci-rails::after { animation-name: ci-glint; }
+
 .ci[data-theme='hero'] .ci-copy {
   right: 11%;
   left: auto;
@@ -343,18 +597,22 @@
   text-align: right;
 }
 
+.ci[data-theme='hero'] .ci-copy::before {
+  background: linear-gradient(270deg, transparent, rgba(0, 0, 0, 0.68) 20%, rgba(0, 0, 0, 0.5) 72%, transparent);
+  transform: skewX(16deg);
+}
+
+.ci[data-theme='hero'] .ci-copy::after {
+  background: linear-gradient(270deg, var(--ci-a), var(--ci-b) 65%, transparent);
+  transform-origin: right center;
+}
+
 .ci[data-theme='hero'] .ci-kicker {
-  border-right: 3px solid #ffd271;
-  border-left: 0;
-  background: linear-gradient(270deg, rgba(0, 0, 0, 0.8), transparent);
-  color: #ffe4a0;
+  flex-direction: row-reverse;
 }
 
 .ci[data-theme='hero'] .ci-name {
-  text-shadow:
-    0 3px 0 rgba(57, 8, 18, 0.96),
-    0 0 14px rgba(255, 210, 107, 0.78),
-    0 0 25px rgba(204, 25, 52, 0.58);
+  transform-origin: right 60%;
 }
 
 .ci[data-theme='hero'] .ci-edge-gold {
@@ -365,8 +623,6 @@
 .ci[data-theme='hero'] .ci-edge-blue {
   right: auto;
   left: 3%;
-  background: linear-gradient(180deg, transparent, #ffd5dc 22%, #c81c3d 52%, #ffe2c5 78%, transparent);
-  box-shadow: 0 0 16px 5px rgba(201, 23, 53, 0.76);
 }
 
 .ci[data-theme='hero'] .ci-flash {
@@ -388,7 +644,68 @@
   100% { opacity: 0; transform: translate3d(9%, 0, 0) scale(1.04); }
 }
 
+@keyframes ci-word-drift-left {
+  0% { transform: translate3d(-8%, 0, 0); }
+  100% { transform: translate3d(6%, 0, 0); }
+}
+
+@keyframes ci-line-left {
+  0% { transform: translate3d(-100%, 0, 0); }
+  100% { transform: translate3d(60%, 0, 0); }
+}
+
+/* ---- GRAVE: forge-bronze and steel — his own (作者 2026-10-25; it borrowed Levi's before) ---- */
+
+.ci[data-theme='grave'] {
+  --ci-a: #f0bf6a;
+  --ci-b: #c9d6e4;
+  --ci-glow-a: rgba(240, 168, 72, 0.74);
+  --ci-glow-b: rgba(196, 214, 236, 0.45);
+  --ci-name-lo: #f4c47c;
+  --ci-name-edge: rgba(42, 22, 8, 0.96);
+  --ci-rim: rgba(206, 126, 48, 0.5);
+  --ci-line: rgba(255, 226, 184, 0.95);
+}
+
+.ci[data-theme='grave'] .ci-veil {
+  background:
+    radial-gradient(circle at 52% 44%, rgba(150, 86, 30, 0.36), transparent 48%),
+    rgba(5, 3, 1, 0.9);
+}
+
+.ci[data-theme='grave'] .ci-panel {
+  background:
+    radial-gradient(circle at 46% 42%, rgba(178, 104, 38, 0.42), transparent 38%),
+    linear-gradient(112deg, rgba(22, 14, 9, 0.995) 0 40%, rgba(58, 34, 15, 0.985) 70%, rgba(9, 8, 7, 0.995));
+}
+
+.ci[data-theme='grave'] .ci-energy {
+  background:
+    radial-gradient(circle at 42% 48%, rgba(255, 176, 74, 0.34), transparent 30%),
+    radial-gradient(circle at 78% 42%, rgba(196, 214, 236, 0.24), transparent 34%),
+    conic-gradient(from 70deg at 50% 48%, transparent, rgba(255, 236, 200, 0.18), transparent 20%);
+}
+
+.ci[data-theme='grave'] .ci-word {
+  -webkit-text-stroke-color: rgba(255, 214, 160, 0.16);
+}
+
+.ci[data-theme='grave'] .ci-flash {
+  background: linear-gradient(105deg, rgba(240, 172, 80, 0.88), #fff 50%, rgba(200, 216, 236, 0.88));
+}
+
 /* ---- LEVI: abyss blue and old gold (v18 .levi-cut-in) ---- */
+
+.ci[data-theme='levi'] {
+  --ci-a: #e7d187;
+  --ci-b: #7f91ff;
+  --ci-glow-a: rgba(230, 205, 120, 0.68);
+  --ci-glow-b: rgba(74, 95, 242, 0.65);
+  --ci-name-lo: #ece0b4;
+  --ci-name-edge: rgba(18, 7, 41, 0.98);
+  --ci-rim: rgba(70, 82, 220, 0.55);
+  --ci-line: rgba(200, 210, 255, 0.95);
+}
 
 .ci[data-theme='levi'] .ci-veil {
   background:
@@ -401,28 +718,6 @@
     radial-gradient(circle at 72% 38%, rgba(70, 73, 196, .56), transparent 34%),
     radial-gradient(circle at 48% 58%, rgba(25, 8, 56, .76), transparent 45%),
     linear-gradient(112deg, rgba(8, 6, 15, .995) 0 38%, rgba(21, 18, 62, .985) 68%, rgba(4, 10, 24, .995));
-  box-shadow:
-    inset 12px 0 0 rgba(191, 161, 75, .9),
-    inset -12px 0 0 rgba(76, 96, 232, .9),
-    0 0 46px rgba(0, 0, 0, .96);
-}
-
-.ci[data-theme='levi'] .ci-panel::before {
-  border-top-color: rgba(231, 209, 135, .94);
-  border-bottom-color: rgba(105, 125, 255, .94);
-  box-shadow:
-    inset 0 11px 28px rgba(191, 151, 63, .1),
-    inset 0 -11px 30px rgba(50, 69, 194, .2);
-}
-
-.ci[data-theme='levi'] .ci-panel::after {
-  opacity: .5;
-  background: repeating-linear-gradient(
-    -10deg,
-    transparent 0 20px,
-    rgba(126, 139, 255, .14) 21px 23px,
-    transparent 24px 42px
-  );
 }
 
 .ci[data-theme='levi'] .ci-energy {
@@ -434,7 +729,7 @@
 
 .ci[data-theme='levi'] .ci-word {
   right: 2%;
-  color: rgba(153, 169, 255, .09);
+  -webkit-text-stroke-color: rgba(153, 169, 255, .18);
 }
 
 .ci[data-theme='levi'] .ci-art {
@@ -452,39 +747,31 @@
   bottom: 11%;
 }
 
-.ci[data-theme='levi'] .ci-kicker {
-  border-left-color: #7f91ff;
-  color: #dce3ff;
-}
-
 .ci[data-theme='levi'] .ci-name {
-  font-size: clamp(21px, 4.8vw, 46px);
-  letter-spacing: .035em;
-  text-shadow:
-    0 3px 0 rgba(18, 7, 41, .98),
-    0 0 13px rgba(230, 205, 120, .68),
-    0 0 25px rgba(74, 95, 242, .65);
+  font-size: clamp(23px, 5.2vw, 50px);
+  letter-spacing: .05em;
 }
 
 .ci[data-theme='levi'] .ci-sub {
   color: rgba(218, 225, 255, .8);
 }
 
-.ci[data-theme='levi'] .ci-edge-gold {
-  background: linear-gradient(180deg, transparent, #f4e6ae 22%, #bfa34b 52%, #f8edc1 78%, transparent);
-  box-shadow: 0 0 16px 5px rgba(191, 156, 56, .68);
-}
-
-.ci[data-theme='levi'] .ci-edge-blue {
-  background: linear-gradient(180deg, transparent, #e2e7ff 22%, #6176ef 52%, #dce4ff 78%, transparent);
-  box-shadow: 0 0 17px 6px rgba(70, 91, 228, .78);
-}
-
 .ci[data-theme='levi'] .ci-flash {
   background: linear-gradient(105deg, rgba(184, 151, 61, .82), #fff 50%, rgba(78, 99, 237, .9));
 }
 
-/* ---- ARIA: sea-glass and pale gold, the picture fills the panel (v18 .aria-cut-in) ---- */
+/* ---- ARIA: sea-glass and pale gold (v18 .aria-cut-in) ---- */
+
+.ci[data-theme='aria'] {
+  --ci-a: #f4e3a3;
+  --ci-b: #4ff0dc;
+  --ci-glow-a: rgba(244, 217, 128, 0.66);
+  --ci-glow-b: rgba(45, 224, 207, 0.62);
+  --ci-name-lo: #f6e9bd;
+  --ci-name-edge: rgba(2, 22, 29, 0.98);
+  --ci-rim: rgba(30, 200, 196, 0.5);
+  --ci-line: rgba(200, 255, 248, 0.95);
+}
 
 .ci[data-theme='aria'] .ci-veil {
   background:
@@ -497,28 +784,6 @@
     radial-gradient(circle at 70% 38%, rgba(30, 210, 204, .38), transparent 38%),
     radial-gradient(circle at 43% 62%, rgba(27, 92, 154, .32), transparent 42%),
     linear-gradient(112deg, rgba(3, 17, 27, .995), rgba(13, 61, 83, .985) 68%, rgba(5, 15, 35, .995));
-  box-shadow:
-    inset 12px 0 0 rgba(234, 210, 126, .9),
-    inset -12px 0 0 rgba(49, 221, 211, .9),
-    0 0 46px rgba(0, 0, 0, .96);
-}
-
-.ci[data-theme='aria'] .ci-panel::before {
-  border-top-color: rgba(247, 229, 163, .94);
-  border-bottom-color: rgba(96, 255, 237, .94);
-  box-shadow:
-    inset 0 11px 28px rgba(228, 194, 101, .11),
-    inset 0 -11px 30px rgba(35, 215, 206, .2);
-}
-
-.ci[data-theme='aria'] .ci-panel::after {
-  opacity: .52;
-  background: repeating-linear-gradient(
-    -12deg,
-    transparent 0 19px,
-    rgba(108, 246, 232, .13) 20px 22px,
-    transparent 23px 42px
-  );
 }
 
 .ci[data-theme='aria'] .ci-energy {
@@ -530,9 +795,10 @@
 
 .ci[data-theme='aria'] .ci-word {
   right: 2%;
-  color: rgba(107, 255, 239, .09);
+  -webkit-text-stroke-color: rgba(107, 255, 239, .18);
 }
 
+/* Her still picture fills the panel (v18). */
 .ci[data-theme='aria'] .ci-art {
   right: 0;
   bottom: 0;
@@ -551,32 +817,13 @@
   bottom: 9%;
 }
 
-.ci[data-theme='aria'] .ci-kicker {
-  border-left-color: #64f1df;
-  color: #dffdf6;
-}
-
 .ci[data-theme='aria'] .ci-name {
-  font-size: clamp(20px, 4.6vw, 45px);
-  letter-spacing: .03em;
-  text-shadow:
-    0 3px 0 rgba(2, 22, 29, .98),
-    0 0 13px rgba(244, 217, 128, .66),
-    0 0 25px rgba(45, 224, 207, .62);
+  font-size: clamp(22px, 5vw, 48px);
+  letter-spacing: .05em;
 }
 
 .ci[data-theme='aria'] .ci-sub {
   color: rgba(221, 255, 250, .82);
-}
-
-.ci[data-theme='aria'] .ci-edge-gold {
-  background: linear-gradient(180deg, transparent, #fff0b8 22%, #c6a84e 52%, #fff4c9 78%, transparent);
-  box-shadow: 0 0 16px 5px rgba(205, 171, 73, .66);
-}
-
-.ci[data-theme='aria'] .ci-edge-blue {
-  background: linear-gradient(180deg, transparent, #e7fffb 22%, #36ddcf 52%, #c9fff6 78%, transparent);
-  box-shadow: 0 0 17px 6px rgba(39, 218, 205, .78);
 }
 
 .ci[data-theme='aria'] .ci-flash {
@@ -600,34 +847,53 @@
 /* ---- LESS MOTION: still shown, for the same time, without moving (v18) ----
    `.ci[data-theme]` so these outrank every theme's own starting place
    (the hero's panel starts off to the left): standing still must mean
-   standing IN place, for all four. */
+   standing IN place, for all of them. The moving figure is not started
+   (CutIn.tsx): its first frame stands. */
 
 @media (prefers-reduced-motion: reduce) {
   .ci[data-theme] .ci-veil,
   .ci[data-theme] .ci-panel,
   .ci[data-theme] .ci-art,
+  .ci[data-theme] .ci-figure,
   .ci[data-theme] .ci-copy,
   .ci[data-theme] .ci-energy {
     animation: none;
     opacity: 1;
     transform: none;
   }
+  .ci[data-theme] .ci-word,
+  .ci[data-theme] .ci-name,
+  .ci[data-theme] .ci-name::after,
+  .ci[data-theme] .ci-copy::after {
+    animation: none;
+  }
   .ci[data-theme] .ci-edge,
-  .ci[data-theme] .ci-flash {
+  .ci[data-theme] .ci-flash,
+  .ci[data-theme] .ci-lines,
+  .ci[data-theme] .ci-rails {
     display: none;
   }
 }
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-veil,
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-panel,
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-art,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-figure,
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-copy,
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-energy {
   animation: none;
   opacity: 1;
   transform: none;
 }
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-word,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-name,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-name::after,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-copy::after {
+  animation: none;
+}
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-edge,
-:root[data-reduced-motion='on'] .ci[data-theme] .ci-flash {
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-flash,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-lines,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-rails {
   display: none;
 }
 
@@ -635,6 +901,15 @@
    The screen goes nearly black under it, the panel is ice on night, and
    the figure stands larger, facing the party. Only ever for a boss's
    signature move, so at most once a fight. */
+.ci[data-theme='boss'] {
+  --ci-a: #cfeaff;
+  --ci-b: #5aa0ff;
+  --ci-glow-a: rgba(160, 220, 255, 0.85);
+  --ci-glow-b: rgba(80, 150, 255, 0.6);
+  --ci-name-lo: #cfeaff;
+  --ci-name-edge: rgba(8, 20, 45, 0.95);
+  --ci-line: rgba(210, 236, 255, 0.95);
+}
 .ci[data-theme='boss'] .ci-veil {
   background:
     radial-gradient(circle at 34% 48%, rgba(120, 190, 255, 0.28), transparent 52%),
@@ -644,10 +919,6 @@
   background:
     radial-gradient(circle at 30% 42%, rgba(150, 210, 255, 0.5), transparent 38%),
     linear-gradient(112deg, rgba(6, 14, 30, 0.99) 0 40%, rgba(14, 40, 78, 0.98) 72%, rgba(3, 6, 14, 0.99));
-  box-shadow:
-    inset 12px 0 0 rgba(196, 232, 255, 0.86),
-    inset -12px 0 0 rgba(85, 160, 255, 0.86),
-    0 0 42px rgba(0, 0, 0, 0.95);
 }
 .ci[data-theme='boss'] .ci-energy {
   background:
@@ -670,16 +941,6 @@
 .ci[data-theme='boss'] .ci-copy {
   left: auto;
   right: 10%;
-}
-.ci[data-theme='boss'] .ci-kicker {
-  border-left-color: #9fd6ff;
-  color: #d6efff;
-}
-.ci[data-theme='boss'] .ci-name {
-  text-shadow:
-    0 3px 0 rgba(8, 20, 45, 0.95),
-    0 0 12px rgba(160, 220, 255, 0.85),
-    0 0 26px rgba(80, 150, 255, 0.6);
 }
 .ci[data-theme='boss'] .ci-flash {
   background: linear-gradient(105deg, rgba(170, 220, 255, 0.9), #fff 50%, rgba(90, 160, 255, 0.9));

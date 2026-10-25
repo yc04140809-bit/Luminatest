@@ -836,6 +836,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
+  // A move of theirs playing — its cut-in, its blows until the last lands, 《彼岸花》's bloom: the giant's
+  // plate steps back so the move is seen (作者 実機 2026-10-25: 演出が見れない).
+  const showing = cutIns.playing || !!bloom || (!!last && !isEnemyId(last.actor) && landed !== lastKey);
   const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
@@ -850,6 +853,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       data-round={state.round}
       data-broken={broken ? 'yes' : 'no'}
       data-scale={giant ? 'GIANT' : 'NORMAL'}
+      data-showing={showing ? 'yes' : 'no'}
       style={{
         ['--pb-diamond' as string]: `url(${BATTLE_UI_FRAMES.commandDiamond})`,
         ['--ui-memory' as string]: `url(${BATTLE_UI_FRAMES.memoryPanel})`,
@@ -1176,15 +1180,21 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             <small>/{focused.maxHp}</small>
           </span>
           <span className={`pb-break-label${broken ? ' on' : ''}`}>BREAK</span>
-          {broken && (
-            <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
-              防御DOWN 残り{focused.breakTurns}T
-            </span>
-          )}
-          {focused.slowTurns > 0 && (
-            <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
-              速度DOWN 残り{focused.slowTurns}
-            </span>
+          {/* Its 防御DOWN / 速度DOWN beside it, out on the field's side — never inside, where they made the
+              narrow plate as wide as their words (作者 実機 2026-10-25: 縦型ステータスバーが大きくて邪魔). */}
+          {(broken || focused.slowTurns > 0) && (
+            <div className="pb-upright-status">
+              {broken && (
+                <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
+                  防御DOWN 残り{focused.breakTurns}T
+                </span>
+              )}
+              {focused.slowTurns > 0 && (
+                <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
+                  速度DOWN 残り{focused.slowTurns}
+                </span>
+              )}
+            </div>
           )}
         </div>
       ) : (

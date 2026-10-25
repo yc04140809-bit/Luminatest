@@ -117,6 +117,39 @@ for (const motion of ['no-preference', 'reduce'] as const)
     }
   });
 
+// THE MOVING FIGURES (作者 実機 2026-10-25: のっぺりしてる → 動く立ち絵; グレイヴの顔を中央に): each one's own
+// short loop, playing silent; its face in the middle of the screen; with less motion, not played — its
+// first frame stands.
+for (const motion of ['no-preference', 'reduce'] as const)
+  test(`motion: ${motion} — each figure is the moving bust, its face in the middle of the screen`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: motion });
+    await page.goto('/?preview=battle');
+    const size = page.viewportSize()!;
+    for (const sample of SAMPLES) {
+      await openPanel(page);
+      await page.getByTestId(`debug-cutin-${sample.id}`).click();
+      await expect(page.getByTestId('cut-in')).toHaveAttribute('data-figure', 'motion');
+      const video = page.getByTestId('cut-in-video');
+      await expect(video).toHaveAttribute('src', /-cutin.*\.webm/);
+      await expect(video).toHaveAttribute('poster', /-cutin-poster.*\.webp/);
+      await page.waitForTimeout(MS[1][sample.tier] * 0.4);
+      const seen = await video.evaluate((v: HTMLVideoElement) => {
+        const r = v.getBoundingClientRect();
+        const box = v.parentElement!;
+        const fx = Number(getComputedStyle(box).getPropertyValue('--ci-fx'));
+        const fy = Number(getComputedStyle(box).getPropertyValue('--ci-fy'));
+        return { x: r.left + r.width * fx, y: r.top + r.height * fy, t: v.currentTime, paused: v.paused, muted: v.muted, loop: v.loop };
+      });
+      expect(Math.abs(seen.x - size.width / 2), `${sample.id}: its face across`).toBeLessThan(size.width * 0.06);
+      expect(seen.y, `${sample.id}: its face down`).toBeGreaterThan(size.height * 0.3);
+      expect(seen.y).toBeLessThan(size.height * 0.7);
+      expect(seen.muted && seen.loop).toBe(true);
+      if (motion === 'reduce') expect(seen.paused && seen.t === 0, `${sample.id}: still`).toBe(true);
+      else expect(!seen.paused && seen.t > 0, `${sample.id}: playing`).toBe(true);
+      await leftNothing(page);
+    }
+  });
+
 test('nothing can be pressed through a cut-in', async ({ page }) => {
   await page.goto('/?preview=battle');
   await readyToAct(page);

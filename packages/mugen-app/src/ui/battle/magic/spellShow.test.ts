@@ -54,6 +54,9 @@ describe('how each of her spells is shown', () => {
       expect(cut.sub).toBe(def.line);
       expect(cut.theme).toBe('chaos');
       expect(cut.tier).toBe(spellShowOf(def).tier);
+      // Her moving bust (作者 2026-10-25), its first frame as the picture.
+      expect(cut.motion?.video).toMatch(/kaos-cutin.*\.webm/);
+      expect(cut.art).toMatch(/kaos-cutin-poster/);
     }
   });
 

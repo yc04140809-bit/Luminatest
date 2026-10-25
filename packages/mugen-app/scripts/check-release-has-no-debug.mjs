@@ -6,7 +6,7 @@
 // JS を検索する。入口の判定はビルド時に消える作りなので、ここで見つかったら
 // その作りが壊れているということ。見つかれば失敗で終わる。
 //
-// 画像も調べる。src/dev/ だけが使う画像（カットイン見本のレヴィ・アリアなど）が
+// 画像（と動画）も調べる。src/dev/ だけが使う画像（カットイン見本のレヴィ・アリアなど）が
 // リリースの assets に出ていたら失敗。JS が消えても画像だけ出力される、という
 // ことが一度あった（vite.config.ts の withoutDebugTools で直した）。
 //
@@ -58,9 +58,9 @@ function sources(dir) {
     return /\.(ts|tsx)$/.test(name) && !/\.test\./.test(name) ? [path] : [];
   });
 }
-/** The picture files a source imports from @mugen/assets/files/. */
+/** The picture (and video — the cut-ins' moving figures) files a source imports from @mugen/assets/files/. */
 const picturesIn = (path) =>
-  [...readFileSync(path, 'utf8').matchAll(/@mugen\/assets\/files\/[^'"]*\/([^/'"]+)\.(png|webp|jpg)/g)].map(
+  [...readFileSync(path, 'utf8').matchAll(/@mugen\/assets\/files\/[^'"]*\/([^/'"]+)\.(png|webp|jpg|webm)/g)].map(
     (m) => m[1],
   );
 const SRC = join(APP, 'src');
