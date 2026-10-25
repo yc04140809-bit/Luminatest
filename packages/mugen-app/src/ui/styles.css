@@ -1107,21 +1107,42 @@ body {
 }
 .choice-grid .btn { width: 100%; }
 
-/* ── THE TITLE'S KEY VISUAL, beside the name ── */
-.title-key {
+/* ── THE TITLE PICTURE (作者 2026-10-25): whole, on black, the button under its lettering ──
+   The picture carries the name, so the lettered one is kept for screen readers only, and App Alpha
+   goes small into the corner. The picture fills the screen but for a band along the bottom (where the
+   debug build's row of doors stands — and a phone's gesture bar); the button stands just under
+   「MUGEN ZERO」 (its letters and the fine line through their foot end at about 81% of the picture's height), on the dark of her dress. */
+.screen.title.has-logo {
+  --title-pic-h: min(100vh - 56px, 56.28vw);
+  justify-content: flex-start;
+  padding-top: calc((100vh - 56px - var(--title-pic-h)) / 2 + var(--title-pic-h) * 0.83);
+  background: #000;
+}
+.title-logo {
   position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  aspect-ratio: 1;
-  max-width: 50vw;
-  object-fit: cover;
-  -webkit-mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
+  inset: 0 0 56px 0;
+  width: 100%;
+  height: calc(100% - 56px);
+  object-fit: contain;
   z-index: 0;
 }
-.screen.title.has-key { padding-left: calc(min(100vh, 50vw) + 16px); }
-.screen.title.has-key > :not(.title-key) { position: relative; z-index: 1; }
+.screen.title.has-logo > :not(.title-logo) { position: relative; z-index: 1; }
+.screen.title.has-logo .logo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.screen.title.has-logo .sub {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(6px, env(safe-area-inset-bottom));
+  margin: 0;
+  font-size: 9px;
+  opacity: 0.55;
+}
 
 /* ── 月灯りの酒場: THREE LAYERS — the room, the master, the words ──
    The master is a separate cut-out, never painted into the room. He

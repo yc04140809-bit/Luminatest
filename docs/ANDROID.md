@@ -211,7 +211,7 @@ MUGEN ZERO が普通のアプリとして起動します。
 
 | # | 画面 | 期待する見た目 |
 |---|---|---|
-| 1 | タイトル | 左にケイオスのキービジュアル、右に「MUGEN ZERO」と「はじめる」。文字が絵に重ならない |
+| 1 | タイトル | 作者のタイトル画（翼のケイオスと「MUGEN ZERO」のロゴ）が黒地に丸ごと。「はじめる」はロゴの文字の下（2026-10-25） |
 | 2 | はじめる直後 | 黒い画面に「あなたが忘れても、世界は覚えている。」 |
 | 3 | つぎへ | ケイオスの立ち絵（左）とせりふ（右）。後ろにキービジュアルが薄く見える。6行すべて立ち絵あり。ここから曲がケイオスのテーマに変わる |
 | 4 | その後 | 名前を決める画面 → 村 |
@@ -447,3 +447,11 @@ npm run android:apk -w @mugen/artifact
 - **このAPKに開発用 TIME SHIFT は入っていません。** `DEV_ADMIN_ENABLED` が false の
   ため、TimeShiftScreen はビルドから丸ごと落ちます（`旅立つ` / `まだ残る` /
   `time-shift-go` のいずれも成果物に存在しないことを確認済み）。
+
+## アプリアイコン（2026-10-25 作者支給）
+
+- 元絵：ケイオスの顔のアップ（1600×1600）。`android/app/src/main/res/mipmap-*/` の3種を各解像度で作り直した。
+  - `ic_launcher_foreground.png`（108dp）：絵全体。ランチャーは中央 72dp を丸や角丸で切り抜くので、目・口・首輪までが収まる。
+    背景色 `ic_launcher_background` は黒（`values/ic_launcher_background.xml`）。
+  - `ic_launcher.png`（角丸）・`ic_launcher_round.png`（丸）：Android 7 以前用。絵の中央 82%。
+- ビルド（GitHub Actions）はアイコンを生成し直さないので、このファイルがそのまま APK に入る。

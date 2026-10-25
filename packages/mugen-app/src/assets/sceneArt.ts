@@ -69,6 +69,17 @@ export function sceneArt(who: SceneCharacter, wanted: PartyArtState): Promise<st
   return state ? once(`${who}:${state}`, PARTY[who][state]) : Promise.resolve(null);
 }
 
+/**
+ * THE TITLE — the author's title picture (2026-10-25): Kaos between her white and black wings, the
+ * name 「MUGEN ZERO」 drawn into it. The title screen shows it whole; the other scenes that stand on the
+ * key visual (the prologue) keep the moon one below.
+ */
+export function titleLogo(): Promise<string | null> {
+  return once('title-logo', async () =>
+    (await import('@mugen/assets/files/backgrounds/title-mugen-zero-logo.webp')).default,
+  );
+}
+
 /** The title's key visual — Kaos in silhouette against the moon. */
 export function titleKeyVisual(): Promise<string | null> {
   return once('title-key-visual', async () =>

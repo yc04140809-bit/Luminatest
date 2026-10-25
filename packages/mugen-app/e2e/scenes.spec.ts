@@ -84,12 +84,31 @@ for (const size of SIZES) {
   test.describe(`${size.width}x${size.height}`, () => {
     test.use({ viewport: size });
 
-    test('the title carries the key visual, beside the name', async ({ page }) => {
+    // 作者 2026-10-25: the title is the author's picture with 「MUGEN ZERO」 drawn into it — whole on the
+    // screen, the button under its lettering (never on it), clear of the debug build's row of doors.
+    test('the title is the title picture, whole, the button under its lettering', async ({ page }) => {
       await fresh(page);
-      const key = page.getByTestId('title-key-visual');
-      expect(await picture(key)).toMatch(/^title-kaos-keyvisual.*\.webp$/);
-      await staysOutOfTheWay(page, key, size);
-      await expect(page.getByTestId('start-button')).toBeVisible();
+      const logo = page.getByTestId('title-logo');
+      expect(await picture(logo)).toMatch(/^title-mugen-zero-logo.*\.webp$/);
+      // Where the picture is drawn inside its box (contain), and where its lettering ends (81% down).
+      const drawn = await logo.evaluate((img: HTMLImageElement) => {
+        const r = img.getBoundingClientRect();
+        const k = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+        const w = img.naturalWidth * k;
+        const h = img.naturalHeight * k;
+        return { x: r.left + (r.width - w) / 2, y: r.top + (r.height - h) / 2, w, h };
+      });
+      expect(drawn.x).toBeGreaterThanOrEqual(-1);
+      expect(drawn.y).toBeGreaterThanOrEqual(-1);
+      expect(drawn.x + drawn.w).toBeLessThanOrEqual(size.width + 1);
+      expect(drawn.y + drawn.h).toBeLessThanOrEqual(size.height + 1);
+      const start = page.getByTestId('start-button');
+      await expect(start).toBeVisible();
+      const b = (await start.boundingBox())!;
+      expect(b.y, 'the button under the lettering').toBeGreaterThanOrEqual(drawn.y + drawn.h * 0.81);
+      expect(b.y + b.height).toBeLessThanOrEqual(size.height - 50);
+      // The name is still the page's heading, for whoever reads it without the picture.
+      await expect(page.getByRole('heading', { name: 'MUGEN ZERO' })).toBeAttached();
     });
 
     // 作者決定 2026-10-16: the old prologue (the world, then Kaos before the key visual)

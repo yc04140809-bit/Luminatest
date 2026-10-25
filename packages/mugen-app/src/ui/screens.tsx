@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { areaArt, type AreaId } from '../assets/areas';
-import { titleKeyVisual } from '../assets/sceneArt';
+import { titleLogo } from '../assets/sceneArt';
 import { usePicture } from './scene';
 import { RoamScene, type PickupKeeper, type RoamMemory } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
@@ -142,21 +142,20 @@ export function TitleScreen({
   onStart: () => void;
   onContinue: () => void;
 }) {
-  // THE KEY VISUAL — Kaos in silhouette against the moon, the picture
-  // the Artifact's title is built on. Beside the name rather than under
-  // it: it is a white picture and the App is dark, so words laid over
-  // it would have to fight it, and a title that has to be squinted at
-  // is a worse title than one with no picture.
-  const keyVisual = usePicture(titleKeyVisual, 'title-key-visual');
+  // THE TITLE PICTURE (作者 2026-10-25) — Kaos between her wings with 「MUGEN ZERO」 drawn into it, shown
+  // whole on black (its own ground is black, so the bars beside it vanish). The name is the picture's
+  // own lettering; the heading stays for whoever reads the page without it, out of sight. The button
+  // stands under the lettering, on the dark of her dress. Until the picture is there, the name in letters.
+  const logo = usePicture(titleLogo, 'title-logo');
   return (
-    <div className={`screen title${keyVisual ? ' has-key' : ''}`}>
-      {keyVisual && (
+    <div className={`screen title${logo ? ' has-logo' : ''}`}>
+      {logo && (
         <img
-          className="title-key"
-          src={keyVisual}
+          className="title-logo"
+          src={logo}
           alt=""
           aria-hidden="true"
-          data-testid="title-key-visual"
+          data-testid="title-logo"
         />
       )}
       <h1 className="logo">MUGEN ZERO</h1>
