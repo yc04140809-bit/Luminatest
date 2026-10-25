@@ -129,8 +129,10 @@ export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.
     );
   const p = xs.map((x) => ({ x, y })).find(clearOf);
   // Every spot asked for has something lying near it (small finds turn up anywhere): further along the
-  // same height, in small steps, the first that is clear.
-  const along = p ?? Array.from({ length: 21 }, (_, i) => ({ x: 0.3 + i * 0.03, y })).find((q) => clearOf(q));
+  // same height, in small steps, the first that is clear — across the whole floor's width; and if a find
+  // has closed the one gap the place's own things leave at that height, a step above or below it.
+  const sweep = (at: number) => Array.from({ length: 27 }, (_, i) => ({ x: 0.15 + i * 0.03, y: at })).find((q) => clearOf(q));
+  const along = p ?? [y, y - 0.03, y + 0.03, y - 0.06, y + 0.06].map(sweep).find((q) => q !== undefined);
   expect(along, `open floor at ${y}`).toBeTruthy();
   return along!;
 }

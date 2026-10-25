@@ -131,7 +131,9 @@ export function pickFind(
 /**
  * WHERE IT TURNS UP: somewhere else — out of notice from where the party
  * stands, not on a spot used lately, not on a waiting find, and not
- * where one of the place's own things is looked at from.
+ * where one of the place's own things is looked at from. Never where
+ * `hidden` says a find would sit behind the place's own doors along the
+ * bottom of the screen (作者 2026-10-25: 画面下のボタンにかかる位置には出さない).
  */
 export function pickSpot(
   spots: readonly PaintingPoint[],
@@ -139,8 +141,10 @@ export function pickSpot(
   avoid: readonly PaintingPoint[],
   recent: readonly number[],
   rnd: () => number = Math.random,
+  hidden: (p: PaintingPoint) => boolean = () => false,
 ): number | null {
   const ok = (i: number, strict: boolean) =>
+    !hidden(spots[i]) &&
     dist(spots[i], hero) > NOTICE + 0.05 &&
     avoid.every((a) => dist(spots[i], a) > SNAP) &&
     (!strict || !recent.includes(i));

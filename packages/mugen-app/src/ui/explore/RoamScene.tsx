@@ -522,6 +522,22 @@ export function RoamScene({
   const [caption, setCaption] = useState<string | null>(was?.caption ?? null);
   const captionEl = useRef<HTMLParagraphElement>(null);
   const [wordsEnd, setWordsEnd] = useState(0);
+  // The top of the doors' row along the bottom (px from the top), when the place has doors: no 「！」 goes
+  // behind them (markTipY's floor) — measured, as their row's height depends on the screen.
+  const doorsEl = useRef<HTMLDivElement>(null);
+  const [doors, setDoors] = useState<{ top: number; left: number; right: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = doorsEl.current;
+    const at = host.current?.getBoundingClientRect();
+    const r = el?.getBoundingClientRect();
+    setDoors(events && at && r && r.height > 0 ? { top: Math.floor(r.top - at.top) - 4, left: r.left - at.left - 24, right: r.right - at.left + 24 } : null);
+  }, [size, !!events]);
+  /** Whether something at this screen x would come down behind the doors' row (their width, a little either side). */
+  const underDoors = (x: number) => !!doors && x >= doors.left && x <= doors.right;
+  /** Whether a point on screen is behind that row. */
+  const behindDoors = (x: number, y: number) => underDoors(x) && y > doors!.top;
+  /** The lowest a 「！」's tip may go at this screen x (above the doors where they are). */
+  const markFloor = (x: number) => (underDoors(x) ? doors!.top : Infinity);
   useLayoutEffect(() => {
     const el = captionEl.current;
     const at = host.current?.getBoundingClientRect().top ?? 0;
@@ -626,7 +642,10 @@ export function RoamScene({
       ...points.filter((p) => !read.has(p.id)).map((p) => ground.to(p.stand ?? p.at)),
       ...current.map((f) => roam.spots[f.spot]),
     ];
-    const spot = pickSpot(roam.spots, heroNow.current, avoid, [...recentSpots.current, ...current.map((f) => f.spot)]);
+    // Never where it would sit behind the doors' row along the bottom (as nobody stands there: `lowest`).
+    const spot = pickSpot(roam.spots, heroNow.current, avoid, [...recentSpots.current, ...current.map((f) => f.spot)], Math.random, (p) =>
+      behindDoors(p.x * paintW + camX, p.y > lowest ? h : paintTop + p.y * paintH),
+    );
     if (spot === null) return;
     recentSpots.current = [...recentSpots.current, spot].slice(-SPOT_MEMORY);
     walkedForFind.current = 0;
@@ -1124,7 +1143,7 @@ export function RoamScene({
             <DiscoveryMarker
               key={`marker-${t.id}`}
               left={t.mark.x * paintW}
-              top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd)}
+              top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd, markFloor(t.mark.x * paintW + camX))}
               state={atThing?.id === t.id ? 'here' : 'near'}
               cue={t.cue}
               fresh={fresh.has(t.id)}
@@ -1134,7 +1153,7 @@ export function RoamScene({
           <PointMarker
             key={`marker-${t.id}`}
             left={t.mark.x * paintW}
-            top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd)}
+            top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd, markFloor(t.mark.x * paintW + camX))}
             state={atThing?.id === t.id ? 'here' : 'near'}
             variant={t.grade === 'RAINBOW' ? 'rainbow' : t.grade === 'RARE' ? 'rare' : 'normal'}
             testId={`walk-marker-${t.id}`}
@@ -1199,7 +1218,7 @@ export function RoamScene({
           {caption}
         </p>
       )}
-      <div className="walk-events" data-testid="walk-events">
+      <div ref={doorsEl} className="walk-events" data-testid="walk-events">
         {events}
       </div>
       {ring && (

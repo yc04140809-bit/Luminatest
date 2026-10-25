@@ -52,9 +52,14 @@ export function markHeight(h: number): number {
  */
 export const MARK_CEILING = 86;
 
-/** Where a 「！」's bottom tip goes, in px: at the thing, but never up under the words. */
-export function markTipY(paintY: number, h: number, wordsEnd = MARK_CEILING): number {
-  return Math.max(paintY, Math.max(MARK_CEILING, wordsEnd) + markHeight(h));
+/**
+ * Where a 「！」's bottom tip goes, in px: at the thing, but never up under the words — nor down behind
+ * the place's own doors along the bottom (`floor`, the top of their row: 作者 2026-10-25「画面下のボタンに
+ * かかる位置には出さない」). Where the two meet on a very low screen, the words win.
+ */
+export function markTipY(paintY: number, h: number, wordsEnd = MARK_CEILING, floor = Infinity): number {
+  const ceiling = Math.max(MARK_CEILING, wordsEnd) + markHeight(h);
+  return Math.max(Math.min(paintY, floor), ceiling);
 }
 
 /** How near, in t, the party must be before a thing ahead begins to glint. */

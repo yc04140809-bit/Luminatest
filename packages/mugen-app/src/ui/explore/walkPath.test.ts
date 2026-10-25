@@ -147,4 +147,13 @@ describe('「！」 on screen', () => {
     expect(markTipY(20, 412, 108)).toBe(108 + markHeight(412));
     expect(markTipY(20, 412, 30)).toBe(MARK_CEILING + markHeight(412));
   });
+
+  it('never down behind the doors along the bottom (作者 2026-10-25): its tip stays above their row', async () => {
+    const { MARK_CEILING, markHeight, markTipY } = await import('./walkPath');
+    // A thing low on a small screen (640×300, the doors' row from 246): the mark stands just above them.
+    expect(markTipY(280, 300, 0, 242)).toBe(242);
+    expect(markTipY(200, 300, 0, 242)).toBe(200);
+    // On a screen too low for both, the words win.
+    expect(markTipY(280, 300, 0, 60)).toBe(MARK_CEILING + markHeight(300));
+  });
 });

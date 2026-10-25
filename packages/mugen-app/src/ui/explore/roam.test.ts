@@ -121,6 +121,19 @@ describe('small finds', () => {
     }
   });
 
+  it('never turns up where it would sit behind the doors (作者 2026-10-25): a spot `hidden` says so is never chosen', () => {
+    const hero = roam.start;
+    const hidden = (p: { x: number; y: number }) => p.y > 0.7 && p.x < 0.5;
+    expect(roam.spots.some(hidden)).toBe(true);
+    for (let i = 0; i < 40; i++) {
+      const s = pickSpot(roam.spots, hero, [], [], () => i / 40, hidden);
+      if (s !== null) expect(hidden(roam.spots[s])).toBe(false);
+    }
+    // With nothing hidden, every spot may be chosen, as before.
+    const any = new Set(Array.from({ length: 80 }, (_, i) => pickSpot(roam.spots, hero, [], [], () => i / 80)));
+    expect([...any].some((s) => s !== null && hidden(roam.spots[s]))).toBe(true);
+  });
+
   it('every spot can be stood beside, on the floor', () => {
     for (const s of [{ x: 0.3, y: 0.6 }, { x: 0.79, y: 0.52 }, { x: 0.5, y: 0.88 }]) {
       const at = standBeside(s, square);
