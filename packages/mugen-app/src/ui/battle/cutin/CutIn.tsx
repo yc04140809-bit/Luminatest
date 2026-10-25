@@ -46,6 +46,8 @@ export interface CutInSpec {
   name: string;
   /** An optional line under it. */
   sub?: string;
+  /** A finisher already seen in this fight: its short cut-in (cutInTiming CUT_IN_BRIEF_MS). */
+  brief?: boolean;
 }
 
 /**
@@ -122,6 +124,7 @@ export function CutIn({ spec, ms, onDone }: { spec: CutInSpec; ms: number; onDon
       data-theme={spec.theme}
       data-tier={spec.tier}
       data-figure={spec.motion ? 'motion' : 'still'}
+      data-brief={spec.brief ? 'yes' : undefined}
       data-ms={ms}
       style={{ '--ci-ms': `${ms}ms` } as CSSProperties}
       role="presentation"
@@ -220,7 +223,7 @@ export function useCutInDirector(speed: BattleSpeed): CutInDirector {
       setCurrent({
         id: nextId.current,
         spec,
-        ms: cutInMs(spec.tier, speedNow.current),
+        ms: cutInMs(spec.tier, speedNow.current, spec.brief),
       });
     });
 

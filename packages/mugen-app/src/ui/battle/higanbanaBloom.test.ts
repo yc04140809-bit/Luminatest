@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LILIES_ALONE, LILIES_EACH, PETALS, PETAL_COUNT, higanbanaBloom } from './higanbanaBloom';
+import { LILIES_ALONE, LILIES_EACH, PETALS, PETAL_COUNT, PETAL_VARIANTS, bloomGoneMs, higanbanaBloom } from './higanbanaBloom';
 
 // 《彼岸花》's ground (作者 2026-10-24 最終仕様 §7–9): it splits under them, the lilies come up out of the cracks,
 // petals over the whole screen.
@@ -69,5 +69,34 @@ describe('the ground split, and the lilies out of it', () => {
       expect(Math.abs(p.rot)).toBeGreaterThan(200);
     }
     expect(of('front').some((p) => p.dx > 0) && of('front').some((p) => p.dx < 0)).toBe(true);
+  });
+
+  it('the author\'s sixteen petals, all of them used, and the last few drifting down after the rest (作者 2026-10-25 ブラッシュアップ §2)', () => {
+    const { petals } = higanbanaBloom([giant]);
+    // Every petal one of the sixteen; all sixteen seen; neighbours in a layer never the same one.
+    for (const p of petals) expect(Number.isInteger(p.variant) && p.variant >= 0 && p.variant < PETAL_VARIANTS).toBe(true);
+    expect(new Set(petals.map((p) => p.variant)).size).toBe(PETAL_VARIANTS);
+    for (const layer of ['back', 'rise', 'front', 'drift'] as const) {
+      const vs = petals.filter((p) => p.layer === layer).map((p) => p.variant);
+      vs.slice(1).forEach((v, i) => expect(v).not.toBe(vs[i]));
+    }
+    // 余韻: high up, falling (down, not out), slowly — the last to go.
+    const drift = petals.filter((p) => p.layer === 'drift');
+    expect(drift).toHaveLength(PETALS.drift);
+    const others = petals.filter((p) => p.layer !== 'drift');
+    for (const p of drift) {
+      expect(p.y).toBeLessThan(25);
+      expect(p.dy).toBeGreaterThan(40);
+      expect(Math.abs(p.dx)).toBeLessThan(10);
+    }
+    expect(Math.min(...drift.map((p) => p.delay + p.dur))).toBeGreaterThan(Math.max(...others.map((p) => p.delay + p.dur)));
+    // The bloom is taken away only once every petal is down, and never before SPEED DOWN has been said
+    // (640ms of dark at ×1, 380 at its floor) — nor long after.
+    for (const ms of [640, 380]) {
+      const gone = bloomGoneMs(ms, petals);
+      for (const p of petals) expect((p.delay + p.dur) * ms).toBeLessThan(gone);
+      expect(gone).toBeGreaterThanOrEqual(ms * 0.55 + 1450);
+      expect(gone).toBeLessThan(ms * 0.55 + 1450 + 400);
+    }
   });
 });

@@ -346,9 +346,13 @@ test('《彼岸花》 at three creatures: three numbers on each adding up to wha
     await expect(foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]')).toHaveCount(3, { timeout: 10_000 });
     const nums = (await foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]').allTextContents()).map(Number);
     expect(nums.reduce((a, b) => a + b, 0)).toBe(before[i] - (await hpOf(id)));
-    // 仕上げ §7–10: the first two cuts' flow away, small; the third's stays, in front.
+    // 仕上げ §7–10: the first two cuts' flow away, small; the third's stays, in front. With several struck
+    // (ブラッシュアップ §3) the first two are a quick faint flick, and the third reads far the largest.
     await expect(foe.getByTestId('pb-float-cut').first()).toHaveClass(/\bflow\b/);
+    await expect(foe.getByTestId('pb-float-cut').first()).toHaveClass(/\bmany\b/);
     await expect(foe.getByTestId('pb-float')).toHaveClass(/\bstay\b/);
+    const px = (l: ReturnType<typeof foe.getByTestId>) => l.evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
+    expect(await px(foe.getByTestId('pb-float'))).toBeGreaterThan((await px(foe.getByTestId('pb-float-cut').first())) * 1.5);
     await expect(foe.getByTestId('pb-float-slow')).toHaveText('SPEED DOWN');
   }
   await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '9');
@@ -791,6 +795,34 @@ test('《彼岸花》 breaking it: 「BREAK!!」 only after the dark and the lil
   expect(t.break, '「BREAK!!」 after the dark, never over it').toBeGreaterThanOrEqual(t.lit);
   expect(t.free ?? Infinity, 'no command before 「BREAK!!」').toBeGreaterThanOrEqual(t.break);
   await expect(page.getByTestId('pb-break-badge')).toBeVisible();
+});
+
+// ブラッシュアップ §4 (作者 2026-10-25: 初回は魅せる、以降はテンポ重視): 《彼岸花》's cut-in is the whole one the first
+// time in a fight, the short one after that.
+test('《彼岸花》 twice in one fight: the whole cut-in the first time, the short one the second', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.goto('/?preview=party&higanbana=1&footing=99');
+  const seen: { ms: string | null; brief: string | null }[] = [];
+  for (let turn = 0; turn < 40 && seen.length < 2; turn++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 20_000 });
+    if ((await screen(page).getAttribute('data-actor')) === 'hero') {
+      await page.getByTestId('pb-cmd-skills').click();
+      if (await page.getByTestId('pb-cmd-skill-higanbana').isEnabled()) {
+        await page.getByTestId('pb-cmd-skill-higanbana').click();
+        const cut = page.getByTestId('cut-in');
+        await expect(cut).toBeVisible();
+        seen.push({ ms: await cut.getAttribute('data-ms'), brief: await cut.getAttribute('data-brief') });
+        await expect(cut).toHaveCount(0, { timeout: 5_000 });
+        continue;
+      }
+      await page.getByTestId('pb-cmd-skills').click();
+    }
+    await page.getByTestId('pb-cmd-defend').click();
+  }
+  expect(seen).toEqual([
+    { ms: '2500', brief: null },
+    { ms: '1500', brief: 'yes' },
+  ]);
 });
 
 // Their skills' cut-ins (作者 実機 2026-10-23 — cutin/skillCutIn.ts): グレイヴ's 重撃・豪断 with its name

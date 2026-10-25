@@ -12,14 +12,15 @@
  *   heroCrescent    主人公: the red-black crescent cut (零閃・天衝, 《瞬断》, the counter)
  *   heroTwelve      主人公: twelve blades opening from one point (多方向斬撃 — a sample for now)
  *   heroHiganbana   主人公: the red spider lily opening (彼岸花 — a sample for now)
- *   heroPetal       主人公: one red petal (彼岸花's petals over the screen — 作者 2026-10-24, many of it, each its own size, turn and way)
+ *   heroPetals      主人公: the author's sixteen red petals in one picture, 4×4 (彼岸花's petals over the screen — 作者 2026-10-25;
+ *                   each petal shows one of them, its own size, turn and way)
  *   kaosWings       ケイオス: the twin wings, black-gold and silver-white, behind her (its edge faded out)
  */
 import graveImpact from '@mugen/assets/files/effects/grave-heavy-impact.webp';
 import heroCrescent from '@mugen/assets/files/effects/hero-redmoon-crescent.webp';
 import heroTwelve from '@mugen/assets/files/effects/hero-twelve-blades.webp';
 import heroHiganbana from '@mugen/assets/files/effects/hero-higanbana.webp';
-import heroPetal from '@mugen/assets/files/effects/hero-higanbana-petal.webp';
+import heroPetals from '@mugen/assets/files/effects/hero-higanbana-petals.webp';
 import kaosWings from '@mugen/assets/files/effects/kaos-twin-wings.webp';
 
 export const SPECIAL_FX_ART = {
@@ -27,7 +28,7 @@ export const SPECIAL_FX_ART = {
   heroCrescent,
   heroTwelve,
   heroHiganbana,
-  heroPetal,
+  heroPetals,
   kaosWings,
 } as const;
 

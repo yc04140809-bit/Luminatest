@@ -55,7 +55,7 @@ import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
 import { splitDamage } from './multiHit';
-import { higanbanaBloom, type BloomSpot, type Petal } from './higanbanaBloom';
+import { bloomGoneMs, higanbanaBloom, type BloomSpot, type Petal } from './higanbanaBloom';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -341,7 +341,20 @@ function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['l
     glint.className = 'pb-glint';
     glint.setAttribute('data-testid', 'pb-glint');
     Object.assign(glint.style, { left: `${Math.round(to)}px`, top: `${Math.round(chest)}px` });
-    fig.append(line, glint);
+    // And his shadow there for a blink (作者 2026-10-25 ブラッシュアップ §1: 一瞬だけ敵前に影): his own drawing
+    // as a dark shape edged in red, where he will stand, smeared from where he came — gone as he is seen.
+    const ghost = document.createElement('img');
+    ghost.className = 'pb-ghost';
+    ghost.setAttribute('data-testid', 'pb-ghost');
+    ghost.alt = '';
+    ghost.src = (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src;
+    Object.assign(ghost.style, {
+      left: `${Math.round(h.left - box.left + dx)}px`,
+      top: `${Math.round(h.top - box.top + dy)}px`,
+      width: `${Math.round(h.width)}px`,
+      height: `${Math.round(h.height)}px`,
+    });
+    fig.append(line, glint, ghost);
     const gone = [
       line.animate(
         [
@@ -359,9 +372,17 @@ function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['l
         ],
         timing,
       ),
+      ghost.animate(
+        [
+          { transform: 'translateX(14%) scaleX(1.18)', opacity: 0 },
+          { transform: 'translateX(3%) scaleX(1.05)', opacity: 0.6, offset: 0.4 },
+          { transform: 'translateX(0) scaleX(1)', opacity: 0 },
+        ],
+        { delay: Math.round((lunge.trace.at + lunge.trace.ms * 0.35) * speed), duration: Math.round(lunge.trace.ms * 0.75 * speed), fill: 'both' as const },
+      ),
     ];
     for (const [i, a] of gone.entries()) {
-      const el = i === 0 ? line : glint;
+      const el = [line, glint, ghost][i];
       a.finished.then(() => el.remove(), () => el.remove());
     }
   }
@@ -385,12 +406,14 @@ function Wait({ left }: { left: number }) {
 export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation, newSkills, onSkillUsed, unlocked }: PartyBattleProps) {
   const dice = rng ?? Math.random;
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
-  // His finisher's lily, ready before it is wanted (a first decode mid-move is a dropped frame).
+  // His finisher's lily and petals, ready before they are wanted (a first decode mid-move is a dropped frame).
   useEffect(() => {
     if (!members.some((m) => m.skills?.some((k) => k.finisher))) return;
-    const lily = new Image();
-    lily.src = SPECIAL_FX_ART.heroHiganbana;
-    lily.decode?.().catch(() => undefined);
+    for (const src of [SPECIAL_FX_ART.heroHiganbana, SPECIAL_FX_ART.heroPetals]) {
+      const pic = new Image();
+      pic.src = src;
+      pic.decode?.().catch(() => undefined);
+    }
   }, [members]);
   const [auto, setAuto] = useState(false);
   const [fast, setFast] = useState(false);
@@ -473,6 +496,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // then the blow; a spell not listed, an attack go straight on as before. Their skills the same way
   // (cutin/skillCutIn.ts).
   const cutIns = useCutInDirector(fast ? 2 : 1);
+  // The finishers whose cut-in this fight has shown once (作者 2026-10-25 ブラッシュアップ §4): the first is
+  // the whole one, every one after it the short one.
+  const finishersSeen = useRef(new Set<string>());
   const act = (action: PartyAction) => {
     if (cutIns.playing) return;
     const next = partyAct(state, action, dice);
@@ -490,8 +516,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         : action.kind === 'TECH'
           ? acting?.techniques?.find((t) => t.id === action.techId)
           : undefined;
-    const cut = spell ? spellCutIn(spell) : skillCutIn(skill);
-    if (cut) {
+    const found = spell ? spellCutIn(spell) : skillCutIn(skill);
+    if (found) {
+      const again = found.tier === 'FINISHER' && finishersSeen.current.has(found.name);
+      if (found.tier === 'FINISHER') finishersSeen.current.add(found.name);
+      const cut = again ? { ...found, brief: true } : found;
       setMenu('COMMANDS');
       setAiming(null);
       setPending(null);
@@ -571,7 +600,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         };
         later(from, () => setBloom(bloom));
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
-        later(from + bloom.at + Math.round(bloom.ms * 0.55) + 1450, () => setBloom((b) => (b?.key === bloom.key ? null : b)));
+        later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
       // The characters' own effects: each one's sounds at its landing — once for a moment, however many it falls on.
       const heard = new Set<number>();
@@ -814,21 +843,22 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const cutCount = last?.spread ? Math.max(1, ...last.spread.map((x) => x.hits.length)) : parts.length;
   const slowedOn = (id: string) => !!last && (last.spread ? !!last.spread.find((x) => x.target === id)?.slowed : !!last.slowed && last.target === id);
   const bloomArt = useMemo(() => (bloom ? higanbanaBloom(bloom.spots) : null), [bloom]);
-  /** 《彼岸花》's petals of one layer, each the one picture at its own size, way, turn and time. */
+  /** 《彼岸花》's petals of one layer, each one of the author's sixteen at its own size, way, turn and time. */
   const petalsOf = (layer: Petal['layer']) =>
     bloomArt?.petals
       .filter((pt) => pt.layer === layer)
       .map((pt, i) => (
-        <img
+        // One of the author's sixteen petals (作者 2026-10-25): a cell of the one 4×4 picture.
+        <i
           key={`${layer}${i}`}
           className={`pb-petal ${layer}`}
           data-testid="pb-petal"
           data-layer={layer}
-          src={SPECIAL_FX_ART.heroPetal}
-          alt=""
+          data-variant={pt.variant}
           style={{
             left: `${pt.x}%`,
             top: `${pt.y}%`,
+            backgroundPosition: `${(pt.variant % 4) * (100 / 3)}% ${Math.floor(pt.variant / 4) * (100 / 3)}%`,
             ['--psz' as string]: `${pt.size}px`,
             ['--px' as string]: `${pt.dx}vw`,
             ['--py' as string]: `${pt.dy}vh`,
@@ -927,7 +957,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   return (
                     <span
                       key={`${lastKey}-${i}`}
-                      className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? (fx?.amounts ? ' stay' : '') : fx?.amounts ? ' cut flow' : ' cut'}`}
+                      // Several struck (作者 2026-10-25 ブラッシュアップ §3: 9個出ると重なって見づらい): the first cuts'
+                      // numbers smaller, fainter and quicker still — the last cut's is the one to read.
+                      className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? (fx?.amounts ? ' stay' : '') : fx?.amounts ? ` cut flow${many ? ' many' : ''}` : ' cut'}`}
                       data-testid={final ? 'pb-float' : 'pb-float-cut'}
                       data-tier={fx?.number ?? 'plain'}
                       data-cut={mine.length > 1 ? i + 1 : undefined}
@@ -1122,6 +1154,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             ['--bloom-ms' as string]: `${bloom.ms}ms`,
             ['--bx' as string]: `${bloom.spots[0].x}%`,
             ['--by' as string]: `${bloom.spots[0].y}%`,
+            ['--petals' as string]: `url(${SPECIAL_FX_ART.heroPetals})`,
           }}
         >
           <span className="pb-bloom-dark" />
@@ -1150,6 +1183,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           <span className="pb-bloom-veil" />
           {petalsOf('rise')}
           {petalsOf('front')}
+          {petalsOf('drift')}
         </span>
       )}
 

@@ -35,9 +35,13 @@ export interface Lily {
 export interface Petal {
   /**
    * Its layer (作者 2026-10-24 仕上げ §4–5): 'back' small, faint, slow, many — far behind; 'rise' a few off
-   * the lilies first, floating up; 'front' big, clear, fast, turning hard — across the screen near the camera.
+   * the lilies first, floating up; 'front' big, clear, fast, turning hard — across the screen near the camera;
+   * 'drift' (作者 2026-10-25 ブラッシュアップ §2: 舞って終わる余韻) a few last ones, falling slowly and swaying
+   * after the rest are gone.
    */
-  layer: 'back' | 'rise' | 'front';
+  layer: 'back' | 'rise' | 'front' | 'drift';
+  /** Which of the author's sixteen petals (作者 2026-10-25 — hero-higanbana-petals.webp, 4×4, row by row). */
+  variant: number;
   /** Where it starts (% of the screen). */
   x: number;
   y: number;
@@ -61,12 +65,23 @@ export interface Bloom {
   petals: Petal[];
 }
 
-/** How many petals of each layer (one picture each — 44 in all, a light load on a phone). */
-export const PETALS = { back: 30, rise: 6, front: 8 } as const;
-export const PETAL_COUNT = PETALS.back + PETALS.rise + PETALS.front;
+/** How many petals of each layer (one picture each — 50 in all, a light load on a phone). */
+export const PETALS = { back: 30, rise: 6, front: 8, drift: 6 } as const;
+export const PETAL_COUNT = PETALS.back + PETALS.rise + PETALS.front + PETALS.drift;
+/** The author's petals, one picture of sixteen (4×4). */
+export const PETAL_VARIANTS = 16;
 /** Lilies under each creature: one creature, more of them; several, fewer each. */
 export const LILIES_ALONE = 5;
 export const LILIES_EACH = 3;
+
+/**
+ * When the bloom is taken away, from its dark's start (ms): once SPEED DOWN has been said (at 55% of the
+ * dark, for 1450ms) and the last petal is down — the slow last few (余韻) included.
+ */
+export function bloomGoneMs(darkMs: number, petals: readonly Petal[]): number {
+  const lastPetal = Math.max(0, ...petals.map((p) => p.delay + p.dur));
+  return Math.round(Math.max(darkMs * 0.55 + 1450, darkMs * lastPetal + 100));
+}
 
 function jitter(a: number, b: number, salt: number): number {
   const s = Math.sin(a * 127.1 + b * 311.7 + salt * 74.7) * 43758.5453;
@@ -124,6 +139,7 @@ export function higanbanaBloom(spots: readonly BloomSpot[]): Bloom {
     const from = lily(i);
     petals.push({
       layer: 'rise',
+      variant: (i * 5 + 1) % PETAL_VARIANTS,
       x: from.x,
       y: r2(from.y - 8),
       dx: r2(5 * jitter(i, 0, 14)),
@@ -142,6 +158,7 @@ export function higanbanaBloom(spots: readonly BloomSpot[]): Bloom {
     const far = 30 + 45 * Math.abs(jitter(i, 2, 9));
     petals.push({
       layer: 'back',
+      variant: (i * 7 + 3) % PETAL_VARIANTS,
       x: from.x,
       y: r2(from.y - 6),
       dx: r2(Math.cos(angle) * far),
@@ -159,6 +176,7 @@ export function higanbanaBloom(spots: readonly BloomSpot[]): Bloom {
     const fromLeft = i % 2 === 0;
     petals.push({
       layer: 'front',
+      variant: (i * 3 + 2) % PETAL_VARIANTS,
       x: fromLeft ? -12 : 112,
       y: r2(12 + 62 * Math.abs(jitter(i, 0, 22))),
       dx: r2((fromLeft ? 1 : -1) * (118 + 22 * Math.abs(jitter(i, 1, 23)))),
@@ -169,6 +187,24 @@ export function higanbanaBloom(spots: readonly BloomSpot[]): Bloom {
       alpha: 1,
       delay: r2(0.36 + 0.03 * i),
       dur: r2(0.7 + 0.15 * Math.abs(jitter(i, 6, 28))),
+    });
+  }
+  // The last few (余韻): high over the field, falling slowly and swaying as they go, after the rest — so
+  // the move ends on petals drifting down, not on an empty screen.
+  for (let i = 0; i < PETALS.drift; i++) {
+    petals.push({
+      layer: 'drift',
+      variant: (i * 11 + 6) % PETAL_VARIANTS,
+      x: r2(10 + (80 * (i + 0.5)) / PETALS.drift + 5 * jitter(i, 0, 29)),
+      y: r2(4 + 14 * Math.abs(jitter(i, 1, 30))),
+      dx: r2(6 * jitter(i, 2, 31)),
+      dy: r2(48 + 18 * Math.abs(jitter(i, 3, 32))),
+      rot0: Math.round(180 * jitter(i, 4, 33)),
+      rot: Math.round(220 * jitter(i, 5, 34)),
+      size: Math.round(34 + 18 * Math.abs(jitter(i, 6, 35))),
+      alpha: 0.9,
+      delay: r2(0.75 + 0.08 * i),
+      dur: r2(1.7 + 0.25 * Math.abs(jitter(i, 7, 36))),
     });
   }
   return { cracks, lilies, petals };

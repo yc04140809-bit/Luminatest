@@ -37,12 +37,21 @@ export const CUT_IN_FLOOR_MS: Record<CutInTier, number> = {
 export const NAME_SHOWN_FROM = 0.17;
 export const NAME_SHOWN_UNTIL = 0.88;
 
-/** A cut-in's length at this speed. */
-export function cutInMs(tier: CutInTier, speed: BattleSpeed): number {
+/**
+ * A finisher already seen in this fight (作者 2026-10-25 ブラッシュアップ §4: 初回は魅せる、以降はテンポ重視):
+ * its short cut-in — the same cut-in, everything in it quicker, the name still whole for over a second
+ * at ×1 and never under its floor at ×2.
+ */
+export const CUT_IN_BRIEF_MS = 1500;
+export const CUT_IN_BRIEF_FLOOR_MS = 1200;
+
+/** A cut-in's length at this speed (`brief`: a finisher seen already in this fight). */
+export function cutInMs(tier: CutInTier, speed: BattleSpeed, brief = false): number {
+  if (brief && tier === 'FINISHER') return Math.max(CUT_IN_BRIEF_FLOOR_MS, Math.round(CUT_IN_BRIEF_MS / speed));
   return Math.max(CUT_IN_FLOOR_MS[tier], Math.round(CUT_IN_MS[tier] / speed));
 }
 
 /** How long its name can be read, whole and still, at this speed. */
-export function nameReadableMs(tier: CutInTier, speed: BattleSpeed): number {
-  return Math.round(cutInMs(tier, speed) * (NAME_SHOWN_UNTIL - NAME_SHOWN_FROM));
+export function nameReadableMs(tier: CutInTier, speed: BattleSpeed, brief = false): number {
+  return Math.round(cutInMs(tier, speed, brief) * (NAME_SHOWN_UNTIL - NAME_SHOWN_FROM));
 }
