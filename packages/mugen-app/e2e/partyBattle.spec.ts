@@ -760,6 +760,39 @@ test('a giant\'s plate stands upright down the left edge: slim, half the height,
   await expect(page.getByTestId('pb-enemy-plate')).not.toHaveAttribute('data-layout', 'upright');
 });
 
+// 《彼岸花》 breaking it (作者 実機 2026-10-25: BREAKの表示が早すぎて彼岸花のエフェクトが見れない): the cuts, the
+// ground split, the dark and the lilies — and only once the dark has lifted, 「BREAK!!」. No command until then.
+test('《彼岸花》 breaking it: 「BREAK!!」 only after the dark and the lilies, and no command before it', async ({ page }) => {
+  await page.goto('/?preview=party&higanbana=1&footing=3');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'hero');
+  await page.evaluate(() => {
+    const w = window as unknown as { __hb: Record<string, number> };
+    w.__hb = {};
+    const t0 = performance.now();
+    const tick = () => {
+      const now = Math.round(performance.now() - t0);
+      const dark = document.querySelector('.pb-bloom-dark');
+      if (dark && Number(getComputedStyle(dark).opacity) > 0.5) w.__hb.dark ??= now;
+      if (w.__hb.dark !== undefined && w.__hb.lit === undefined && (!dark || Number(getComputedStyle(dark).opacity) < 0.5)) w.__hb.lit = now;
+      if (document.querySelector('[data-testid="pb-break-flash"]')) w.__hb.break ??= now;
+      if (document.querySelector('[data-testid="pb-commands"]')?.getAttribute('data-locked') === 'no' && w.__hb.dark !== undefined) w.__hb.free ??= now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-higanbana').click();
+  await expect(page.getByTestId('pb-break-flash')).toHaveCount(1, { timeout: 15_000 });
+  const t = await page.evaluate(() => (window as unknown as { __hb: Record<string, number> }).__hb);
+  expect(t.dark, 'the dark came').toBeDefined();
+  expect(t.lit, 'and lifted').toBeDefined();
+  expect(t.break, '「BREAK!!」 after the dark, never over it').toBeGreaterThanOrEqual(t.lit);
+  expect(t.free ?? Infinity, 'no command before 「BREAK!!」').toBeGreaterThanOrEqual(t.break);
+  await expect(page.getByTestId('pb-break-badge')).toBeVisible();
+});
+
 // Their skills' cut-ins (作者 実機 2026-10-23 — cutin/skillCutIn.ts): グレイヴ's 重撃・豪断 with its name
 // first, the commands held; then the blow.
 test('グレイヴ\'s 重撃・豪断: its cut-in with its name first, the commands held — then the blow', async ({ page }) => {

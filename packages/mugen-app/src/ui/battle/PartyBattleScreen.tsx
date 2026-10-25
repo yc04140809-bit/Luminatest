@@ -593,20 +593,27 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           });
         });
       }
+      // The BREAK: its sound, the shake, the camera onto the one broken, 「BREAK!!」, and the creature reels.
+      const playBreak = () => {
+        playBreakSfx();
+        void screenShake('medium', at);
+        // Onto the one broken — unless a TRACK is already on it (which this would cut short).
+        if (p.camera?.[0]?.kind !== 'TRACK') void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
+        setBreakAt(ctx.targetAt);
+        setBreakShown(lastKey);
+        later(BREAK_REEL_MS * speed, () => setShaking(true));
+        later((BREAK_REEL_MS + SHAKE_MS) * speed, () => setShaking(false));
+      };
+      // 《彼岸花》's comes after its bloom (partyFx breakAt): the last cut lands as a cut first.
+      const breakLater = breaks && p.breakAt !== undefined;
+      if (breakLater) later(when(p.breakAt!) + p.hitStop * speed, playBreak);
       later(when(p.impact), () => {
         count?.land();
         for (const id of p.sfx) playSfx(id);
-        void hitStop((breaks ? BREAK_HIT_STOP_MS : p.hitStop) * speed, at).then(() => {
+        void hitStop((breaks && !breakLater ? BREAK_HIT_STOP_MS : p.hitStop) * speed, at).then(() => {
           if (!at.isConnected) return;
-          if (breaks) {
-            playBreakSfx();
-            void screenShake('medium', at);
-            // Onto the one broken — unless a TRACK is already on it (which this would cut short).
-            if (p.camera?.[0]?.kind !== 'TRACK') void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
-            setBreakAt(ctx.targetAt);
-            setBreakShown(lastKey);
-            later(BREAK_REEL_MS * speed, () => setShaking(true));
-            later((BREAK_REEL_MS + SHAKE_MS) * speed, () => setShaking(false));
+          if (breaks && !breakLater) {
+            playBreak();
             return;
           }
           if (p.after) void camera(p.after, at, p.tempo * speed);
@@ -835,7 +842,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       ));
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
-  const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
+  // 《彼岸花》's BREAK still to come (after its bloom — partyFx breakAt): no command until it is seen, or the
+  // next move would cut it off (作者 実機 2026-10-25: BREAKの表示が早すぎて彼岸花のエフェクトが見れない).
+  const breakDue = !!last?.broke && fx?.breakAt !== undefined && breakShown !== lastKey;
+  const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing && !breakDue;
   // A move of theirs playing — its cut-in, its blows until the last lands, 《彼岸花》's bloom: the giant's
   // plate steps back so the move is seen (作者 実機 2026-10-25: 演出が見れない).
   const showing = cutIns.playing || !!bloom || (!!last && !isEnemyId(last.actor) && landed !== lastKey);

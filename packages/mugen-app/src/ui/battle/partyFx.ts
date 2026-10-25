@@ -103,6 +103,12 @@ export interface BeatFx {
   crack?: { at: number };
   /** 《彼岸花》: the world goes still (dark) from `at` for `ms`, and red spider lilies open out of the cracks. */
   bloom?: { at: number; ms: number };
+  /**
+   * When its BREAK is played, if not at the blow (作者 実機 2026-10-25: BREAKの表示が早すぎて彼岸花のエフェクトが
+   * 見れない): 《彼岸花》 breaking them plays its BREAK once the bloom's dark has lifted and the lilies are open
+   * — the last cut lands as a cut (its hold, jolt and reeling), and the next turn waits the longer.
+   */
+  breakAt?: number;
   /** A move at all of them (《彼岸花》): the others struck besides `flash.on` — the last blow's flash and reeling on each. */
   also?: readonly string[];
 }
@@ -503,6 +509,8 @@ function higanbanaFx(
   const bloomAt = impact + Math.round(atLeast(h.crack, 100));
   const back = bloomAt + Math.round(dark * 0.7);
   const home = Math.round(atLeast(LUNGE.higanbana.home, LUNGE_FLOOR_MS));
+  // Its BREAK after the bloom, never over it: the dark lifted, the lilies open.
+  const breakAt = beat.broke ? bloomAt + dark : undefined;
   return {
     tempo,
     camera: [kick(lead)],
@@ -512,7 +520,7 @@ function higanbanaFx(
     flash: { kind: 'heavy', on: beat.target },
     hitStop: HIT_STOPS.higanbana,
     sfx: ['battle_finisher_hit', 'battle_hit_heavy'],
-    shake: beat.broke ? undefined : 'medium',
+    shake: 'medium',
     reel: reel(8),
     number: numberTier(beat, ctx, true),
     amounts: all,
@@ -520,7 +528,9 @@ function higanbanaFx(
     crack: { at: impact },
     bloom: { at: bloomAt, ms: dark },
     also: struck.filter((x) => x.target !== beat.target && x.hits.length > 0).map((x) => x.target),
-    // The next turn waits for him to be home (its own wait, 450–700ms, already counted).
-    hold: back + home + 250 - 450,
+    ...(breakAt !== undefined ? { breakAt } : {}),
+    // The next turn waits for him to be home (its own wait, 450–700ms, already counted) — and, when it
+    // breaks them, as much longer as its BREAK comes later than a blow's would.
+    hold: back + home + 250 - 450 + (breakAt !== undefined ? breakAt - impact : 0),
   };
 }

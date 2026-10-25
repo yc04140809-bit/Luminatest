@@ -221,6 +221,24 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(HIGANBANA_FX.breath).toBeGreaterThan(0);
   });
 
+  it('《彼岸花》 breaking them (作者 実機 2026-10-25: BREAKが早すぎて見れない): its BREAK after the bloom — the last cut lands as a cut, and the next turn waits the longer', () => {
+    for (const speed of [1, 0.5]) {
+      const plain = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 24, hits: [7, 7, 10] }), ctx({ skillId: 'higanbana', speed }));
+      const broke = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 24, hits: [7, 7, 10], broke: true }), ctx({ skillId: 'higanbana', speed }));
+      expect(plain.breakAt).toBeUndefined();
+      // Not at the blow, nor in the dark: once the dark has lifted and the lilies are open.
+      expect(broke.breakAt).toBe(broke.bloom!.at + broke.bloom!.ms);
+      // The last cut still lands as a cut: its jolt and reeling.
+      expect(broke.shake).toBe('medium');
+      expect(broke.reel).toEqual(plain.reel);
+      // Everything else the same; the next turn waits as much longer as the BREAK comes later.
+      expect(broke.bloom).toEqual(plain.bloom);
+      expect(broke.hold! - plain.hold!).toBe(broke.breakAt! - broke.impact);
+    }
+    // Any other move breaks them at its blow, as before.
+    expect(beatFx(beat({ broke: true }), ctx()).breakAt).toBeUndefined();
+  });
+
   it('《彼岸花》 at all of them: each cut on every one (the one aimed at first), the others flashed and reeling too; one that fell takes no more', () => {
     const spread = [
       { target: 'enemy-2', hits: [7, 7, 10], broke: false, slowed: true },
