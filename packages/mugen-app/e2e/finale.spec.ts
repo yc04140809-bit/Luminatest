@@ -100,8 +100,21 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
   const next = page.getByTestId('finale-next');
   let last = '';
   let clickedAt = 0;
+  let movedAt = Date.now();
   for (let i = 0; i < 600; i++) {
     if (!(await scene.isVisible().catch(() => false))) break;
+    // Stuck on one line (seen in a full run, 1 in 4, never alone — 2026-10-26): say where and how, at once,
+    // instead of spinning until the test's own time runs out with nothing to go on.
+    if (Date.now() - movedAt > 45_000) {
+      const how = await page
+        .evaluate(() => {
+          const s = document.querySelector('[data-testid="finale-scene"]');
+          const b = document.querySelector<HTMLButtonElement>('[data-testid="finale-next"]');
+          return { scene: s?.getAttribute('data-scene'), at: s?.getAttribute('data-at'), next: b ? (b.disabled ? 'disabled' : 'enabled') : 'none', pause: !!document.querySelector('[data-testid="finale-pause"]'), url: location.href };
+        })
+        .catch((e) => ({ error: String(e) }));
+      throw new Error(`readWhile: no new line for 45s after ${last} — ${JSON.stringify(how)}`);
+    }
     // Read with a short wait: the scene may be gone the moment after it was seen (the last line
     // taken, the pause or a fight next), and an attribute read would otherwise wait for it for good.
     const id = (await scene.getAttribute('data-scene', { timeout: 1_000 }).catch(() => null)) ?? '';
@@ -119,6 +132,7 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
       continue;
     }
     last = key;
+    movedAt = Date.now();
     if (seen[seen.length - 1] !== id) seen.push(id);
     words.push((await page.getByTestId('finale-line').textContent({ timeout: 1_000 }).catch(() => null)) ?? '');
     clickedAt = Date.now();

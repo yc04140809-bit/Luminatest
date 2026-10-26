@@ -152,6 +152,16 @@ const ENEMY_TURN_MS = 700;
 const AUTO_TURN_MS = 450;
 /** A breath more after a BREAK, for 「BREAK!!」 to be seen. */
 const BREAK_PAUSE_MS = 700;
+/**
+ * THE END OF A FIGHT, SEEN (作者 2026-10-26 戦闘終了演出: 倒した瞬間に画面が切り替わる → 決まる→倒れる→一呼吸→
+ * リザルト). The fight is decided the moment the last blow is dealt, but 「勝利！」 waits: for the move to play
+ * out whole (its blows, its BREAK, 《彼岸花》's lilies and petals), for the one beaten to fall, and then a
+ * breath — `fall`, from the last blow landing (the fall itself, 700ms, and a breath after it); `bloom`, from
+ * 《彼岸花》's petals being down (they were the breath). Never longer than `most` whatever happens.
+ */
+const RESULT_AFTER_MS = { fall: 1000, bloom: 450, most: 9000 } as const;
+/** At ×2 the breath is shorter, never gone: never a cut straight to the result. */
+const RESULT_FAST_SHARE = 0.7;
 const SHAKE_MS = 450;
 /** COMBO is shown from this many (one blow is not a combo). */
 const COMBO_SHOWN_FROM = 2;
@@ -376,10 +386,11 @@ function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['l
       ghost.animate(
         [
           { transform: 'translateX(14%) scaleX(1.18)', opacity: 0 },
-          { transform: 'translateX(3%) scaleX(1.05)', opacity: 0.6, offset: 0.4 },
+          { transform: 'translateX(3%) scaleX(1.05)', opacity: 0.72, offset: 0.4 },
           { transform: 'translateX(0) scaleX(1)', opacity: 0 },
         ],
-        { delay: Math.round((lunge.trace.at + lunge.trace.ms * 0.35) * speed), duration: Math.round(lunge.trace.ms * 0.75 * speed), fill: 'both' as const },
+        // A little stronger and longer (作者 2026-10-26 §9: 弱すぎる場合のみ少し強めて — before a golden giant it hardly read).
+        { delay: Math.round((lunge.trace.at + lunge.trace.ms * 0.3) * speed), duration: Math.round(lunge.trace.ms * 0.9 * speed), fill: 'both' as const },
       ),
     ];
     for (const [i, a] of gone.entries()) {
@@ -443,6 +454,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
    * from the blow, and the hold paused it — the number came after 「BREAK!!」, under the glass).
    */
   const [landed, setLanded] = useState(-1);
+  /** The creatures seen to fall: one beaten is drawn down only once the blow that beat it has landed. */
+  const [fallen, setFallen] = useState<ReadonlySet<string>>(() => new Set());
+  /** 「勝利！」／「敗北……」 shown — a while after the fight was decided (RESULT_AFTER_MS). */
+  const [resultShown, setResultShown] = useState(false);
   /** How many of the beat's blows have landed (a move of several cuts shows a number at each). */
   const [cutsIn, setCutsIn] = useState<{ key: number; n: number }>({ key: -1, n: 0 });
   const [bg, setBg] = useState<string | null>(null);
@@ -656,6 +671,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         });
       });
     };
+    // Those this beat has beaten (and any before), drawn down as its blow lands.
+    const fall = () => setFallen(new Set(state.enemies.filter((e) => e.down).map((e) => e.id)));
     const climbs = after.hits > before.hits && !isEnemyId(beat.actor);
     const counted = beat.counter !== undefined;
     const key = lastKey;
@@ -670,6 +687,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       },
       land: () => {
         setLanded(key);
+        fall();
         setCutsIn({ key, n: Number.MAX_SAFE_INTEGER });
         // A step of COMBO's worth reached (10, 20, 30, 40): a small sound with its glow.
         if (climbs && Math.min(4, Math.floor(after.hits / COMBO_STEP)) > Math.min(4, Math.floor(before.hits / COMBO_STEP))) playSfx('battle_buff');
@@ -677,7 +695,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         else if (after !== before) setCombo(counted ? NO_COMBO : after);
       },
     });
-    if (counted) play(counterFx(beat, ctx), false, { land: () => setCombo(after) });
+    if (counted)
+      play(counterFx(beat, ctx), false, {
+        land: () => {
+          setCombo(after);
+          fall();
+        },
+      });
     return () => timers.forEach((t) => window.clearTimeout(t));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKeyOf(state)]);
@@ -710,9 +734,6 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, auto, fast]);
 
-  useEffect(() => {
-    if (state.outcome === 'VICTORY') playSfx('battle_win');
-  }, [state.outcome]);
 
   const order = upcomingTurns(state, 5);
   const faceOf = (id: string) => (isEnemyId(id) ? (art.foes[id] ?? { src: null }) : (art.party[id] ?? { src: null }));
@@ -879,6 +900,19 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // next move would cut it off (作者 実機 2026-10-25: BREAKの表示が早すぎて彼岸花のエフェクトが見れない).
   const breakDue = !!last?.broke && fx?.breakAt !== undefined && breakShown !== lastKey;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing && !breakDue;
+  // The result, once the fight's end has been seen (RESULT_AFTER_MS): no new move is begun meanwhile (the
+  // fight is over — AUTO's and the creature's turns wait on ONGOING), and nothing can be pressed.
+  useEffect(() => {
+    if (state.outcome === 'ONGOING' || resultShown) return;
+    const playedOut = landed === lastKeyOf(state) && !bloom && !breakDue && !cutIns.playing;
+    const breath = (fx?.bloom ? RESULT_AFTER_MS.bloom : RESULT_AFTER_MS.fall) * (fast ? RESULT_FAST_SHARE : 1);
+    const t = window.setTimeout(() => setResultShown(true), playedOut ? breath : RESULT_AFTER_MS.most);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.outcome, resultShown, landed, lastKeyOf(state), bloom, breakDue, cutIns.playing, fast]);
+  useEffect(() => {
+    if (resultShown && state.outcome === 'VICTORY') playSfx('battle_win');
+  }, [resultShown, state.outcome]);
   // A move of theirs playing — its cut-in, its blows until the last lands, 《彼岸花》's bloom: the giant's
   // plate steps back so the move is seen (作者 実機 2026-10-25: 演出が見れない).
   const showing = cutIns.playing || !!bloom || (!!last && !isEnemyId(last.actor) && landed !== lastKey);
@@ -897,6 +931,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       data-broken={broken ? 'yes' : 'no'}
       data-scale={giant ? 'GIANT' : 'NORMAL'}
       data-showing={showing ? 'yes' : 'no'}
+      data-ending={state.outcome !== 'ONGOING' && !resultShown ? 'yes' : 'no'}
       style={{
         ['--pb-diamond' as string]: `url(${BATTLE_UI_FRAMES.commandDiamond})`,
         ['--ui-memory' as string]: `url(${BATTLE_UI_FRAMES.memoryPanel})`,
@@ -915,7 +950,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           return (
             <div
               key={e.id}
-              className={`pb-foe${actor === e.id ? ' acting' : ''}${eBroken ? ' broken' : ''}${struck && shaking ? ' shake' : ''}${e.down ? ' down' : ''}${isFocus ? ' focus' : ''}${menu === 'ENEMY' && !e.down ? ' aimable' : ''}`}
+              className={`pb-foe${actor === e.id ? ' acting' : ''}${eBroken ? ' broken' : ''}${struck && shaking ? ' shake' : ''}${e.down && fallen.has(e.id) ? ' down' : ''}${isFocus ? ' focus' : ''}${menu === 'ENEMY' && !e.down ? ' aimable' : ''}`}
               data-testid={many ? `pb-foe-${e.id}` : 'pb-foe'}
               data-enemy={e.id}
               data-hp={e.hp}
@@ -1299,7 +1334,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       </div>
 
       {/* BOTTOM RIGHT — the command cross; a list opens beside it. */}
-      {state.outcome !== 'ONGOING' ? (
+      {state.outcome !== 'ONGOING' && resultShown ? (
         <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
           <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
           <button

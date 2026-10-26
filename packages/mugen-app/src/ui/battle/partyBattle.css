@@ -511,7 +511,16 @@
 }
 
 /* ── two or three creatures (2026-10-12, 複数敵) ── */
-.pb-foe.down { opacity: 0; transition: opacity 700ms ease; pointer-events: none; }
+/* Beaten (作者 2026-10-26 戦闘終了演出): drawn down once the blow that beat it has landed — a white flash, a
+   sink and a grey, fading as it goes (700ms), then a breath before 「勝利！」 (PartyBattleScreen RESULT_AFTER_MS).
+   `translate`, so a reel's own transform still plays on it. */
+.pb-foe.down { opacity: 0; transition: opacity 600ms ease 120ms; pointer-events: none; }
+.pb-foe.down > img { animation: pb-foe-down 700ms cubic-bezier(0.3, 0, 0.6, 1) both; }
+@keyframes pb-foe-down {
+  0% { filter: brightness(2.4) drop-shadow(0 0 10px rgba(255, 255, 255, 0.9)); translate: 0 0; }
+  18% { filter: brightness(1.2); translate: 0 0; }
+  100% { filter: grayscale(1) brightness(0.45); translate: 0 6%; }
+}
 .pb-foe.focus > img { filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.75)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
 .pb-foe.aimable { cursor: pointer; }
 .pb-foe.aimable > img { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
@@ -1165,6 +1174,7 @@
   .pb-focus-lines { animation-name: pb-hit-fade; }
   .pb-glass { display: none; }
   .pb-combo-n { animation: none; }
+  .pb-foe.down > img { animation: none; }
 }
 
 /* ── 《彼岸花》 and the hero's step in (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」) ── */
@@ -1317,7 +1327,7 @@
   position: absolute;
   max-width: none;
   object-fit: contain;
-  filter: brightness(0) drop-shadow(0 0 2px rgba(255, 40, 60, 0.95)) drop-shadow(0 0 7px rgba(200, 0, 24, 0.7));
+  filter: brightness(0) drop-shadow(0 0 3px rgba(255, 40, 60, 1)) drop-shadow(0 0 10px rgba(220, 0, 30, 0.8));
   transform-origin: 50% 100%;
   pointer-events: none;
   opacity: 0;

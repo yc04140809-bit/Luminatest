@@ -826,6 +826,83 @@ test('《彼岸花》 twice in one fight: a little shorter the first time, the s
   ]);
 });
 
+// 戦闘終了演出 (作者 2026-10-26: 倒した瞬間にリザルト → 決まる→倒れる→一呼吸→リザルト): when, on screen, the
+// fight's end is seen — the move played out, the beaten falling as the blow lands, a breath, 「勝利！」.
+async function recordEnd(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __end: Record<string, number | boolean> };
+    w.__end = { pressable: false };
+    const t0 = performance.now();
+    const tick = () => {
+      const now = Math.round(performance.now() - t0);
+      const screenEl = document.querySelector('[data-testid="pb-screen"]');
+      const ending = screenEl?.getAttribute('data-ending') === 'yes';
+      if (ending) w.__end.decided ??= now;
+      if (document.querySelector('[data-testid="pb-bloom"]')) w.__end.bloomOn ??= now;
+      else if (w.__end.bloomOn !== undefined) w.__end.bloomOff ??= now;
+      if (document.querySelector('[data-testid="pb-float"]')) w.__end.final ??= now;
+      if (document.querySelector('.pb-foe.down')) w.__end.fell ??= now;
+      if (document.querySelector('[data-testid="pb-result"]')) w.__end.result ??= now;
+      if (ending && document.querySelector('[data-testid="pb-commands"][data-locked="no"]')) w.__end.pressable = true;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const endTimes = (page: Page) => page.evaluate(() => (window as unknown as { __end: Record<string, number | boolean> }).__end);
+
+test('the end seen through: 《彼岸花》 finishing them — the lilies and petals whole, each falling as the blow lands, a breath, then 「勝利！」', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?preview=party&higanbana=1&weak=1&enemies=2');
+  for (let i = 0; i < 6 && (await screen(page).getAttribute('data-actor')) !== 'hero'; i++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+    if ((await screen(page).getAttribute('data-actor')) === 'hero') break;
+    await page.getByTestId('pb-cmd-defend').click();
+    await page.waitForTimeout(300);
+  }
+  await turnOf(page, 'hero');
+  await recordEnd(page);
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-higanbana').click();
+  await page.getByTestId('pb-foe-enemy').click().catch(() => {});
+  await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 20_000 });
+  const t = (await endTimes(page)) as Record<string, number>;
+  // Decided at once — and nothing pressable, no 「勝利！」, while it is still being seen.
+  expect(t.decided).toBeDefined();
+  expect((await endTimes(page)).pressable).toBe(false);
+  // The lilies and petals, whole, before 「勝利！」 — and a breath after the last petal.
+  expect(t.bloomOn).toBeLessThan(t.result);
+  expect(t.bloomOff).toBeDefined();
+  expect(t.result - t.bloomOff).toBeGreaterThanOrEqual(300);
+  // Each falls only as the blow that beat it lands (its last number shown), never before.
+  expect(t.fell).toBeGreaterThanOrEqual(t.final - 20);
+  expect(t.result - t.decided).toBeGreaterThan(1500);
+});
+
+for (const fast of [false, true])
+  test(`the end seen through at ${fast ? '×2' : '×1'}: the last blow of an attack lands, it falls, a breath — never a cut straight to 「勝利！」`, async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.goto('/?preview=party&weak=1&enemies=2');
+    if (fast) await page.getByTestId('pb-speed').click();
+    await recordEnd(page);
+    // Everyone swings until it is won (an eighth of their health each).
+    for (let i = 0; i < 30 && !(await page.getByTestId('pb-result').isVisible()); i++) {
+      const commands = page.locator('[data-testid="pb-commands"][data-locked="no"]');
+      if (await commands.isVisible()) {
+        await page.getByTestId('pb-cmd-attack').click();
+        const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
+        if (await pick.isVisible().catch(() => false)) await pick.click();
+      }
+      await page.waitForTimeout(250);
+    }
+    await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 20_000 });
+    const t = (await endTimes(page)) as Record<string, number>;
+    expect((await endTimes(page)).pressable).toBe(false);
+    // The fall, then a breath: at ×1 the fall and a breath (≥0.9s), at ×2 shorter — never a cut (≥0.6s).
+    expect(t.result - t.fell).toBeGreaterThanOrEqual(fast ? 600 : 900);
+    expect(t.result - t.fell).toBeLessThan(fast ? 2500 : 3000);
+  });
+
 // Their skills' cut-ins (作者 実機 2026-10-23 — cutin/skillCutIn.ts): グレイヴ's 重撃・豪断 with its name
 // first, the commands held; then the blow.
 test('グレイヴ\'s 重撃・豪断: its cut-in with its name first, the commands held — then the blow', async ({ page }) => {

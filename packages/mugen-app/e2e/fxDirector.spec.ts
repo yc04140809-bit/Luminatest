@@ -330,7 +330,11 @@ test.describe('with motion', () => {
       // Measured once his step and the camera's last move are both over (a busy device ends the camera's move later).
       await expect.poll(() => page.getByTestId('pb-figure-hero').locator('img').evaluate((el) => el.getAnimations().length), { timeout: 8_000 }).toBe(0);
       await expect.poll(() => page.locator('[data-shake-layer="field"]').evaluate((el) => el.getAnimations().length), { timeout: 8_000 }).toBe(0);
-      expect(Math.abs((await page.getByTestId('pb-figure-hero').locator('img').boundingBox())!.x - hero!.x)).toBeLessThan(8);
+      // Read until he is there: his figure's own move (its turn's highlight, a CSS transition) is not among
+      // those animations, and on a busy device one reading could fall in the middle of it.
+      await expect
+        .poll(async () => Math.abs((await page.getByTestId('pb-figure-hero').locator('img').boundingBox())!.x - hero!.x), { timeout: 5_000 })
+        .toBeLessThan(8);
     });
   }
 
