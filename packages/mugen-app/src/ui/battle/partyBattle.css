@@ -1447,3 +1447,207 @@
   .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
   .pb-petal, .pb-bloom-veil, .pb-bloom-white, .pb-trace, .pb-glint, .pb-figure > img.pb-ghost { display: none; }
 }
+
+/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, partyFx collapseFx). Over the
+   creatures (--cx/--cy): the gold circle from her side turning clockwise, the purple from beyond them turning
+   the other way, sliding together (--ring-at, --meet-at); the light-and-dark core forming as they meet
+   (--core-at), swelling, pressed small (--pressed-at), throbbing still; a pulse at each strike (.pb-cl-wave,
+   their own delays); at --burst-at the core bursts: the cosmic blast, a white flash (short), the space
+   cracked (paths drawn out from it), crystal shards; the afterglow (--after). Times are the beat's, the
+   speed applied. Each picture is the author's, its fringe cleaned, as WebP. */
+.pb-collapse { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+.pb-cl-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--cx) var(--cy), rgba(30, 10, 60, 0.25), rgba(4, 2, 10, 0.62) 70%);
+  opacity: 0;
+  animation: pb-cl-dark calc(var(--burst-at) + var(--after) - var(--ring-at)) ease-out var(--ring-at) both;
+}
+@keyframes pb-cl-dark { 0% { opacity: 0; } 18% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+
+.pb-cl-ring,
+.pb-cl-core,
+.pb-cl-blast {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  translate: -50% -50%;
+  aspect-ratio: 1;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.pb-cl-ring { height: 62%; }
+.pb-cl-ring.gold { animation: pb-cl-gold calc(var(--meet-at) - var(--ring-at) + 160ms) cubic-bezier(0.3, 0.6, 0.4, 1) var(--ring-at) both; filter: drop-shadow(0 0 10px rgba(255, 210, 107, 0.7)); }
+.pb-cl-ring.violet { animation: pb-cl-violet calc(var(--meet-at) - var(--ring-at) + 160ms) cubic-bezier(0.3, 0.6, 0.4, 1) var(--ring-at) both; filter: drop-shadow(0 0 10px rgba(160, 92, 255, 0.75)); }
+/* From her side (the right), clockwise; from beyond them (the left), the other way — met at the middle, into the core. */
+@keyframes pb-cl-gold {
+  0% { opacity: 0; transform: translateX(46%) scale(0.55) rotate(0deg); }
+  22% { opacity: 1; }
+  80% { opacity: 1; transform: translateX(0) scale(0.9) rotate(200deg); }
+  100% { opacity: 0; transform: translateX(0) scale(0.25) rotate(260deg); }
+}
+@keyframes pb-cl-violet {
+  0% { opacity: 0; transform: translateX(-46%) scale(0.55) rotate(0deg); }
+  22% { opacity: 0.95; }
+  80% { opacity: 0.95; transform: translateX(0) scale(0.9) rotate(-200deg); }
+  100% { opacity: 0; transform: translateX(0) scale(0.25) rotate(-260deg); }
+}
+.pb-cl-core {
+  height: 46%;
+  filter: drop-shadow(0 0 14px rgba(255, 226, 160, 0.6)) drop-shadow(0 0 22px rgba(150, 80, 255, 0.5));
+  animation:
+    pb-cl-core-in calc(var(--pressed-at) - var(--core-at)) cubic-bezier(0.2, 0.9, 0.3, 1) var(--core-at) both,
+    pb-cl-core-hold 180ms ease-in-out var(--pressed-at) infinite alternate;
+}
+.pb-collapse[data-burst='yes'] .pb-cl-core {
+  animation:
+    pb-cl-core-in calc(var(--pressed-at) - var(--core-at)) cubic-bezier(0.2, 0.9, 0.3, 1) var(--core-at) both,
+    pb-cl-core-hold 180ms ease-in-out var(--pressed-at) infinite alternate,
+    pb-cl-core-out 140ms ease-in var(--burst-at) forwards;
+}
+/* It swells, then is pressed small (to 0.62 of itself) — and held there, throbbing. */
+@keyframes pb-cl-core-in {
+  0% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
+  55% { opacity: 1; transform: scale(1.12) rotate(0deg); }
+  100% { opacity: 1; transform: scale(0.62) rotate(8deg); }
+}
+@keyframes pb-cl-core-hold { from { opacity: 1; transform: scale(0.62) rotate(8deg); } to { opacity: 1; transform: scale(0.68) rotate(14deg); } }
+@keyframes pb-cl-core-out { to { opacity: 0; transform: scale(1.5) rotate(30deg); } }
+
+/* At each strike: a ring of light out from the core, gold and purple by turns. */
+.pb-cl-wave {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: 30%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 216, 130, 0.9);
+  box-shadow: 0 0 18px rgba(255, 210, 107, 0.6), inset 0 0 14px rgba(255, 210, 107, 0.4);
+  opacity: 0;
+  animation: pb-cl-wave 320ms ease-out var(--wave-at) both;
+}
+.pb-cl-wave.violet { border-color: rgba(190, 130, 255, 0.92); box-shadow: 0 0 18px rgba(160, 92, 255, 0.65), inset 0 0 14px rgba(160, 92, 255, 0.4); }
+@keyframes pb-cl-wave { 0% { opacity: 0.95; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.4); } }
+/* …and a burst of light on each one struck. */
+.pb-cl-hit {
+  position: absolute;
+  width: 15%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 8%, rgba(255, 220, 140, 0.9) 18%, rgba(255, 210, 107, 0) 62%);
+  opacity: 0;
+  animation: pb-cl-hit 260ms ease-out var(--wave-at) both;
+}
+.pb-cl-hit.violet { background: radial-gradient(circle, #fff 0 8%, rgba(200, 150, 255, 0.92) 18%, rgba(160, 92, 255, 0) 62%); }
+@keyframes pb-cl-hit { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); } }
+
+/* 界核崩壊: the cosmic blast — big, turning a little, gone through the afterglow. */
+.pb-cl-blast {
+  height: 120%;
+  filter: drop-shadow(0 0 18px rgba(200, 160, 255, 0.55));
+  animation: pb-cl-blast calc(var(--after) + 520ms) cubic-bezier(0.15, 0.85, 0.3, 1) var(--burst-at) both;
+}
+@keyframes pb-cl-blast {
+  0% { opacity: 0; transform: scale(0.25) rotate(-12deg); }
+  12% { opacity: 1; }
+  60% { opacity: 1; transform: scale(1.05) rotate(4deg); }
+  100% { opacity: 0; transform: scale(1.2) rotate(8deg); }
+}
+/* The white flash: once, short (as 《彼岸花》's third). */
+.pb-cl-white {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  animation: pb-cl-white 100ms ease-out var(--burst-at) both;
+}
+@keyframes pb-cl-white { 0% { opacity: 0; } 18% { opacity: 0.85; } 60% { opacity: 0.35; } 100% { opacity: 0; } }
+/* The space cracked: white-gold lines drawn out from the core, a purple haze along them, fading with the afterglow. */
+.pb-cl-cracks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pb-cl-cracks path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
+.pb-cl-crack-haze { stroke: rgba(150, 80, 255, 0.55); stroke-width: 7px; filter: blur(3px); }
+.pb-cl-crack-cut { stroke: rgba(255, 246, 220, 0.96); stroke-width: 2px; }
+.pb-cl-cracks path { animation: pb-cl-crack calc(var(--after) + 420ms) ease-out var(--burst-at) both; }
+@keyframes pb-cl-crack { 0% { stroke-dashoffset: 100; opacity: 1; } 22% { stroke-dashoffset: 0; opacity: 1; } 70% { opacity: 0.8; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+/* Crystal shards flying out. */
+.pb-cl-shard {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: calc(var(--sz) * 1px);
+  height: calc(var(--sz) * 1.9px);
+  translate: -50% -50%;
+  clip-path: polygon(50% 0, 100% 45%, 50% 100%, 0 45%);
+  background: linear-gradient(160deg, #fffaf0, #ffd36b 55%, #8a5a10);
+  opacity: 0;
+  animation: pb-cl-shard calc(var(--after) + 480ms) cubic-bezier(0.1, 0.8, 0.3, 1) calc(var(--burst-at) + var(--sd)) both;
+}
+.pb-cl-shard.white { background: linear-gradient(160deg, #fff, #dfe8ff 55%, #8890b0); }
+.pb-cl-shard.violet { background: linear-gradient(160deg, #f4e8ff, #b77bff 55%, #3b1670); }
+@keyframes pb-cl-shard {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
+  10% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1vw), calc(var(--dy) * 1vh)) rotate(var(--sr)) scale(1); }
+}
+/* The afterglow: gold and purple light where it burst, fading. */
+.pb-cl-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--cx) var(--cy), rgba(255, 228, 170, 0.5), rgba(170, 100, 255, 0.28) 22%, transparent 48%);
+  opacity: 0;
+  animation: pb-cl-glow calc(var(--after) + 260ms) ease-out var(--burst-at) both;
+}
+@keyframes pb-cl-glow { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 魔防DOWN on a creature (its badge beside 速度DOWN), and said over it as the afterglow fades. */
+.pb-mdown-badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.55;
+  font-weight: 700;
+  color: #f4e8ff;
+  background: linear-gradient(180deg, rgba(120, 60, 200, 0.92), rgba(70, 30, 130, 0.92));
+  border: 1px solid rgba(200, 160, 255, 0.7);
+  white-space: nowrap;
+}
+
+/* HER FINISHER'S CHARGE on her card (3 → 2 → 1 → READY), and READY glowing (作者 §チャージ表示). */
+.pb-charge {
+  display: inline-block;
+  margin-top: 1px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 1.5;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #d9cdee;
+  background: rgba(40, 24, 64, 0.85);
+  border: 1px solid rgba(160, 120, 220, 0.5);
+  white-space: nowrap;
+}
+.pb-charge[data-ready='yes'] {
+  color: #2a1640;
+  background: linear-gradient(90deg, #ffd36b, #e7c2ff);
+  border-color: #fff2c8;
+  animation: pb-charge-ready 1.2s ease-in-out infinite alternate;
+}
+@keyframes pb-charge-ready {
+  from { box-shadow: 0 0 4px rgba(255, 210, 107, 0.6), 0 0 8px rgba(170, 100, 255, 0.35); }
+  to { box-shadow: 0 0 10px rgba(255, 220, 140, 0.95), 0 0 18px rgba(170, 100, 255, 0.7); }
+}
+.pb-list-btn.ready { box-shadow: 0 0 10px rgba(255, 214, 120, 0.75), 0 0 16px rgba(170, 100, 255, 0.5); }
+.pb-dia[data-ready='yes'] .pb-dia-plate { filter: drop-shadow(0 0 6px rgba(255, 214, 120, 0.95)) drop-shadow(0 0 10px rgba(170, 100, 255, 0.7)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-cl-ring, .pb-cl-core, .pb-cl-blast, .pb-cl-wave, .pb-cl-hit, .pb-cl-shard, .pb-cl-cracks path, .pb-cl-glow, .pb-cl-dark { animation-name: pb-hit-fade; }
+  .pb-cl-white, .pb-cl-shard { display: none; }
+  .pb-charge[data-ready='yes'] { animation: none; }
+}
+.pb-float.slow.mdown { color: #e2c4ff; -webkit-text-stroke-color: #24103e; }

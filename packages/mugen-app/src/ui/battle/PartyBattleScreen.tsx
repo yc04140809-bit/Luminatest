@@ -14,6 +14,7 @@ import {
   partyAct,
   partyAutoAction,
   partySkillReady,
+  skillWaitLeft,
   regenTargetable,
   tauntOf,
   isBroken,
@@ -56,6 +57,7 @@ import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
 import { splitDamage } from './multiHit';
 import { bloomGoneMs, higanbanaBloom, type BloomSpot, type Petal } from './higanbanaBloom';
+import { kaosCollapse, type Collapse } from './kaosCollapse';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -162,6 +164,10 @@ const BREAK_PAUSE_MS = 700;
 const RESULT_AFTER_MS = { fall: 1000, bloom: 450, most: 9000 } as const;
 /** At ×2 the breath is shorter, never gone: never a cut straight to the result. */
 const RESULT_FAST_SHARE = 0.7;
+/** 《双極臨界》: how long its blast, cracks and shards outlast the afterglow (collapse.css). */
+const COLLAPSE_GONE_MS = 450;
+/** 《双極臨界》: how long 「MAGIC DOWN」 is up on each it lowered (as SPEED DOWN after 《彼岸花》). */
+const MAGIC_DOWN_SAID_MS = 1300;
 const SHAKE_MS = 450;
 /** COMBO is shown from this many (one blow is not a combo). */
 const COMBO_SHOWN_FROM = 2;
@@ -420,8 +426,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
   // His finisher's lily and petals, ready before they are wanted (a first decode mid-move is a dropped frame).
   useEffect(() => {
-    if (!members.some((m) => m.skills?.some((k) => k.finisher))) return;
-    for (const src of [SPECIAL_FX_ART.heroHiganbana, SPECIAL_FX_ART.heroPetals]) {
+    const finishers = members.flatMap((m) => (m.skills ?? []).filter((k) => k.finisher).map((k) => k.id));
+    if (finishers.length === 0) return;
+    // …and ケイオス's circles, core and blast (《双極臨界》).
+    const pics = [
+      ...(finishers.includes('higanbana') ? [SPECIAL_FX_ART.heroHiganbana, SPECIAL_FX_ART.heroPetals] : []),
+      ...(finishers.includes('soukyoku_rinkai') ? [SPECIAL_FX_ART.kaosGold, SPECIAL_FX_ART.kaosViolet, SPECIAL_FX_ART.kaosCore, SPECIAL_FX_ART.kaosCollapse] : []),
+    ];
+    for (const src of pics) {
       const pic = new Image();
       pic.src = src;
       pic.decode?.().catch(() => undefined);
@@ -446,6 +458,24 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** 《彼岸花》's lily: the beat, where it opens (% of the screen), from when and for how long (ms, on screen). */
   /** 《彼岸花》: under whom the ground splits (the one aimed at first), when (screen ms), and the dark. */
   const [bloom, setBloom] = useState<{ key: number; spots: BloomSpot[]; crackAt: number; at: number; ms: number } | null>(null);
+  /**
+   * ケイオス 《双極臨界 → 界核崩壊》: the beat, where it happens (kaosCollapse), and when each part of it comes
+   * (screen ms from the beat — partyFx collapse, the speed and the holds applied).
+   */
+  const [collapse, setCollapse] = useState<{
+    key: number;
+    art: Collapse;
+    spots: { x: number; y: number }[];
+    ring: number;
+    meet: number;
+    core: number;
+    pressed: number;
+    strikes: number[];
+    burst: number;
+    after: number;
+  } | null>(null);
+  /** The beat whose 魔防DOWN has been said (as its afterglow faded): on the plate from then. */
+  const [loweredSaid, setLoweredSaid] = useState(-1);
   /** Skills still NEW (not yet used in this fight). */
   const [fresh, setFresh] = useState<readonly string[]>(newSkills ?? []);
   const [saying, setSaying] = useState(!!unlocked);
@@ -619,6 +649,47 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         later(from, () => setBloom(bloom));
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
         later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
+      }
+      // 《双極臨界 → 界核崩壊》: the circles over the middle of them, the core, a pulse at each strike, the collapse.
+      if (p.collapse && isEnemyId(beat.target)) {
+        const box = at.getBoundingClientRect();
+        const spots = [beat.target, ...(p.also ?? [])].flatMap((id) => {
+          const el = at.querySelector<HTMLElement>(`[data-enemy="${id}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${id}"]`);
+          const r = el?.getBoundingClientRect();
+          if (!r || !box.width || !box.height) return [];
+          // Its middle — a giant's, high on it (before its face).
+          const x = ((r.left + r.width * (giant ? 0.55 : 0.5) - box.left) / box.width) * 100;
+          const y = ((r.top + r.height * (giant ? 0.35 : 0.5) - box.top) / box.height) * 100;
+          return [{ x: Math.round(x), y: Math.round(y) }];
+        });
+        const c = p.collapse;
+        const t = (ms: number) => Math.round(when(ms));
+        const burst = c.burst >= 0 ? t(c.burst) : -1;
+        const shown = {
+          key: lastKey,
+          art: kaosCollapse(spots),
+          spots,
+          ring: t(c.circles),
+          meet: t(c.meet),
+          core: t(c.core),
+          pressed: t(c.pressed),
+          // A strike's pulse and burst of light as it lands (after the holds before it).
+          strikes: c.strikes.map(t),
+          burst,
+          after: Math.round(c.after * speed),
+        };
+        setCollapse(shown);
+        later(shown.ring, () => playSfx('battle_charge_aura'));
+        c.strikes.slice(0, burst >= 0 ? -1 : undefined).forEach((ms, i) => later(t(ms), () => playSfx(i % 2 === 0 ? 'battle_magic_holy' : 'battle_magic_dark')));
+        // 魔防DOWN said on each as the afterglow fades (its sound with it); all of it taken away once the blast
+        // is gone and that has been read.
+        const faded = (burst >= 0 ? burst : shown.strikes[shown.strikes.length - 1]) + Math.round(p.hitStop * speed) + shown.after;
+        const lowered = !!(beat.magicDown || beat.spread?.some((x) => x.magicDown));
+        later(faded, () => {
+          setLoweredSaid(shown.key);
+          if (lowered) playSfx('battle_debuff');
+        });
+        later(faded + COLLAPSE_GONE_MS + (lowered ? MAGIC_DOWN_SAID_MS : 0), () => setCollapse((v) => (v?.key === shown.key ? null : v)));
       }
       // The characters' own effects: each one's sounds at its landing — once for a moment, however many it falls on.
       const heard = new Set<number>();
@@ -866,6 +937,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** How many cuts the beat has at most (the last of them shows when the blow has landed). */
   const cutCount = last?.spread ? Math.max(1, ...last.spread.map((x) => x.hits.length)) : parts.length;
   const slowedOn = (id: string) => !!last && (last.spread ? !!last.spread.find((x) => x.target === id)?.slowed : !!last.slowed && last.target === id);
+  /** 魔防DOWN on the creature the plate shows — kept back while the move that lays it is still playing. */
+  const magicDownShown = focused.magicDownTurns > 0 && !(fx?.collapse && loweredSaid !== lastKey);
+  const loweredOn = (id: string) => !!last && (last.spread ? !!last.spread.find((x) => x.target === id)?.magicDown : !!last.magicDown && last.target === id);
   const bloomArt = useMemo(() => (bloom ? higanbanaBloom(bloom.spots) : null), [bloom]);
   /** 《彼岸花》's petals of one layer, each one of the author's sixteen at its own size, way, turn and time. */
   const petalsOf = (layer: Petal['layer']) =>
@@ -904,18 +978,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // fight is over — AUTO's and the creature's turns wait on ONGOING), and nothing can be pressed.
   useEffect(() => {
     if (state.outcome === 'ONGOING' || resultShown) return;
-    const playedOut = landed === lastKeyOf(state) && !bloom && !breakDue && !cutIns.playing;
-    const breath = (fx?.bloom ? RESULT_AFTER_MS.bloom : RESULT_AFTER_MS.fall) * (fast ? RESULT_FAST_SHARE : 1);
+    const playedOut = landed === lastKeyOf(state) && !bloom && !collapse && !breakDue && !cutIns.playing;
+    const breath = (fx?.bloom || fx?.collapse ? RESULT_AFTER_MS.bloom : RESULT_AFTER_MS.fall) * (fast ? RESULT_FAST_SHARE : 1);
     const t = window.setTimeout(() => setResultShown(true), playedOut ? breath : RESULT_AFTER_MS.most);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.outcome, resultShown, landed, lastKeyOf(state), bloom, breakDue, cutIns.playing, fast]);
+  }, [state.outcome, resultShown, landed, lastKeyOf(state), bloom, collapse, breakDue, cutIns.playing, fast]);
   useEffect(() => {
     if (resultShown && state.outcome === 'VICTORY') playSfx('battle_win');
   }, [resultShown, state.outcome]);
   // A move of theirs playing — its cut-in, its blows until the last lands, 《彼岸花》's bloom: the giant's
   // plate steps back so the move is seen (作者 実機 2026-10-25: 演出が見れない).
-  const showing = cutIns.playing || !!bloom || (!!last && !isEnemyId(last.actor) && landed !== lastKey);
+  const showing = cutIns.playing || !!bloom || !!collapse || (!!last && !isEnemyId(last.actor) && landed !== lastKey);
   const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
@@ -1017,6 +1091,20 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   style={{ animationDelay: `${Math.round(bloom.at + bloom.ms * 0.55)}ms`, translate: many ? `0 ${-18 * (i % 3)}px` : undefined }}
                 >
                   SPEED DOWN
+                </span>
+              )}
+              {/* 魔防DOWN (《双極臨界》): said on each as the afterglow fades. */}
+              {loweredOn(e.id) && collapse?.key === lastKey && (
+                <span
+                  key={`md${lastKey}`}
+                  className="pb-float slow mdown"
+                  data-testid="pb-float-mdown"
+                  style={{
+                    animationDelay: `${(collapse.burst >= 0 ? collapse.burst : collapse.strikes[collapse.strikes.length - 1]) + Math.round((fx?.hitStop ?? 0) * (fast ? 0.5 : 1)) + collapse.after}ms`,
+                    translate: many ? `0 ${-18 * (i % 3)}px` : undefined,
+                  }}
+                >
+                  MAGIC DOWN
                 </span>
               )}
               {last?.counter !== undefined && last.actor === e.id && (
@@ -1229,6 +1317,66 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </span>
       )}
 
+      {/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, collapse.css): the gold
+          circle and the purple meet over them; the core swells, is pressed small, holds; a pulse at each strike;
+          界核崩壊 — the blast, a white flash, the space cracked, shards; the afterglow. */}
+      {collapse && collapse.key === lastKey && (
+        <span
+          key={`cl${lastKey}`}
+          className="pb-collapse"
+          data-testid="pb-collapse"
+          data-burst={collapse.burst >= 0 ? 'yes' : 'no'}
+          aria-hidden="true"
+          style={{
+            ['--cx' as string]: `${collapse.art.x}%`,
+            ['--cy' as string]: `${collapse.art.y}%`,
+            ['--ring-at' as string]: `${collapse.ring}ms`,
+            ['--meet-at' as string]: `${collapse.meet}ms`,
+            ['--core-at' as string]: `${collapse.core}ms`,
+            ['--pressed-at' as string]: `${collapse.pressed}ms`,
+            ['--burst-at' as string]: `${collapse.burst >= 0 ? collapse.burst : collapse.strikes[collapse.strikes.length - 1]}ms`,
+            ['--after' as string]: `${collapse.after}ms`,
+          }}
+        >
+          <span className="pb-cl-dark" />
+          <img className="pb-cl-ring violet" data-testid="pb-collapse-violet" src={SPECIAL_FX_ART.kaosViolet} alt="" />
+          <img className="pb-cl-ring gold" data-testid="pb-collapse-gold" src={SPECIAL_FX_ART.kaosGold} alt="" />
+          <img className="pb-cl-core" data-testid="pb-collapse-core" src={SPECIAL_FX_ART.kaosCore} alt="" />
+          {collapse.strikes.slice(0, collapse.burst >= 0 ? -1 : undefined).map((ms, i) => (
+            <span key={`w${i}`}>
+              <span className={`pb-cl-wave${i % 2 ? ' violet' : ''}`} data-testid="pb-collapse-wave" style={{ ['--wave-at' as string]: `${ms}ms` }} />
+              {collapse.spots.map((sp, j) => (
+                <span key={j} className={`pb-cl-hit${i % 2 ? ' violet' : ''}`} style={{ left: `${sp.x}%`, top: `${sp.y}%`, ['--wave-at' as string]: `${ms}ms` }} />
+              ))}
+            </span>
+          ))}
+          {collapse.burst >= 0 && (
+            <>
+              <img className="pb-cl-blast" data-testid="pb-collapse-blast" src={SPECIAL_FX_ART.kaosCollapse} alt="" />
+              <span className="pb-cl-glow" />
+              <svg className="pb-cl-cracks" data-testid="pb-collapse-cracks" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {collapse.art.cracks.map((d, i) => (
+                  <g key={i}>
+                    <path className="pb-cl-crack-haze" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
+                    <path className="pb-cl-crack-cut" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
+                  </g>
+                ))}
+              </svg>
+              {collapse.art.shards.map((sh, i) => (
+                <i
+                  key={i}
+                  className={`pb-cl-shard ${sh.tone}`}
+                  data-testid="pb-collapse-shard"
+                  style={{ ['--dx' as string]: sh.dx, ['--dy' as string]: sh.dy, ['--sr' as string]: `${sh.rot}deg`, ['--sz' as string]: sh.size, ['--sd' as string]: `${sh.delay}ms` }}
+                />
+              ))}
+              {/* The white flash: once, short (as 《彼岸花》's third). */}
+              <span className="pb-cl-white" data-testid="pb-collapse-white" />
+            </>
+          )}
+        </span>
+      )}
+
       {/* Learned in this fight: said once as it opens. */}
       {saying && unlocked && (
         <div className="pb-unlocked" data-testid="pb-unlocked" role="status">
@@ -1268,7 +1416,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           <span className={`pb-break-label${broken ? ' on' : ''}`}>BREAK</span>
           {/* Its 防御DOWN / 速度DOWN beside it, out on the field's side — never inside, where they made the
               narrow plate as wide as their words (作者 実機 2026-10-25: 縦型ステータスバーが大きくて邪魔). */}
-          {(broken || focused.slowTurns > 0) && (
+          {(broken || focused.slowTurns > 0 || magicDownShown) && (
             <div className="pb-upright-status">
               {broken && (
                 <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
@@ -1278,6 +1426,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               {focused.slowTurns > 0 && (
                 <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
                   速度DOWN 残り{focused.slowTurns}
+                </span>
+              )}
+              {magicDownShown && (
+                <span className="pb-mdown-badge" data-testid="pb-mdown-badge" data-turns={focused.magicDownTurns}>
+                  魔防DOWN 残り{focused.magicDownTurns}
                 </span>
               )}
             </div>
@@ -1309,6 +1462,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         {focused.slowTurns > 0 && (
           <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
             速度DOWN 残り{focused.slowTurns}
+          </span>
+        )}
+        {magicDownShown && (
+          <span className="pb-mdown-badge" data-testid="pb-mdown-badge" data-turns={focused.magicDownTurns}>
+            魔防DOWN 残り{focused.magicDownTurns}
           </span>
         )}
       </div>
@@ -1360,7 +1518,15 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                 {acting.name}
               </b>
             )}
-            <button className="pb-dia left" data-testid="pb-cmd-skills" disabled={!playerInput || skills.length + techs.length === 0} onClick={() => toggle('SKILL')} aria-pressed={menu === 'SKILL'}>
+            <button
+              className="pb-dia left"
+              data-testid="pb-cmd-skills"
+              // Her finisher (charged by turns) ready: スキル glows (作者 §READY時の発光).
+              data-ready={acting && skills.some((k) => k.charge !== undefined && partySkillReady(acting, k)) ? 'yes' : 'no'}
+              disabled={!playerInput || skills.length + techs.length === 0}
+              onClick={() => toggle('SKILL')}
+              aria-pressed={menu === 'SKILL'}
+            >
               <span className="pb-dia-plate" aria-hidden="true" />
               <SparkIcon size={13} className="pb-dia-mark" />
               <span className="pb-dia-jp">スキル</span>
@@ -1386,10 +1552,16 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               {menu === 'SKILL' && (
                 <>
                   {skills.map((sk) => (
-                    <button key={sk.id} className="pb-list-btn" data-testid={`pb-cmd-skill-${sk.id}`} disabled={!partySkillReady(acting!, sk)} onClick={() => aimEnemy((target) => ({ kind: 'SKILL', skillId: sk.id, target }), 'SKILL')}>
+                    <button
+                      key={sk.id}
+                      className={`pb-list-btn${sk.charge !== undefined && partySkillReady(acting!, sk) ? ' ready' : ''}`}
+                      data-testid={`pb-cmd-skill-${sk.id}`}
+                      disabled={!partySkillReady(acting!, sk)}
+                      onClick={() => aimEnemy((target) => ({ kind: 'SKILL', skillId: sk.id, target }), 'SKILL')}
+                    >
                       {sk.name}
                       {fresh.includes(sk.id) && <NewBadge testId={`pb-skill-new-${sk.id}`} />}
-                      <Wait left={cooldownLeft(acting!, sk.id, sk.cooldown)} />
+                      <Wait left={skillWaitLeft(acting!, sk)} />
                     </button>
                   ))}
                   {techs.map((t) => (
@@ -1541,6 +1713,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                     <Bar value={m.mp} max={m.maxMp} kind="mp" />
                   </>
                 )}
+                {/* Her finisher, charged by her turns (作者 2026-10-26): 3 → 2 → 1 → READY, and after it 4 → … → READY. */}
+                {!m.down &&
+                  (m.skills ?? [])
+                    .filter((k) => k.charge !== undefined)
+                    .map((k) => {
+                      const left = skillWaitLeft(m, k);
+                      return (
+                        <span key={k.id} className="pb-charge" data-testid={`pb-charge-${m.id}`} data-left={left} data-ready={left === 0 ? 'yes' : 'no'} title={`《${k.name}》`}>
+                          {left === 0 ? '必殺 READY' : `必殺 あと${left}`}
+                        </span>
+                      );
+                    })}
                 {chips.length > 0 && (
                   <span className="pb-status" data-testid={`pb-status-${m.id}`}>
                     {chips.map((c) => (

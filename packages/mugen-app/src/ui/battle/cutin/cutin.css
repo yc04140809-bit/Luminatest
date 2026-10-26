@@ -694,6 +694,48 @@
   background: linear-gradient(105deg, rgba(240, 172, 80, 0.88), #fff 50%, rgba(200, 216, 236, 0.88));
 }
 
+/* ---- KAOS'S FINISHER 《双極臨界》: gold and purple — light and dark (作者 2026-10-26 正式実装指示書) ---- */
+
+.ci[data-theme='collapse'] {
+  --ci-a: #ffd36b;
+  --ci-b: #b77bff;
+  --ci-glow-a: rgba(255, 210, 107, 0.78);
+  --ci-glow-b: rgba(160, 92, 255, 0.62);
+  --ci-name-lo: #ffe0a0;
+  --ci-name-edge: rgba(34, 12, 52, 0.97);
+  --ci-rim: rgba(150, 84, 230, 0.58);
+  --ci-line: rgba(236, 214, 255, 0.95);
+}
+
+.ci[data-theme='collapse'] .ci-veil {
+  background:
+    radial-gradient(circle at 30% 46%, rgba(190, 140, 40, 0.3), transparent 42%),
+    radial-gradient(circle at 70% 46%, rgba(110, 50, 190, 0.38), transparent 44%),
+    rgba(4, 2, 9, 0.9);
+}
+
+.ci[data-theme='collapse'] .ci-panel {
+  background:
+    radial-gradient(circle at 38% 44%, rgba(212, 162, 54, 0.38), transparent 34%),
+    radial-gradient(circle at 66% 50%, rgba(118, 54, 206, 0.5), transparent 38%),
+    linear-gradient(112deg, rgba(14, 9, 20, 0.995) 0 38%, rgba(40, 18, 66, 0.985) 68%, rgba(8, 5, 14, 0.995));
+}
+
+.ci[data-theme='collapse'] .ci-energy {
+  background:
+    radial-gradient(circle at 40% 48%, rgba(255, 210, 107, 0.34), transparent 30%),
+    radial-gradient(circle at 74% 44%, rgba(170, 100, 255, 0.34), transparent 34%),
+    conic-gradient(from 90deg at 50% 48%, transparent, rgba(255, 236, 200, 0.16), rgba(190, 140, 255, 0.16), transparent 30%);
+}
+
+.ci[data-theme='collapse'] .ci-word {
+  -webkit-text-stroke-color: rgba(230, 200, 255, 0.18);
+}
+
+.ci[data-theme='collapse'] .ci-flash {
+  background: linear-gradient(105deg, rgba(255, 210, 107, 0.9), #fff 50%, rgba(170, 100, 255, 0.9));
+}
+
 /* ---- LEVI: abyss blue and old gold (v18 .levi-cut-in) ---- */
 
 .ci[data-theme='levi'] {

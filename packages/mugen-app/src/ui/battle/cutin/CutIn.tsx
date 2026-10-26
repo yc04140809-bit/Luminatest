@@ -17,7 +17,7 @@ import { cutInMs, type CutInPace, type CutInTier } from './cutInTiming';
 import './cutin.css';
 
 /** Whose colours and layout — v18's four cut-ins, グレイヴ's own, and a boss's great move. */
-export type CutInTheme = 'chaos' | 'hero' | 'grave' | 'levi' | 'aria' | 'boss';
+export type CutInTheme = 'chaos' | 'collapse' | 'hero' | 'grave' | 'levi' | 'aria' | 'boss';
 
 /**
  * A moving figure (cutInFigures.ts): a short silent loop, played in a window whose middle is the face —

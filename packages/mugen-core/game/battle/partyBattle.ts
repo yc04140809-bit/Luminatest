@@ -56,6 +56,15 @@
 // strike as against one; each one hit counts to COMBO (three creatures: nine) and each left standing is
 // slowed. AUTO keeps it for a BREAK, a creature about to break, or several not yet slowed (finisherAim).
 //
+// ケイオス's FINISHER, CHARGED BY TURNS (作者 2026-10-26「ケイオス必殺技 正式実装指示書《双極臨界 → 界核崩壊》」):
+// not hers until she has taken three turns of her own in the fight (`charge` — her own `turns`, the count
+// every skill's wait already uses; no new turn system, and MP has nothing to do with it), then ready
+// again four of her turns after each use. Four strikes at every creature standing — 0.4, 0.5, 0.5 and
+// the collapse, 1.0, of her magic's blow (2.4 in all, as 《彼岸花》 is of a swing) — each one COMBO's;
+// each left standing has its MAGIC DEFENSE DOWN (魔防DOWN: magic lands at 1.25× for three of its turns,
+// counted down as SLOWED is). AUTO keeps it for a BREAK, a high COMBO, several standing or a boss worn
+// down — never the turn it comes ready (collapseAim).
+//
 // Still not here: items, revival.
 //
 // Pure: a state in, a state out, the dice passed in.
@@ -99,7 +108,7 @@ export interface PartyMemberSpec {
   magic?: readonly MagicDef[];
   /** Their own techniques in this kind of fight (月影の構え, 星癒の羽, 重撃・豪断). */
   techniques?: readonly PartyTechnique[];
-  /** Their magic power (the status screen's 魔力): what 星癒の羽 adds. */
+  /** Their magic power (the status screen's 魔力): what 星癒の羽 adds, and her finisher's blow (magicBlowOf). */
   magicPower?: number;
   /** How much their ordinary blow wears a creature's footing (1 if absent). */
   breakPower?: number;
@@ -184,6 +193,15 @@ export const COUNTER_BREAK_POWER = 1;
 export const SLOW_SPEED = 0.5;
 /** …for this many of its own turns (a BREAK's two lost ones and one more). */
 export const SLOW_TURNS = 3;
+/** 魔防DOWN (ケイオス's finisher): magic lands at this many times on it… */
+export const MAGIC_DOWN_TAKEN = 1.25;
+/** …for this many of its own turns (as SLOWED is counted). */
+export const MAGIC_DOWN_TURNS = 3;
+/**
+ * Her magic's blow, for a finisher of magic cuts (`magic`): this share of her 魔力 — 20 at her first level
+ * gives 9, her 星光弾's own (her swing, 4–6, is a staff's — a finisher of it would be weaker than a spell).
+ */
+export const MAGIC_BLOW_SHARE = 0.45;
 /** COMBO's worth: +5% for each full ten, at most +20% (作者 第一案: 10/20/30/40). */
 export const COMBO_STEP = 10;
 export const COMBO_STEP_BONUS = 0.05;
@@ -253,6 +271,8 @@ export interface PartyEnemy {
   breaks: number;
   /** SLOWED (《彼岸花》): how many more of its own turns its speed is SLOW_SPEED of itself (0: not). */
   slowTurns: number;
+  /** 魔防DOWN (ケイオス's finisher): how many more of its own turns magic lands on it at MAGIC_DOWN_TAKEN (0: not). */
+  magicDownTurns: number;
   /**
    * ITS OWN BREAK, if it has one (ヴァルシール's shell, later): called the
    * moment it is broken, with whether it is the first time; returns the fight
@@ -284,6 +304,8 @@ export interface PartyBeat {
   hits?: readonly number[];
   /** It left the creature slowed. */
   slowed?: boolean;
+  /** It left the creature with 魔防DOWN. */
+  magicDown?: boolean;
   /**
    * A move at every creature standing (《彼岸花》, area 'ALL'): each one's cuts, the one aimed at first
    * (`target`, `hits`, `broke` and `slowed` above are its; `amount` is all of them together).
@@ -297,6 +319,7 @@ export interface PartyStrike {
   hits: readonly number[];
   broke: boolean;
   slowed: boolean;
+  magicDown?: boolean;
 }
 
 export interface PartyBattleState {
@@ -434,6 +457,7 @@ function foeOf(input: PartyEnemyInput, i: number, name: string): PartyEnemy {
     breakTurns: 0,
     breaks: 0,
     slowTurns: 0,
+    magicDownTurns: 0,
     onBreak: input.onBreak,
   };
 }
@@ -537,11 +561,35 @@ export function upcomingTurns(state: PartyBattleState, n: number): string[] {
 
 /**
  * Whether a member's skill can be used on their turn: 「3ターンに1回」 is
- * used, then two of their turns without it, then again.
+ * used, then two of their turns without it, then again. One charged by turns
+ * (`charge`) not before they have taken that many of their own.
  */
 export function partySkillReady(member: PartyMember, skill: HeroSkillSpec): boolean {
+  return skillWaitLeft(member, skill) === 0;
+}
+
+/**
+ * How many more of their own turns before the skill is ready (0: now) — its charge before its first
+ * use (ケイオス's finisher: 3, 2, 1 on her first three turns), its wait after each (cooldownLeft).
+ */
+export function skillWaitLeft(member: PartyMember, skill: HeroSkillSpec): number {
+  if (member.skillUsedAt[skill.id] === undefined) return Math.max(0, (skill.charge ?? 0) - member.turns);
+  return cooldownLeft(member, skill.id, skill.cooldown);
+}
+
+/**
+ * For how many of their turns before this one the skill has already been ready (0: it came ready this
+ * turn; -1: not ready) — AUTO never fires a charged finisher the turn it comes ready.
+ */
+export function skillReadyFor(member: PartyMember, skill: HeroSkillSpec): number {
+  if (!partySkillReady(member, skill)) return -1;
   const used = member.skillUsedAt[skill.id];
-  return used === undefined || member.turns - used >= skill.cooldown;
+  return used === undefined ? member.turns - (skill.charge ?? 0) : member.turns - used - skill.cooldown;
+}
+
+/** Her magic's blow (a finisher of magic cuts): MAGIC_BLOW_SHARE of her 魔力. */
+export function magicBlowOf(member: PartyMemberSpec): number {
+  return (member.magicPower ?? 0) * MAGIC_BLOW_SHARE;
 }
 
 /** The spells a member can cast here: damage or mending, and only what they can pay for. */
@@ -616,12 +664,14 @@ function strikeEnemy(
   base: number,
   breakPower: number,
   combo = state.combo.hits,
+  magic = false,
 ): { state: PartyBattleState; amount: number; broke: boolean; name: string } {
   const foe = enemyById(state, targetId)!;
   const broken = isBroken(foe);
   // Standing, its guard takes its share off; broken, the guard is gone and it takes 1.4×. COMBO as it
-  // stands before this blow adds its worth (comboMultiplier).
-  const amount = Math.max(1, Math.round(base * comboMultiplier(combo) * (broken ? BROKEN_TAKEN : 1 - foe.guard)));
+  // stands before this blow adds its worth (comboMultiplier); magic on one with 魔防DOWN, 1.25×.
+  const lowered = magic && foe.magicDownTurns > 0 ? MAGIC_DOWN_TAKEN : 1;
+  const amount = Math.max(1, Math.round(base * lowered * comboMultiplier(combo) * (broken ? BROKEN_TAKEN : 1 - foe.guard)));
   const hp = Math.max(0, foe.hp - amount);
   if (broken || hp <= 0) return { state: withEnemy(state, foe.id, (e) => ({ ...e, hp })), amount, broke: false, name: foe.name };
   const left = foe.breakCurrent - Math.max(0, breakPower);
@@ -733,7 +783,7 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
         if (!foe) return state;
         const m = affinityMultiplier(foe.affinity, spell.type, spell.element);
         const paid = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - spell.mpCost }));
-        const hit = strikeEnemy(paid, foe.id, spell.power * m, SPELL_BREAK_POWER);
+        const hit = strikeEnemy(paid, foe.id, spell.power * m, SPELL_BREAK_POWER, paid.combo.hits, true);
         next = {
           ...hit.state,
           log: [...withoutBreakLine(hit.state.log, hit.broke), `${me.name}の《${spell.name}》！ ${foe.name}に${hit.amount}のダメージ。`, ...breakLine(hit)],
@@ -833,13 +883,16 @@ function severalCuts(state: PartyBattleState, me: PartyMember, skill: HeroSkillS
   let s = withMember(state, me.id, (x) => ({ ...x, skillUsedAt: { ...x.skillUsedAt, [skill.id]: x.turns } }));
   const all = skill.area === 'ALL';
   const foes = all ? [aimed, ...standingEnemies(state).filter((e) => e.id !== aimed.id)] : [aimed];
-  const struck = foes.map((foe) => ({ foe, hits: [] as number[], broke: false, m: affinityMultiplier(foe.affinity, 'PHYSICAL') }));
+  const kind = skill.magic ? 'MAGIC' : 'PHYSICAL';
+  const struck = foes.map((foe) => ({ foe, hits: [] as number[], broke: false, m: affinityMultiplier(foe.affinity, kind) }));
   const from = s.log.length;
   let landed = 0;
+  // Her magic's blow is as sure as a spell (no dice); a swing is rolled each cut.
+  const blow = () => (skill.magic ? magicBlowOf(me) : roll(me.attackMin, me.attackMax, rng));
   for (const share of skill.cuts!) {
     for (const x of struck) {
       if (!enemyTarget(s, x.foe.id)) continue;
-      const hit = strikeEnemy(s, x.foe.id, roll(me.attackMin, me.attackMax, rng) * share * x.m, skill.cutBreakPower ?? 1, state.combo.hits + landed);
+      const hit = strikeEnemy(s, x.foe.id, blow() * share * x.m, skill.cutBreakPower ?? 1, state.combo.hits + landed, !!skill.magic);
       s = hit.state;
       x.hits.push(hit.amount);
       x.broke = x.broke || hit.broke;
@@ -848,20 +901,32 @@ function severalCuts(state: PartyBattleState, me: PartyMember, skill: HeroSkillS
   }
   const slowed = struck.filter((x) => !!skill.slows && !!enemyTarget(s, x.foe.id));
   for (const x of slowed) s = withEnemy(s, x.foe.id, (e) => ({ ...e, slowTurns: SLOW_TURNS }));
+  // 魔防DOWN on each left standing: back to its full length (not stacked).
+  const lowered = struck.filter((x) => !!skill.lowersMagic && !!enemyTarget(s, x.foe.id));
+  for (const x of lowered) s = withEnemy(s, x.foe.id, (e) => ({ ...e, magicDownTurns: MAGIC_DOWN_TURNS }));
   const total = struck.reduce((n, x) => n + x.hits.reduce((a, b) => a + b, 0), 0);
   // The BREAK lines said as the cuts landed go after the line that says the cuts.
   const breaks = s.log.slice(from).filter((l) => l.startsWith('BREAK!!'));
   const told = struck.filter((x) => x.hits.length > 0).map((x) => `${x.foe.name}に${x.hits.join('・')}`);
   const [first] = struck;
-  const spread: PartyStrike[] = struck.map((x) => ({ target: x.foe.id, hits: x.hits, broke: x.broke, slowed: slowed.includes(x) }));
+  const spread: PartyStrike[] = struck.map((x) => ({
+    target: x.foe.id,
+    hits: x.hits,
+    broke: x.broke,
+    slowed: slowed.includes(x),
+    ...(skill.lowersMagic ? { magicDown: lowered.includes(x) } : {}),
+  }));
+  // The last cut called by its own name once it has landed (《双極臨界》 → 界核崩壊).
+  const lastLanded = !!skill.lastName && struck.some((x) => x.hits.length === skill.cuts!.length);
   return {
     ...s,
     log: [
       ...s.log.slice(0, from),
       ...s.log.slice(from).filter((l) => !l.startsWith('BREAK!!')),
-      `${me.name}の《${skill.name}》！ ${told.join('、')}のダメージ。`,
+      `${me.name}の《${skill.name}》！${lastLanded ? `――${skill.lastName}！` : ''} ${told.join('、')}のダメージ。`,
       ...breaks,
       ...(slowed.length > 0 ? [`${slowed.map((x) => x.foe.name).join('、')}の動きが鈍った。（速度DOWN）`] : []),
+      ...(lowered.length > 0 ? [`${lowered.map((x) => x.foe.name).join('、')}の魔法防御が下がった。（魔防DOWN）`] : []),
     ],
     last: {
       actor: me.id,
@@ -873,6 +938,7 @@ function severalCuts(state: PartyBattleState, me: PartyMember, skill: HeroSkillS
       broke: struck.some((x) => x.broke),
       hits: first.hits,
       slowed: spread[0].slowed,
+      ...(skill.lowersMagic ? { magicDown: !!spread[0].magicDown } : {}),
       ...(all ? { spread } : {}),
     },
   };
@@ -897,6 +963,9 @@ function breakLine(hit: { broke: boolean; name: string }): string[] {
  * reach him through a guard 30% thicker, and a physical blow at him alone is
  * answered — once a turn — at 0.8 of his swing.
  */
+/** What is on a creature counted down by one of its turns: SLOWED and 魔防DOWN. */
+const tickedDown = (e: PartyEnemy) => ({ slowTurns: Math.max(0, e.slowTurns - 1), magicDownTurns: Math.max(0, e.magicDownTurns - 1) });
+
 export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen?: EnemyStrike): PartyBattleState {
   const actorId = currentActor(state);
   const foe = isEnemyId(actorId) ? enemyTarget(state, actorId!) : undefined;
@@ -904,7 +973,7 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen
   if (isBroken(foe)) {
     const left = foe.breakTurns - 1;
     const stands = left <= 0;
-    let next = withEnemy(state, foe.id, (e) => ({ ...e, breakTurns: Math.max(0, left), breakCurrent: stands ? e.breakMax : 0, slowTurns: Math.max(0, e.slowTurns - 1) }));
+    let next = withEnemy(state, foe.id, (e) => ({ ...e, breakTurns: Math.max(0, left), breakCurrent: stands ? e.breakMax : 0, ...tickedDown(e) }));
     next = {
       ...next,
       log: [...next.log, stands ? `${foe.name}は体勢を立て直した。` : `${foe.name}はBREAK中、動けない。`],
@@ -952,7 +1021,7 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen
       beat = { ...beat!, counter: hit.amount, broke: hit.broke };
     }
   }
-  next = withEnemy(next, foe.id, (e) => ({ ...e, slowTurns: Math.max(0, e.slowTurns - 1) }));
+  next = withEnemy(next, foe.id, (e) => ({ ...e, ...tickedDown(e) }));
   next = { ...next, log: [...next.log, `${how} ${said.join(' ')}`], last: beat, combo: comboAfter(state.combo, beat!) };
   return advance(settle(next));
 }
@@ -1031,6 +1100,36 @@ export function finisherAim(state: PartyBattleState, me: PartyMember, skill: Her
   return undefined;
 }
 
+/** A high COMBO, for AUTO's charged finisher (作者 §AUTO: 高COMBO中) — its four strikes on each add to it. */
+export const AUTO_COLLAPSE_COMBO = 6;
+/** A boss worn down, for AUTO's charged finisher (作者 §AUTO: HPが減ったボス): at or under this share of its health. */
+export const AUTO_COLLAPSE_BOSS_AT = 0.6;
+
+/**
+ * WHEN AUTO USES A FINISHER CHARGED BY TURNS (ケイオス 《双極臨界》 — 作者 2026-10-26 正式実装指示書 §AUTO):
+ * never before it is ready (her first three turns), and never the turn it comes ready — from the next on,
+ * when it is worth it, in this order:
+ *   1. a creature BROKEN — the strikes land at 1.4×;
+ *   2. a high COMBO (AUTO_COLLAPSE_COMBO or more) — each strike worth it, and it climbs by four on each;
+ *   3. several standing (AUTO_SPREAD_MIN) — at all of them;
+ *   4. a boss worn down (AUTO_COLLAPSE_BOSS_AT or under) — to finish it.
+ * Never while what is left would fall to her ordinary best (a spell or a swing). Returns who to aim at
+ * (the one broken, else as autoTarget, the boss for 4), or nobody.
+ */
+export function collapseAim(state: PartyBattleState, me: PartyMember, skill: HeroSkillSpec): PartyEnemy | undefined {
+  if (skillReadyFor(me, skill) < 1) return undefined;
+  const standing = standingEnemies(state);
+  const best = Math.max(me.attackMax, ...castable(me).filter((s) => s.effect === 'DAMAGE').map((s) => s.power));
+  if (standing.every((e) => e.hp <= best)) return undefined;
+  const share = (e: PartyEnemy) => e.hp / e.maxHp;
+  const byDangerThenWeakest = (a: PartyEnemy, b: PartyEnemy) => b.danger - a.danger || share(a) - share(b);
+  const broken = standing.filter(isBroken).sort(byDangerThenWeakest)[0];
+  if (broken) return broken;
+  const wear = (skill.cutBreakPower ?? 1) * (skill.cuts?.length ?? 1);
+  if (state.combo.hits >= AUTO_COLLAPSE_COMBO || standing.length >= AUTO_SPREAD_MIN) return autoTarget(state, wear);
+  return standing.filter((e) => e.boss && share(e) <= AUTO_COLLAPSE_BOSS_AT).sort(byDangerThenWeakest)[0];
+}
+
 /**
  * AUTO, for the member whose turn it is:
  *   - a heal now if one of them is low (癒しの光);
@@ -1043,7 +1142,8 @@ export function finisherAim(state: PartyBattleState, me: PartyMember, skill: Her
  *   - Grave: 重撃・豪断 whenever it is ready (its wait is what spaces it),
  *     aimed at the one it would break, else a broken one, else as autoTarget;
  *     else a swing;
- *   - Kaos: her strongest damage spell if better than a swing; else a swing.
+ *   - Kaos: her finisher (《双極臨界》) when collapseAim finds it worth it — after a heal now, before
+ *     星癒の羽; else her strongest damage spell if better than a swing; else a swing.
  * With more than one creature standing, a blow names its target
  * (`autoTarget`); with one, it is aimed at that one and names none.
  */
@@ -1057,6 +1157,10 @@ export function partyAutoAction(state: PartyBattleState): PartyAction | null {
   const mend = spells.filter((s) => s.effect === 'MEND').sort((a, b) => b.power - a.power)[0];
   const low = standing.filter((m) => m.hp <= m.maxHp * AUTO_MEND_AT).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
   if (mend && low) return { kind: 'MAGIC', magicId: mend.id, target: low.id };
+  // A finisher charged by turns (ケイオス 《双極臨界》): when collapseAim finds it worth it, before anything else she does.
+  const charged = (me.skills ?? []).find((s) => s.finisher && s.charge !== undefined && partySkillReady(me, s));
+  const chargedFoe = charged ? collapseAim(state, me, charged) : undefined;
+  if (chargedFoe) return { kind: 'SKILL', skillId: charged!.id, ...(standingEnemies(state).length > 1 ? { target: chargedFoe.id } : {}) };
   const regen = techs.find((t) => t.kind === 'REGEN');
   if (regen) {
     const wants = standing
@@ -1066,7 +1170,7 @@ export function partyAutoAction(state: PartyBattleState): PartyAction | null {
   }
   const several = standingEnemies(state).length > 1;
   // A finisher (《彼岸花》) only when it is worth it (finisherAim); first of all while nothing can strike back.
-  const finisher = (me.skills ?? []).find((s) => s.finisher && partySkillReady(me, s));
+  const finisher = (me.skills ?? []).find((s) => s.finisher && s.charge === undefined && partySkillReady(me, s));
   const finisherFoe = finisher ? finisherAim(state, me, finisher) : undefined;
   const useFinisher = (): PartyAction => ({ kind: 'SKILL', skillId: finisher!.id, ...(several ? { target: finisherFoe!.id } : {}) });
   if (finisherFoe && standingEnemies(state).every(isBroken)) return useFinisher();

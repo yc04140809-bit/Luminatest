@@ -255,7 +255,22 @@ export interface HeroSkillSpec {
   area?: 'ONE' | 'ALL';
   /** A finisher (必殺技): its cut-in is the long one. Shown only. */
   finisher?: boolean;
-  // `hits`, `cuts`, `cutBreakPower`, `slows` and `area` are read by the party fight (partyBattle) — where 《彼岸花》 is,
+  /**
+   * A finisher charged by turns (ケイオス 《双極臨界》 — 作者 2026-10-26 正式実装指示書): not ready until its user
+   * has taken this many of their own turns in the fight (3: never on their first three, MP or not). Then
+   * `cooldown` as any skill. Absent: ready from the first turn.
+   */
+  charge?: number;
+  /**
+   * Its cuts are magic, not a swing (ケイオス): each one's share of her magic's blow (partyBattle
+   * magicBlowOf — her 魔力 × MAGIC_BLOW_SHARE) instead of a swing, a MAGIC strike (her 魔防DOWN counts).
+   */
+  magic?: boolean;
+  /** Leaves each creature it struck and did not bring down with 魔防DOWN (MAGIC_DOWN_TAKEN for MAGIC_DOWN_TURNS). */
+  lowersMagic?: boolean;
+  /** The last cut's own name (《双極臨界》 → 界核崩壊), said as it lands. Shown only. */
+  lastName?: string;
+  // `hits`, `cuts`, `cutBreakPower`, `slows`, `area`, `charge`, `magic` and `lowersMagic` are read by the party fight (partyBattle) — where 《彼岸花》 is,
   // for now (作者 2026-10-24: a limit of where it is built, not a rule that it belongs there). This fight does
   // not read them yet: it would deal `power` as one blow. Joined with the party fight's way of turns, the
   // same data serves both.

@@ -14,6 +14,8 @@
 //   ケイオス  星癒の羽    a heal at the end of the target's own turn — 3 turns; wait 5
 //   グレイヴ  重撃・豪断  1.6× a swing, BREAK 4; wait 3
 //
+// HER FINISHER (作者 2026-10-26): 《双極臨界 → 界核崩壊》 (skills/kaosSkills) — charged by her turns, 3; wait 5.
+//
 // All three are SKILLS (2026-10-12, 戦闘ルール整理): no MP, each with its wait
 // (`cooldown`, in the user's own turns). MP is for spells — 癒しの光 heals now
 // for MP 12; 星癒の羽 heals over three turns for nothing, and then waits.
@@ -23,6 +25,7 @@ import type { HeroSkillSpec } from '../../game/battle/battleLogic';
 import type { MagicDef } from '../../core/magic/magic';
 import { SHOWN_ONLY_STATS } from './characterStats';
 import { GRAVE_SPEAKER } from './graveFaces';
+import { SOUKYOKU_RINKAI } from '../skills/kaosSkills';
 
 /** 主人公: 月影の構え — he takes the blow on his blade and answers it. */
 export const MOON_GUARD_TECH: PartyTechnique = { id: 'moon_guard', name: '月影の構え', kind: 'MOON_GUARD', mpCost: 0, target: 'SELF', turns: 2, cooldown: 4 };
@@ -59,6 +62,8 @@ export interface PartyFacts {
   heroSkills: readonly HeroSkillSpec[];
   /** The spells Kaos has (availableMagic). */
   kaosMagic: readonly MagicDef[];
+  /** Her skills (absent: her finisher, 《双極臨界》 — a DEV preview may give it ready at once). */
+  kaosSkills?: readonly HeroSkillSpec[];
 }
 
 const grow = (g: { base: number; perLevel: number }, level: number) => g.base + Math.floor(g.perLevel * Math.max(0, Math.floor(level) - 1));
@@ -95,6 +100,7 @@ export function heroAndKaos(f: PartyFacts): PartyMemberSpec[] {
       defense: grow(ks.defense, f.kaosLevel),
       speed: grow(ks.speed, f.kaosLevel),
       magic: f.kaosMagic,
+      skills: f.kaosSkills ?? [SOUKYOKU_RINKAI],
       techniques: [STAR_FEATHER],
       magicPower: grow(ks.magic, f.kaosLevel),
     },

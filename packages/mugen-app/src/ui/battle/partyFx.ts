@@ -111,6 +111,18 @@ export interface BeatFx {
   breakAt?: number;
   /** A move at all of them (《彼岸花》): the others struck besides `flash.on` — the last blow's flash and reeling on each. */
   also?: readonly string[];
+  /**
+   * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書): over the creatures, the gold circle (from her
+   * side, clockwise) and the purple (from beyond them, the other way) from `circles`, met by `meet`; the
+   * light-and-dark core from `core` — swelling, pressed small by `pressed`, held still until the first
+   * strike; the strikes (`strikes`, each as it lands); at `burst` (the fourth — -1 if they fell before it)
+   * the core bursts: the cosmic blast, a white flash, the space cracked, crystal shards; its afterglow `after`.
+   */
+  collapse?: { circles: number; meet: number; core: number; pressed: number; strikes: readonly number[]; burst: number; after: number };
+  /** When a TRACK swings onto the one struck, if not at the first blow (《双極臨界》: as the circles meet over them). */
+  trackAt?: number;
+  /** How hard a TRACK jolts at each blow but the last, and at the last (a share of its punch — HIGANBANA_JOLT if absent). */
+  jolt?: { first: number; last: number };
 }
 
 /** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
@@ -177,6 +189,20 @@ export const HIGANBANA_CUTS = [
  */
 export const HIGANBANA_JOLT = { first: 0.4, last: 1.4 } as const;
 
+/**
+ * ケイオス 《双極臨界 → 界核崩壊》 in time (ms, at ×1 — 作者 2026-10-26 正式実装指示書): her wings open and the two
+ * circles come in (`circles` after the beat), turning their ways for `ring` until they meet over them; the
+ * core forms as they meet (`core` before), swells (`swell`), is pressed small (`press`); a still moment
+ * (`hold`, 0.25–0.4s); three strikes `quick` apart, a breath, the fourth — 界核崩壊 — and its afterglow
+ * (`after`, 0.2–0.4s). Each strike lands `land` after it is let go. On screen never under the floors (×2).
+ */
+export const COLLAPSE_FX = { circles: 80, ring: 460, core: 60, swell: 220, press: 160, hold: 320, quick: 150, breath: 130, land: 60, after: 320 } as const;
+export const COLLAPSE_FLOOR_MS = { ring: 260, hold: 250, quick: 110, after: 200 } as const;
+/** How hard the camera jolts at its strikes: the first three light, the fourth the hardest of any move. */
+export const COLLAPSE_JOLT = { first: 0.35, last: 1.7 } as const;
+/** How much longer the next turn waits when it lowered their magic defense: 「MAGIC DOWN」 read first. */
+export const COLLAPSE_SAY_MS = 900;
+
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
 export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
 
@@ -239,11 +265,13 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
   // 《彼岸花》, a finisher: the camera follows it hardest — its first two cuts a light jolt each, the third the
   // heavy one (作者 2026-10-26 最終ブラッシュアップ §4–6: シュッ、シュッ、ズバン).
+  // ケイオス's 《双極臨界》 the same, its fourth harder still (COLLAPSE_JOLT) — the camera onto them as her circles meet.
   const how: CameraStrength = plan.amounts ? 'large' : strength;
-  const weights = plan.amounts && blows ? blows.map((_, i) => (i === blows.length - 1 ? HIGANBANA_JOLT.last : HIGANBANA_JOLT.first)) : undefined;
+  const jolt = plan.jolt ?? HIGANBANA_JOLT;
+  const weights = plan.amounts && blows ? blows.map((_, i) => (i === blows.length - 1 ? jolt.last : jolt.first)) : undefined;
   return {
     ...plan,
-    camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength: how, ...(weights ? { weights } : {}) }],
+    camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: plan.trackAt ?? first ?? plan.impact, blows, strength: how, ...(weights ? { weights } : {}) }],
     after: undefined,
   };
 }
@@ -301,6 +329,7 @@ function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       const own = specialFxOf(ctx.skillId);
       const shares = multiHitOf(ctx.skillId);
       if (beat.hits && beat.hits.length > 0 && ctx.skillId === 'higanbana') return higanbanaFx(beat, ctx, tempo, lead, kick, reel);
+      if (beat.hits && beat.hits.length > 0 && ctx.skillId === 'soukyoku_rinkai') return collapseFx(beat, ctx, tempo, reel);
       if (own.length > 0 && shares) {
         // 《瞬断》, three cuts: his red moon each time, tilted its own way; a light hold and a small reel at
         // the first two, the skill's hold at the last. One amount, shown as three (multiHit.ts).
@@ -545,5 +574,65 @@ function higanbanaFx(
     // The next turn waits for him to be home (its own wait, 450–700ms, already counted) — and, when it
     // breaks them, as much longer as its BREAK comes later than a blow's would.
     hold: back + home + 250 - 450 + (breakAt !== undefined ? breakAt - impact : 0),
+  };
+}
+
+/**
+ * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書 §演出): after her cut-in, her wings open — she
+ * stays where she is; the gold circle and the purple come together over the creatures into the
+ * light-and-dark core; it swells, is pressed small, holds; three strikes (a light hold each, a reel); the
+ * fourth, 界核崩壊 — the core bursts, a white flash, the space cracked, crystal shards, the hardest jolt,
+ * the longest hold, a heavy sound, a big number; its afterglow; then (if it broke them) BREAK. At all of
+ * them: each strike on every one standing; a number at each (`amounts` — the others' from the spread).
+ */
+function collapseFx(
+  beat: PartyBeat,
+  ctx: BeatContext,
+  tempo: number,
+  reel: (px: number, down?: number) => { on: string; px: number; down: number } | undefined,
+): BeatFx {
+  const speed = ctx.speed ?? 1;
+  const atLeast = (ms: number, floor: number) => Math.round(Math.max(ms, floor / speed));
+  const c = COLLAPSE_FX;
+  const meet = c.circles + atLeast(c.ring, COLLAPSE_FLOOR_MS.ring);
+  const pressed = meet + c.swell + c.press;
+  const first = pressed + atLeast(c.hold, COLLAPSE_FLOOR_MS.hold);
+  const quick = Math.max(atLeast(c.quick, COLLAPSE_FLOOR_MS.quick), Math.round(multiHitGap(speed) / speed));
+  const all = beat.hits ?? [beat.amount];
+  const struck = beat.spread ?? [{ target: beat.target, hits: all }];
+  // The strikes that landed (one that brought them all down ends it); the fourth, the collapse, after a breath.
+  const n = Math.max(...struck.map((x) => x.hits.length));
+  const strikes = Array.from({ length: n }, (_, i) => (i < 3 ? first + i * quick : first + 3 * quick + c.breath) + c.land);
+  const impact = strikes[n - 1];
+  // Only the fourth is the collapse: brought down before it, the last strike is a strike.
+  const collapsed = n >= 4;
+  const after = atLeast(c.after, COLLAPSE_FLOOR_MS.after);
+  const hitStop = collapsed ? HIT_STOPS.higanbana : HIT_STOPS.skill;
+  // 魔防DOWN said on those it left standing as the afterglow fades — read before anyone moves.
+  const lowered = !!beat.magicDown || !!beat.spread?.some((x) => x.magicDown);
+  // Its BREAK once the afterglow has faded, never over the collapse.
+  const breakAt = beat.broke ? impact + after : undefined;
+  return {
+    tempo,
+    camera: [{ kind: 'KICK', dir: 'left', strength: 'small' }],
+    // Her wings, behind her as she begins (she stays where she is).
+    special: [{ type: 'kaos_twin_wings', on: beat.actor, at: 0 }],
+    stages: strikes.slice(0, -1).map((at) => ({ at, hitStop: HIT_STOPS.light, reel: reel(3) })),
+    impact,
+    flash: { kind: 'magic', on: beat.target, colour: 'star' },
+    hitStop,
+    sfx: collapsed ? ['battle_finisher_hit', 'battle_boss_hit'] : ['battle_magic_dark'],
+    shake: beat.broke ? undefined : collapsed ? 'large' : 'small',
+    reel: reel(collapsed ? 9 : 5),
+    number: numberTier(beat, ctx, collapsed),
+    amounts: all,
+    collapse: { circles: c.circles, meet, core: meet - c.core, pressed, strikes, burst: collapsed ? impact : -1, after },
+    trackAt: meet,
+    jolt: COLLAPSE_JOLT,
+    also: struck.filter((x) => x.target !== beat.target && x.hits.length > 0).map((x) => x.target),
+    ...(breakAt !== undefined ? { breakAt } : {}),
+    // The next turn waits for the collapse and its afterglow (its own wait, 450–700ms, already counted) —
+    // and, when it breaks them, for its BREAK after.
+    hold: impact + hitStop + after + 250 - 450 + (breakAt !== undefined ? after : 0) + (lowered ? COLLAPSE_SAY_MS : 0),
   };
 }

@@ -11,6 +11,7 @@ import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { HERO_STARTING_SKILLS, withHiganbana } from '@mugen/content/skills/heroSkills';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
+import { SOUKYOKU_RINKAI_READY } from '@mugen/content/skills/kaosSkills';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { locationNameOf } from '@mugen/content/locations/alden';
 import { PartyBattleScreen } from '../ui/battle/PartyBattleScreen';
@@ -30,6 +31,7 @@ import { audioManager } from '../platform/audio';
  *   &hurt=1                        the hero and Grave start hurt (for the heals)
  *   &footing=N                     the creature's BREAK footing is N (to see BREAK at once)
  *   &higanbana=1                   his finisher 《彼岸花》 among his skills (as in ヴァルシール's second form)
+ *   &collapse=1                    ケイオス's finisher 《双極臨界》 ready from her first turn (in the game: after three)
  *   &enemies=2                     two creatures: イワホロ and コケマル (複数敵, 2026-10-12)
  *   &enemies=3                     three: イワホロ, コケマル and ヒョウレイ
  *   &weak=1                        (with &enemies) the creatures start at an eighth of their health
@@ -82,6 +84,8 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
   // &higanbana=1: his finisher among his skills (first, as in ヴァルシール's second form — ui/finale withFinisher).
   // The second form is where he has it — so there it is his without asking.
   const finisher = params.get('higanbana') === '1' || which === 'valsheel2';
+  // &collapse=1: ケイオス's finisher ready from her first turn (here only — in the game it waits three of her turns).
+  const collapseNow = params.get('collapse') === '1';
   const members = useMemo(
     () => [
       ...heroAndKaos({
@@ -95,10 +99,11 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
         heroAttack: { min: 8, max: 12 },
         heroSkills: finisher ? withHiganbana(HERO_STARTING_SKILLS) : HERO_STARTING_SKILLS,
         kaosMagic: availableMagic(MAGIC_DEFS, { awakened: true }),
+        ...(collapseNow ? { kaosSkills: [SOUKYOKU_RINKAI_READY] } : {}),
       }),
       hurt ? { ...GRAVE_GUEST, hp: 60 } : GRAVE_GUEST,
     ],
-    [hurt, finisher],
+    [hurt, finisher, collapseNow],
   );
   useEffect(() => {
     audioManager.listenForFirstGesture();
