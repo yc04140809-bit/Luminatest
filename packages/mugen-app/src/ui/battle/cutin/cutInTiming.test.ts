@@ -5,6 +5,8 @@ import {
   CUT_IN_BRIEF_FLOOR_MS,
   CUT_IN_BRIEF_MS,
   CUT_IN_FLOOR_MS,
+  CUT_IN_PACE_FLOOR_MS,
+  CUT_IN_PACE_MS,
   CUT_IN_MS,
   NAME_SHOWN_FROM,
   NAME_SHOWN_UNTIL,
@@ -45,18 +47,27 @@ describe('how long a cut-in lasts', () => {
     }
   });
 
-  it('a finisher seen already in this fight is the short one (作者 2026-10-25 ブラッシュアップ §4) — shorter, still readable, never under its floor', () => {
-    expect(cutInMs('FINISHER', 1, true)).toBe(CUT_IN_BRIEF_MS);
-    expect(CUT_IN_BRIEF_MS).toBeLessThan(CUT_IN_MS.FINISHER);
+  it('a party finisher (作者 2026-10-25/26): its first cut-in in a fight a little shorter, every one after shorter still — readable, never under its floor', () => {
+    expect(cutInMs('FINISHER', 1, 'brisk')).toBe(CUT_IN_PACE_MS.brisk);
+    expect(cutInMs('FINISHER', 1, 'brief')).toBe(CUT_IN_BRIEF_MS);
+    expect(CUT_IN_PACE_MS.brisk).toBeLessThan(CUT_IN_MS.FINISHER);
+    expect(CUT_IN_BRIEF_MS).toBeLessThan(CUT_IN_PACE_MS.brisk);
     for (const speed of BATTLE_SPEEDS) {
-      expect(cutInMs('FINISHER', speed, true)).toBeLessThan(cutInMs('FINISHER', speed));
-      expect(cutInMs('FINISHER', speed, true)).toBeGreaterThanOrEqual(CUT_IN_BRIEF_FLOOR_MS);
-      // Still a finisher's: longer than an ordinary skill's, and its name read whole for well over 750ms.
-      expect(cutInMs('FINISHER', speed, true)).toBeGreaterThanOrEqual(cutInMs('SKILL', speed));
-      expect(nameReadableMs('FINISHER', speed, true)).toBeGreaterThanOrEqual(850);
+      const whole = cutInMs('FINISHER', speed);
+      const brisk = cutInMs('FINISHER', speed, 'brisk');
+      const brief = cutInMs('FINISHER', speed, 'brief');
+      expect(brisk).toBeLessThan(whole);
+      expect(brief).toBeLessThan(brisk);
+      expect(brisk).toBeGreaterThanOrEqual(CUT_IN_PACE_FLOOR_MS.brisk);
+      expect(brief).toBeGreaterThanOrEqual(CUT_IN_BRIEF_FLOOR_MS);
+      // Still a finisher's: never shorter than an ordinary skill's; its name read whole long enough for a
+      // short spoken 「彼岸花」 (well over 750ms).
+      expect(brief).toBeGreaterThanOrEqual(cutInMs('SKILL', speed));
+      expect(nameReadableMs('FINISHER', speed, 'brief')).toBeGreaterThanOrEqual(850);
+      expect(nameReadableMs('FINISHER', speed, 'brisk')).toBeGreaterThanOrEqual(1100);
     }
-    // Only a finisher has a short one.
-    expect(cutInMs('SKILL', 1, true)).toBe(cutInMs('SKILL', 1));
+    // Only a finisher has a quicker one.
+    expect(cutInMs('SKILL', 1, 'brief')).toBe(cutInMs('SKILL', 1));
   });
 
   it("uses the stylesheet's own hold curve for the name", () => {

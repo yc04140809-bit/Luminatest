@@ -163,6 +163,22 @@ describe('cameraKeyframes', () => {
     for (const q of between) expect(q[2]).toBeGreaterThanOrEqual(TRACK.medium.zoom);
   });
 
+  it('TRACK with weights (《彼岸花》 — 作者 2026-10-26: シュッ、シュッ、ズバン): each blow punches as hard as it is told', () => {
+    const base: CameraMove = { kind: 'TRACK', from: 0.75, to: 0.25, impact: 400, blows: [400, 630, 860], strength: 'large' };
+    const punchesOf = (move: CameraMove) => {
+      const { ms, frames } = cameraKeyframes(move);
+      const p = frames.map(pose);
+      const t = frames.map((f) => Number(f.offset) * ms);
+      return [400, 630, 860].map((cut) => Math.max(...p.filter((_, i) => t[i] > cut && t[i] < cut + 60).map((q) => q[2])));
+    };
+    const plain = punchesOf(base);
+    const weighed = punchesOf({ ...base, weights: [0.4, 0.4, 1.4] });
+    // The first two lighter than without weights, the last harder.
+    expect(weighed[0]).toBeLessThan(plain[0]);
+    expect(weighed[1]).toBeLessThan(plain[1]);
+    expect(weighed[2]).toBeGreaterThan(plain[2]);
+  });
+
   it('TRACK on a quick blow still leans, swings and then holds — never out of order', () => {
     for (const impact of [80, 150, 260]) {
       const offsets = cameraKeyframes({ kind: 'TRACK', from: 0.7, to: 0.25, impact }).frames.map((f) => Number(f.offset));

@@ -37,9 +37,10 @@ export interface Petal {
    * Its layer (作者 2026-10-24 仕上げ §4–5): 'back' small, faint, slow, many — far behind; 'rise' a few off
    * the lilies first, floating up; 'front' big, clear, fast, turning hard — across the screen near the camera;
    * 'drift' (作者 2026-10-25 ブラッシュアップ §2: 舞って終わる余韻) a few last ones, falling slowly and swaying
-   * after the rest are gone.
+   * after the rest are gone; 'mid' (2026-10-26 最終 §9: 奥・中・手前) the middle depth — the size a petal is,
+   * across the field at an easy pace, between the far small ones and the big ones near the camera.
    */
-  layer: 'back' | 'rise' | 'front' | 'drift';
+  layer: 'back' | 'mid' | 'rise' | 'front' | 'drift';
   /** Which of the author's sixteen petals (作者 2026-10-25 — hero-higanbana-petals.webp, 4×4, row by row). */
   variant: number;
   /** Where it starts (% of the screen). */
@@ -65,9 +66,9 @@ export interface Bloom {
   petals: Petal[];
 }
 
-/** How many petals of each layer (one picture each — 50 in all, a light load on a phone). */
-export const PETALS = { back: 30, rise: 6, front: 8, drift: 6 } as const;
-export const PETAL_COUNT = PETALS.back + PETALS.rise + PETALS.front + PETALS.drift;
+/** How many petals of each layer (one picture each — 58 in all, a light load on a phone). */
+export const PETALS = { back: 30, mid: 8, rise: 6, front: 8, drift: 6 } as const;
+export const PETAL_COUNT = PETALS.back + PETALS.mid + PETALS.rise + PETALS.front + PETALS.drift;
 /** The author's petals, one picture of sixteen (4×4). */
 export const PETAL_VARIANTS = 16;
 /** Lilies under each creature: one creature, more of them; several, fewer each. */
@@ -169,6 +170,25 @@ export function higanbanaBloom(spots: readonly BloomSpot[]): Bloom {
       alpha: r2(0.65 + 0.25 * Math.abs(jitter(i, 6, 13))),
       delay: r2(0.3 + 0.25 * Math.abs(jitter(i, 7, 20))),
       dur: r2(1.5 + 0.4 * Math.abs(jitter(i, 8, 21))),
+    });
+  }
+  for (let i = 0; i < PETALS.mid; i++) {
+    // Out from the lilies to one side and off it, falling a little — the middle of the depth.
+    const from = lily(i + 1);
+    const right = i % 2 === 0;
+    petals.push({
+      layer: 'mid',
+      variant: (i * 9 + 4) % PETAL_VARIANTS,
+      x: from.x,
+      y: r2(from.y - 10 - 14 * Math.abs(jitter(i, 0, 37))),
+      dx: r2((right ? 1 : -1) * (55 + 30 * Math.abs(jitter(i, 1, 38)))),
+      dy: r2(-6 + 24 * Math.abs(jitter(i, 2, 39))),
+      rot0: Math.round(180 * jitter(i, 3, 40)),
+      rot: Math.round((right ? 1 : -1) * (160 + 140 * Math.abs(jitter(i, 4, 41)))),
+      size: Math.round(60 + 30 * Math.abs(jitter(i, 5, 42))),
+      alpha: 0.92,
+      delay: r2(0.3 + 0.04 * i),
+      dur: r2(1.05 + 0.25 * Math.abs(jitter(i, 6, 43))),
     });
   }
   for (let i = 0; i < PETALS.front; i++) {

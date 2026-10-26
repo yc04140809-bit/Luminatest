@@ -1183,6 +1183,18 @@
   opacity: 0;
   animation: pb-bloom-dark var(--bloom-ms) ease-out var(--bloom-at) both;
 }
+/* The third cut's white flash (§8): a single flash, under a tenth of a second at its brightest, never pure
+   white — the ground splits out of it. Not a strobe: once, at the third cut only. */
+.pb-bloom-white {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(ellipse at var(--bx) var(--by), #fff 0%, rgba(255, 245, 240, 0.85) 45%, rgba(255, 235, 230, 0.55) 100%);
+  opacity: 0;
+  pointer-events: none;
+  animation: pb-bloom-white 110ms ease-out var(--crack-at) both;
+}
+@keyframes pb-bloom-white { 0% { opacity: 0; } 18% { opacity: 0.72; } 60% { opacity: 0.3; } 100% { opacity: 0; } }
 @keyframes pb-bloom-dark { 0% { opacity: 0; } 10% { opacity: 1; } 72% { opacity: 1; } 100% { opacity: 0; } }
 .pb-crack {
   position: absolute;
@@ -1257,6 +1269,7 @@
 .pb-petal.rise { animation-name: pb-petal-rise; animation-timing-function: ease-out; }
 .pb-petal.front { animation-name: pb-petal-front; animation-timing-function: cubic-bezier(0.3, 0.1, 0.6, 0.9); }
 .pb-petal.drift { animation-name: pb-petal-drift; animation-timing-function: linear; }
+.pb-petal.mid { animation-timing-function: cubic-bezier(0.25, 0.4, 0.45, 1); }
 @keyframes pb-petal {
   0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)) scale(0.5); }
   12% { opacity: var(--pa); }
@@ -1422,5 +1435,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
-  .pb-petal, .pb-bloom-veil, .pb-trace, .pb-glint, .pb-figure > img.pb-ghost { display: none; }
+  .pb-petal, .pb-bloom-veil, .pb-bloom-white, .pb-trace, .pb-glint, .pb-figure > img.pb-ghost { display: none; }
 }

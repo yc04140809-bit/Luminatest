@@ -51,6 +51,12 @@ describe('the ground split, and the lilies out of it', () => {
     expect(of('back')).toHaveLength(PETALS.back);
     expect(of('rise')).toHaveLength(PETALS.rise);
     expect(of('front')).toHaveLength(PETALS.front);
+    // The middle depth (最終 §9 — 奥・中・手前): bigger than the far ones, smaller than the near ones, off to a side.
+    const mid = of('mid');
+    expect(mid).toHaveLength(PETALS.mid);
+    expect(Math.min(...mid.map((p) => p.size))).toBeGreaterThan(Math.max(...of('back').map((p) => p.size)));
+    expect(Math.max(...mid.map((p) => p.size))).toBeLessThan(Math.min(...of('front').map((p) => p.size)));
+    expect(mid.some((p) => p.dx > 40) && mid.some((p) => p.dx < -40)).toBe(true);
     // Back: small, a little faint, slow; every way out from the lilies.
     const back = of('back');
     expect(Math.max(...back.map((p) => p.size))).toBeLessThan(Math.min(...of('front').map((p) => p.size)) / 2);
@@ -76,7 +82,7 @@ describe('the ground split, and the lilies out of it', () => {
     // Every petal one of the sixteen; all sixteen seen; neighbours in a layer never the same one.
     for (const p of petals) expect(Number.isInteger(p.variant) && p.variant >= 0 && p.variant < PETAL_VARIANTS).toBe(true);
     expect(new Set(petals.map((p) => p.variant)).size).toBe(PETAL_VARIANTS);
-    for (const layer of ['back', 'rise', 'front', 'drift'] as const) {
+    for (const layer of ['back', 'mid', 'rise', 'front', 'drift'] as const) {
       const vs = petals.filter((p) => p.layer === layer).map((p) => p.variant);
       vs.slice(1).forEach((v, i) => expect(v).not.toBe(vs[i]));
     }

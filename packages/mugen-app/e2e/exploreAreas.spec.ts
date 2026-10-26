@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { goTo, hero, settled, things, touch, type P } from './roam';
+import { dist, goTo, hero, settled, things, touch, type P } from './roam';
 
 /**
  * THE GROUND TOLD APART — the PoC of 作者「探索画面仕様 更新指示」(2026-10-17), on the ruins only,
@@ -33,9 +33,14 @@ test('its own painting (the grid image\'s), the party on the road (MAIN) — and
 test('up the road to the far steps: smaller there, facing away; then round the rubble onto the side steps (SIDE), where something is noticed', async ({ page }) => {
   test.setTimeout(90_000);
   await openPoC(page);
-  await touch(page, { x: 0.84, y: 0.35 });
+  // Finds are placed anew each visit, and a touch beside one is taken for it (the walk snaps to a thing
+  // within 0.08): one placed by chance at the far steps takes him to it instead — still up there.
+  const target = { x: 0.84, y: 0.35 };
+  const beside = (await things(page)).find((t) => t.kind === 'find' && dist(t.stand, target) < 0.09);
+  await touch(page, target);
   const far = await hero(page);
-  expect(far.y).toBeLessThan(0.4);
+  if (beside) expect(dist(far, beside.stand)).toBeLessThan(0.02);
+  expect(far.y).toBeLessThan(beside ? 0.42 : 0.4);
   await expect(scene(page)).toHaveAttribute('data-zone', 'MAIN');
   expect(Number(await scene(page).getAttribute('data-scale'))).toBeLessThan(0.65);
   // Down and across, then up the side steps — on the ground at every moment of the walk.

@@ -167,8 +167,15 @@ export const TRACE_FLOOR_MS = { lead: 60, ms: 100 } as const;
 export const HIGANBANA_CUTS = [
   { turn: -10, scale: 0.8 },
   { flip: true, turn: 24, scale: 0.85 },
-  { turn: 80, scale: 1.55 },
+  // The third (作者 2026-10-26 最終ブラッシュアップ §5–6: 3撃目だけ斬撃を大きく): near upright, the biggest by far.
+  { turn: 80, scale: 1.8 },
 ] as const;
+/**
+ * How hard the camera jolts at 《彼岸花》's cuts (a share of its TRACK punch): the first two light — a flick
+ * that speeds it up — the third the heavy one, harder than any other move's last (作者 2026-10-26: シュッ、
+ * シュッ、ズバン).
+ */
+export const HIGANBANA_JOLT = { first: 0.4, last: 1.4 } as const;
 
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
 export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
@@ -230,9 +237,15 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const several = !!(plan.split || plan.amounts);
   const first = several ? plan.stages?.[0]?.at : undefined;
   const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
-  // 《彼岸花》, a finisher: the camera follows it hardest.
+  // 《彼岸花》, a finisher: the camera follows it hardest — its first two cuts a light jolt each, the third the
+  // heavy one (作者 2026-10-26 最終ブラッシュアップ §4–6: シュッ、シュッ、ズバン).
   const how: CameraStrength = plan.amounts ? 'large' : strength;
-  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength: how }], after: undefined };
+  const weights = plan.amounts && blows ? blows.map((_, i) => (i === blows.length - 1 ? HIGANBANA_JOLT.last : HIGANBANA_JOLT.first)) : undefined;
+  return {
+    ...plan,
+    camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength: how, ...(weights ? { weights } : {}) }],
+    after: undefined,
+  };
 }
 
 function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {

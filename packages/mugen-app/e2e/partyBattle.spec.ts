@@ -797,12 +797,12 @@ test('《彼岸花》 breaking it: 「BREAK!!」 only after the dark and the lil
   await expect(page.getByTestId('pb-break-badge')).toBeVisible();
 });
 
-// ブラッシュアップ §4 (作者 2026-10-25: 初回は魅せる、以降はテンポ重視): 《彼岸花》's cut-in is the whole one the first
-// time in a fight, the short one after that.
-test('《彼岸花》 twice in one fight: the whole cut-in the first time, the short one the second', async ({ page }) => {
+// ブラッシュアップ §4 (作者 2026-10-25: 初回は魅せる、以降はテンポ重視; 2026-10-26: 初回も少しだけ短く): 《彼岸花》's
+// cut-in is a little shorter than the whole one the first time in a fight, shorter still after that.
+test('《彼岸花》 twice in one fight: a little shorter the first time, the short one the second', async ({ page }) => {
   test.setTimeout(150_000);
   await page.goto('/?preview=party&higanbana=1&footing=99');
-  const seen: { ms: string | null; brief: string | null }[] = [];
+  const seen: { ms: string | null; pace: string | null }[] = [];
   for (let turn = 0; turn < 40 && seen.length < 2; turn++) {
     await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 20_000 });
     if ((await screen(page).getAttribute('data-actor')) === 'hero') {
@@ -811,7 +811,7 @@ test('《彼岸花》 twice in one fight: the whole cut-in the first time, the s
         await page.getByTestId('pb-cmd-skill-higanbana').click();
         const cut = page.getByTestId('cut-in');
         await expect(cut).toBeVisible();
-        seen.push({ ms: await cut.getAttribute('data-ms'), brief: await cut.getAttribute('data-brief') });
+        seen.push({ ms: await cut.getAttribute('data-ms'), pace: await cut.getAttribute('data-pace') });
         await expect(cut).toHaveCount(0, { timeout: 5_000 });
         continue;
       }
@@ -819,9 +819,10 @@ test('《彼岸花》 twice in one fight: the whole cut-in the first time, the s
     }
     await page.getByTestId('pb-cmd-defend').click();
   }
+  // 最終ブラッシュアップ §1 (2026-10-26): the first a little shorter than the whole one too.
   expect(seen).toEqual([
-    { ms: '2500', brief: null },
-    { ms: '1500', brief: 'yes' },
+    { ms: '2200', pace: 'brisk' },
+    { ms: '1500', pace: 'brief' },
   ]);
 });
 

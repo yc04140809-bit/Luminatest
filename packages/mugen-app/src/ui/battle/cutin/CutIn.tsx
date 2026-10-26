@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import type { BattleSpeed } from '@mugen/game/battle/battleSpeed';
-import { cutInMs, type CutInTier } from './cutInTiming';
+import { cutInMs, type CutInPace, type CutInTier } from './cutInTiming';
 import './cutin.css';
 
 /** Whose colours and layout — v18's four cut-ins, グレイヴ's own, and a boss's great move. */
@@ -46,8 +46,8 @@ export interface CutInSpec {
   name: string;
   /** An optional line under it. */
   sub?: string;
-  /** A finisher already seen in this fight: its short cut-in (cutInTiming CUT_IN_BRIEF_MS). */
-  brief?: boolean;
+  /** A party finisher's quicker cut-in: 'brisk' its first in a fight, 'brief' after (cutInTiming CUT_IN_PACE_MS). */
+  pace?: CutInPace;
 }
 
 /**
@@ -124,7 +124,7 @@ export function CutIn({ spec, ms, onDone }: { spec: CutInSpec; ms: number; onDon
       data-theme={spec.theme}
       data-tier={spec.tier}
       data-figure={spec.motion ? 'motion' : 'still'}
-      data-brief={spec.brief ? 'yes' : undefined}
+      data-pace={spec.pace}
       data-ms={ms}
       style={{ '--ci-ms': `${ms}ms` } as CSSProperties}
       role="presentation"
@@ -223,7 +223,7 @@ export function useCutInDirector(speed: BattleSpeed): CutInDirector {
       setCurrent({
         id: nextId.current,
         spec,
-        ms: cutInMs(spec.tier, speedNow.current, spec.brief),
+        ms: cutInMs(spec.tier, speedNow.current, spec.pace),
       });
     });
 

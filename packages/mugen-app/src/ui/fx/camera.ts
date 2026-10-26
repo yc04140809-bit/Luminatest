@@ -55,7 +55,7 @@ export type CameraMove =
    * `from` / `to`: where the one acting and the one struck stand (0 left – 1 right); `impact`: ms to the
    * blow — the first, for a move of several (`blows`: when each lands, the first being `impact`).
    */
-  | { kind: 'TRACK'; from: number; to: number; impact: number; blows?: readonly number[]; strength?: CameraStrength };
+  | { kind: 'TRACK'; from: number; to: number; impact: number; blows?: readonly number[]; strength?: CameraStrength; weights?: readonly number[] };
 
 /** A character's way with the camera (作者: キャラ別カメラ個性) — `tempo` stretches every move (below 1: sharper). */
 export interface CameraPersona {
@@ -267,7 +267,8 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
       }
       const punches = all.flatMap((t, i): Pose[] => {
         const last = i === all.length - 1;
-        const share = last ? 1 : 0.6;
+        // How hard each one punches: the earlier ones lighter — unless the move says (`weights`, one a blow).
+        const share = move.weights?.[i] ?? (last ? 1 : 0.6);
         const until = last ? t + TRACK_MS.punch : Math.min(t + TRACK_MS.punch, all[i + 1] - 15);
         return [
           there(at(t), 'linear'),

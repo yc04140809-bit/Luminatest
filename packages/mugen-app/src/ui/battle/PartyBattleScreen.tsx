@@ -293,9 +293,10 @@ function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['l
   const total = lunge.back + lunge.home;
   const there = `translate(${dx}px, ${dy}px)`;
   const at = (ms: number) => Math.max(0, Math.min(1, ms / total));
-  // 《彼岸花》: still, then back and fading out, unseen, there; the last blow stepped into — further, but
-  // never past the giant's front nor the middle of an ordinary one (never into its drawing).
-  const deeper = lunge.stepAt === undefined ? dx : Math.round(Math.min(0, Math.max(dx - h.width * 0.18, (giant ? f.left + f.width * 0.64 : f.left + f.width * 0.5) - h.left)));
+  // 《彼岸花》: still, then back and fading out, unseen, there; the last blow stepped into — further (作者
+  // 2026-10-26: 踏み込み距離を少し強調), but never past the giant's front nor the middle of an ordinary one
+  // (never into its drawing).
+  const deeper = lunge.stepAt === undefined ? dx : Math.round(Math.min(0, Math.max(dx - h.width * 0.26, (giant ? f.left + f.width * 0.64 : f.left + f.width * 0.5) - h.left)));
   const step = `translate(${deeper}px, ${dy}px)`;
   const keys: Keyframe[] = lunge.vanish
     ? [
@@ -518,9 +519,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           : undefined;
     const found = spell ? spellCutIn(spell) : skillCutIn(skill);
     if (found) {
+      // A finisher's cut-in in this fight (作者 2026-10-26 §1): the first a little shorter than the whole one,
+      // every one after it shorter still.
       const again = found.tier === 'FINISHER' && finishersSeen.current.has(found.name);
       if (found.tier === 'FINISHER') finishersSeen.current.add(found.name);
-      const cut = again ? { ...found, brief: true } : found;
+      const cut = found.tier !== 'FINISHER' ? found : { ...found, pace: again ? ('brief' as const) : ('brisk' as const) };
       setMenu('COMMANDS');
       setAiming(null);
       setPending(null);
@@ -1158,6 +1161,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           }}
         >
           <span className="pb-bloom-dark" />
+          {/* The third cut: a white flash, once and short (作者 2026-10-26 §8: 0.05〜0.1秒・3撃目のみ) — and out
+              of it the ground splits. */}
+          <span className="pb-bloom-white" data-testid="pb-bloom-white" />
           <svg className="pb-crack" data-testid="pb-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
             {bloomArt.cracks.map((d, i) => (
               <g key={i}>
@@ -1170,6 +1176,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           {/* The petals (作者 2026-10-24 仕上げ: one picture, many of it): far behind the lilies, a few rising off
               them, big ones across the front. */}
           {petalsOf('back')}
+          {petalsOf('mid')}
           {bloomArt.lilies.map((l, i) => (
             <img
               key={i}

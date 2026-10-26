@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -219,6 +219,22 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(short.special).toHaveLength(2);
     expect(short.special![1].scale).toBe(HIGANBANA_CUTS[2].scale);
     expect(HIGANBANA_FX.breath).toBeGreaterThan(0);
+  });
+
+  it('《彼岸花》, its camera (作者 2026-10-26 最終 §4–6: シュッ、シュッ、ズバン): followed through all three cuts — the first two a light jolt, the third the heavy one; the third\'s cut the biggest', () => {
+    const fx = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 24, hits: [7, 7, 10] }), ctx({ skillId: 'higanbana', cutIn: true }));
+    const cam = fx.camera![0] as Extract<NonNullable<typeof fx.camera>[number], { kind: 'TRACK' }>;
+    expect(cam.kind).toBe('TRACK');
+    expect(cam.blows).toEqual([...fx.stages!.map((st) => st.at), fx.impact]);
+    expect(cam.weights).toEqual([HIGANBANA_JOLT.first, HIGANBANA_JOLT.first, HIGANBANA_JOLT.last]);
+    expect(HIGANBANA_JOLT.first).toBeLessThan(0.6);
+    expect(HIGANBANA_JOLT.last).toBeGreaterThan(1);
+    expect(HIGANBANA_CUTS[2].scale).toBeGreaterThan(HIGANBANA_CUTS[0].scale * 2);
+    // Its longest hold, at the third cut: a moment still, at the ceiling a hold may be.
+    expect(fx.hitStop).toBe(HIT_STOP_MAX_MS);
+    // Another cut-in move of several cuts (《瞬断》) keeps the plain punches.
+    const shundan = beatFx(beat({ kind: 'SKILL', name: '瞬断', amount: 9, split: [3, 3, 3] } as Partial<PartyBeat>), ctx({ skillId: 'shundan', cutIn: true }));
+    expect((shundan.camera?.[0] as { weights?: unknown } | undefined)?.weights).toBeUndefined();
   });
 
   it('《彼岸花》 breaking them (作者 実機 2026-10-25: BREAKが早すぎて見れない): its BREAK after the bloom — the last cut lands as a cut, and the next turn waits the longer', () => {

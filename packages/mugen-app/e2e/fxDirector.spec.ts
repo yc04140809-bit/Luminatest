@@ -304,15 +304,23 @@ test.describe('with motion', () => {
       // The ground split under it, and the lilies.
       await expect(page.getByTestId('pb-crack')).toHaveCount(1, { timeout: 5_000 });
       await expect(page.getByTestId('pb-bloom-lily')).toHaveCount(5);
-      // The petals (仕上げ §3–5; ブラッシュアップ §2): the author's sixteen petals, one picture, in four layers —
-      // the last few drifting down after the rest.
+      // The petals (仕上げ §3–5; ブラッシュアップ §2; 最終 §9): the author's sixteen petals, one picture, far, middle
+      // and near — and the last few drifting down after the rest.
       const petals = page.getByTestId('pb-petal');
-      await expect(petals).toHaveCount(50);
+      await expect(petals).toHaveCount(58);
       const looks = await petals.evaluateAll((els) => els.map((e) => ({ pic: getComputedStyle(e).backgroundImage, at: getComputedStyle(e).backgroundPosition })));
       expect(new Set(looks.map((l) => l.pic)).size).toBe(1);
       expect(looks[0].pic).toContain('hero-higanbana-petals');
       expect(new Set(looks.map((l) => l.at)).size).toBeGreaterThanOrEqual(12);
-      for (const [layer, n] of [['back', 30], ['rise', 6], ['front', 8], ['drift', 6]] as const) await expect(page.locator(`[data-testid="pb-petal"][data-layer="${layer}"]`)).toHaveCount(n);
+      for (const [layer, n] of [['back', 30], ['mid', 8], ['rise', 6], ['front', 8], ['drift', 6]] as const) await expect(page.locator(`[data-testid="pb-petal"][data-layer="${layer}"]`)).toHaveCount(n);
+      // The third cut's white flash (最終 §8): one, short — never longer than a tenth of a second or so.
+      const white = await page.getByTestId('pb-bloom-white').evaluate((el) => {
+        const a = el.getAnimations()[0];
+        const t = a?.effect?.getTiming();
+        return { ms: Number(t?.duration ?? 0), times: Number(t?.iterations ?? 0) };
+      });
+      expect(white.times).toBe(1);
+      expect(white.ms).toBeLessThanOrEqual(110);
       // The trace gone once it has flashed; everything of the bloom taken away once it is over.
       await expect(page.getByTestId('pb-trace')).toHaveCount(0);
       await expect(page.getByTestId('pb-ghost')).toHaveCount(0);
