@@ -47,6 +47,32 @@ async function record(page: Page) {
         c.badge ??= now;
         c.badgeText ??= badge.textContent ?? '';
       }
+      // Her two circles (魔法陣ブラッシュアップ): when each is clearly there, both together, the core's birth, all gone.
+      const op = (id: string) => {
+        const el = document.querySelector(`[data-testid="${id}"]`);
+        return el ? Number(getComputedStyle(el).opacity) : 0;
+      };
+      const wo = op('pb-collapse-ring-white');
+      const vo = op('pb-collapse-ring-violet');
+      const co = op('pb-collapse-core');
+      if (wo > 0.6) c.whiteOn ??= now;
+      if (vo > 0.6) c.violetOn ??= now;
+      if (wo > 0.6 && vo > 0.6) {
+        c.bothFrom ??= now;
+        c.bothTo = now;
+      }
+      if (co > 0.3 && c.coreBorn === undefined) {
+        c.coreBorn = now;
+        c.ringsAtBirth = Math.max(wo, vo);
+      }
+      if (c.whiteOn !== undefined && wo < 0.05 && vo < 0.05) c.ringsGone ??= now;
+      const eyes = document.querySelectorAll<HTMLElement>('[data-testid="pb-kaos-eyes"] .pb-eye');
+      if (eyes.length === 2 && Number(getComputedStyle(eyes[0]).opacity) > 0.5) {
+        c.eyesLit ??= now;
+        c.goldLeftOfBlue ??= eyes[0].classList.contains('gold') && eyes[0].getBoundingClientRect().x < eyes[1].getBoundingClientRect().x;
+      }
+      c.beams = Math.max((c.beams as number) ?? 0, document.querySelectorAll('[data-testid="pb-collapse-beam"]').length);
+      c.motes = Math.max((c.motes as number) ?? 0, document.querySelectorAll('[data-testid="pb-collapse-mote"]').length);
       if (document.querySelector('[data-testid="pb-result"]')) c.result ??= now;
       if (document.querySelector('.pb-foe.down')) c.fell ??= now;
       // While it plays: she stays where she is — nothing moves her own figure (the camera moves the whole field).
@@ -114,17 +140,27 @@ test.describe('with motion', () => {
       await record(page);
       await collapse(page);
       await expect(page.getByTestId('pb-collapse')).toBeVisible({ timeout: 8_000 });
-      // The pictures: the gold circle, the purple, the core.
-      for (const id of ['pb-collapse-gold', 'pb-collapse-violet', 'pb-collapse-core']) await expect(page.getByTestId(id)).toHaveCount(1);
-      await expect(page.getByTestId('pb-collapse-gold')).toHaveAttribute('src', /kaos-circle-gold/);
-      await expect(page.getByTestId('pb-collapse-violet')).toHaveAttribute('src', /kaos-circle-purple/);
+      // The pictures: the white-gold circle, the black-purple, the core.
+      for (const id of ['pb-collapse-ring-white', 'pb-collapse-ring-violet', 'pb-collapse-core']) await expect(page.getByTestId(id)).toHaveCount(1);
+      await expect(page.getByTestId('pb-collapse-ring-white')).toHaveAttribute('src', /kaos-circle-gold/);
+      await expect(page.getByTestId('pb-collapse-ring-violet')).toHaveAttribute('src', /kaos-circle-purple/);
       await expect(page.getByTestId('pb-collapse-core')).toHaveAttribute('src', /kaos-core/);
       await expect(page.getByTestId('pb-collapse-blast')).toHaveAttribute('src', /kaos-collapse/);
-      // The gold turns one way, the purple the other.
+      // The white turns clockwise, the black-purple the other way.
       const turns = await page.evaluate(() =>
-        ['gold', 'violet'].map((k) => getComputedStyle(document.querySelector(`[data-testid="pb-collapse-${k}"]`)!).animationName),
+        ['white', 'violet'].map((k) => getComputedStyle(document.querySelector(`[data-testid="pb-collapse-ring-${k}"]`)!).animationName.split(',')[0].trim()),
       );
-      expect(turns).toEqual(['pb-cl-gold', 'pb-cl-violet']);
+      expect(turns).toEqual(['pb-cl-spin-cw', 'pb-cl-spin-ccw']);
+      // Either side of her: the white on her white wing's side (the screen's left), the black-purple on the other.
+      const sides = await page.evaluate(() => {
+        const x = (sel: string) => {
+          const r = document.querySelector(sel)!.getBoundingClientRect();
+          return r.x + r.width / 2;
+        };
+        return { white: x('[data-testid="pb-collapse-ring-white"]'), kaos: x('[data-testid="pb-figure-kaos"] > img'), violet: x('[data-testid="pb-collapse-ring-violet"]') };
+      });
+      expect(sides.white).toBeLessThan(sides.kaos);
+      expect(sides.violet).toBeGreaterThan(sides.kaos);
       // The white flash: once, short.
       const white = await page.getByTestId('pb-collapse-white').evaluate((el) => {
         const t = el.getAnimations()[0]?.effect?.getTiming();
@@ -136,6 +172,20 @@ test.describe('with motion', () => {
       await expect(page.getByTestId('pb-collapse')).toHaveCount(0, { timeout: 10_000 });
       const c = (await seen(page)) as Record<string, number | string | boolean>;
       expect(c.theme).toBe('collapse');
+      // The circles (魔法陣ブラッシュアップ §1–13): the white seen alone first, then the black-purple, the two there
+      // together, her eyes lit with them; the core born while they are still there, drinking them (light running
+      // from each into it); then they are gone — the white first seen well before, never a flash.
+      expect(c.violetOn as number).toBeGreaterThan(c.whiteOn as number);
+      expect((c.violetOn as number) - (c.whiteOn as number)).toBeGreaterThanOrEqual(fast ? 180 : 250);
+      expect((c.bothTo as number) - (c.bothFrom as number)).toBeGreaterThanOrEqual(fast ? 300 : 400);
+      expect(c.eyesLit as number).toBeGreaterThanOrEqual((c.bothFrom as number) - 120);
+      expect(c.goldLeftOfBlue).toBe(true);
+      expect(c.coreBorn as number).toBeGreaterThan(c.bothFrom as number);
+      expect(c.ringsAtBirth as number).toBeGreaterThan(0.5);
+      expect(c.ringsGone as number).toBeGreaterThan(c.coreBorn as number);
+      expect((c.ringsGone as number) - (c.whiteOn as number)).toBeGreaterThanOrEqual(fast ? 800 : 1100);
+      expect(c.beams).toBe(2);
+      expect(c.motes).toBeGreaterThanOrEqual(16);
       // After her cut-in, never under it; three pulses before the collapse, the blast and cracks and shards at it.
       expect(c.on as number).toBeGreaterThanOrEqual((c.cutOff as number) - 50);
       expect(c.waves).toBe(3);
@@ -149,8 +199,8 @@ test.describe('with motion', () => {
       expect(c.kaosMoved).toBe(false);
       // Its length on screen, from her cut-in's end to the last of it: ×2 the quicker, neither too short to see.
       const ms = (c.off as number) - (c.on as number);
-      if (fast) expect(ms).toBeLessThan(3600);
-      else expect(ms).toBeGreaterThan(2400);
+      if (fast) expect(ms).toBeLessThan(4600);
+      else expect(ms).toBeGreaterThan(3000);
     });
   }
 

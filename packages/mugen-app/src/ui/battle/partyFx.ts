@@ -5,7 +5,7 @@ import type { CameraDir, CameraMove, CameraStrength } from '../fx/camera';
 import { personaOf } from '../fx/camera';
 import type { ShakeLevel } from '../fx/screenShake';
 import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
-import { multiHitGap, multiHitOf } from './multiHit';
+import { MULTI_HIT_GAP_FLOOR_MS, multiHitGap, multiHitOf } from './multiHit';
 
 /**
  * WHAT EACH BLOW OF THE PARTY FIGHT LOOKS LIKE (作者「魔法・スキル・戦闘エフェクト強化」
@@ -112,14 +112,28 @@ export interface BeatFx {
   /** A move at all of them (《彼岸花》): the others struck besides `flash.on` — the last blow's flash and reeling on each. */
   also?: readonly string[];
   /**
-   * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書): over the creatures, the gold circle (from her
-   * side, clockwise) and the purple (from beyond them, the other way) from `circles`, met by `meet`; the
-   * light-and-dark core from `core` — swelling, pressed small by `pressed`, held still until the first
-   * strike; the strikes (`strikes`, each as it lands); at `burst` (the fourth — -1 if they fell before it)
-   * the core bursts: the cosmic blast, a white flash, the space cracked, crystal shards; its afterglow `after`.
+   * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書, 魔法陣ブラッシュアップ): either side of her — the
+   * white-gold circle on her white wing's side from `white`, the black-purple on her dark wing's side from
+   * `purple`, each opening (`enter`) and turning its own way; both there from `both` — the hush, her eyes
+   * lit — until `core`, when the light-and-dark core is born between them and drinks them (`drained`, gone);
+   * pressed small by `pressed`, it flies onto the creatures by `arrive`, held still until the first strike;
+   * the strikes (`strikes`, each as it lands); at `burst` (the fourth — -1 if they fell before it) it bursts:
+   * the cosmic blast, a white flash, the space cracked, crystal shards; its afterglow `after`.
    */
-  collapse?: { circles: number; meet: number; core: number; pressed: number; strikes: readonly number[]; burst: number; after: number };
-  /** When a TRACK swings onto the one struck, if not at the first blow (《双極臨界》: as the circles meet over them). */
+  collapse?: {
+    white: number;
+    purple: number;
+    enter: number;
+    both: number;
+    core: number;
+    drained: number;
+    pressed: number;
+    arrive: number;
+    strikes: readonly number[];
+    burst: number;
+    after: number;
+  };
+  /** When a TRACK swings onto the one struck, if not at the first blow (《双極臨界》: as its core flies at them). */
   trackAt?: number;
   /** How hard a TRACK jolts at each blow but the last, and at the last (a share of its punch — HIGANBANA_JOLT if absent). */
   jolt?: { first: number; last: number };
@@ -190,17 +204,22 @@ export const HIGANBANA_CUTS = [
 export const HIGANBANA_JOLT = { first: 0.4, last: 1.4 } as const;
 
 /**
- * ケイオス 《双極臨界 → 界核崩壊》 in time (ms, at ×1 — 作者 2026-10-26 正式実装指示書): her wings open and the two
- * circles come in (`circles` after the beat), turning their ways for `ring` until they meet over them; the
- * core forms as they meet (`core` before), swells (`swell`), is pressed small (`press`); a still moment
- * (`hold`, 0.25–0.4s); three strikes `quick` apart, a breath, the fourth — 界核崩壊 — and its afterglow
- * (`after`, 0.2–0.4s). Each strike lands `land` after it is let go. On screen never under the floors (×2).
+ * ケイオス 《双極臨界 → 界核崩壊》 in time (ms, at ×1 — 作者 2026-10-26 正式実装指示書, then 魔法陣ブラッシュアップ:
+ * 魔法陣が一瞬で消える — 見せたい場所に時間を使う). Her wings open; the white circle opens beside her (`white`
+ * after the beat, `enter` to open — small, growing, lit, turning), alone for `alone`; the black-purple one
+ * opens on her other side the same way; both there, turning their own ways — the hush (`hush`: the field
+ * darker, the music drawn back, her eyes lit) — then the core is born between them and drinks them
+ * (`drain`: light running out of each into it, each circle spent and gone, the core grown); pressed small
+ * (`press`); it flies onto the creatures (`fly`); a still moment (`hold`); three strikes `quick` apart (short:
+ * the time is the circles' and the collapse's), a breath, the fourth — 界核崩壊 — and its afterglow
+ * (`after`). Each strike lands `land` after it is let go. On screen never under the floors (×2): the white
+ * alone, the two together and the core drinking them always readable.
  */
-export const COLLAPSE_FX = { circles: 80, ring: 460, core: 60, swell: 220, press: 160, hold: 320, quick: 150, breath: 130, land: 60, after: 320 } as const;
-export const COLLAPSE_FLOOR_MS = { ring: 260, hold: 250, quick: 110, after: 200 } as const;
+export const COLLAPSE_FX = { white: 60, enter: 320, alone: 320, hush: 320, drain: 400, press: 150, fly: 200, hold: 260, quick: 120, breath: 120, land: 60, after: 320 } as const;
+export const COLLAPSE_FLOOR_MS = { enter: 230, alone: 250, hush: 260, drain: 280, fly: 140, hold: 200, quick: 100, after: 200 } as const;
 /** How hard the camera jolts at its strikes: the first three light, the fourth the hardest of any move. */
 export const COLLAPSE_JOLT = { first: 0.35, last: 1.7 } as const;
-/** How much longer the next turn waits when it lowered their magic defense: 「MAGIC DOWN」 read first. */
+/** How much longer the next turn waits when it lowered their magic defense: 「MAGIC DOWN」 read first (on screen, ×2 too). */
 export const COLLAPSE_SAY_MS = 900;
 
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
@@ -265,7 +284,7 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
   // 《彼岸花》, a finisher: the camera follows it hardest — its first two cuts a light jolt each, the third the
   // heavy one (作者 2026-10-26 最終ブラッシュアップ §4–6: シュッ、シュッ、ズバン).
-  // ケイオス's 《双極臨界》 the same, its fourth harder still (COLLAPSE_JOLT) — the camera onto them as her circles meet.
+  // ケイオス's 《双極臨界》 the same, its fourth harder still (COLLAPSE_JOLT) — the camera on her and her circles until the core flies at them.
   const how: CameraStrength = plan.amounts ? 'large' : strength;
   const jolt = plan.jolt ?? HIGANBANA_JOLT;
   const weights = plan.amounts && blows ? blows.map((_, i) => (i === blows.length - 1 ? jolt.last : jolt.first)) : undefined;
@@ -594,10 +613,19 @@ function collapseFx(
   const speed = ctx.speed ?? 1;
   const atLeast = (ms: number, floor: number) => Math.round(Math.max(ms, floor / speed));
   const c = COLLAPSE_FX;
-  const meet = c.circles + atLeast(c.ring, COLLAPSE_FLOOR_MS.ring);
-  const pressed = meet + c.swell + c.press;
-  const first = pressed + atLeast(c.hold, COLLAPSE_FLOOR_MS.hold);
-  const quick = Math.max(atLeast(c.quick, COLLAPSE_FLOOR_MS.quick), Math.round(multiHitGap(speed) / speed));
+  const f = COLLAPSE_FLOOR_MS;
+  const enter = atLeast(c.enter, f.enter);
+  const white = c.white;
+  // The black-purple opens once the white has been seen alone; both there once it has opened too.
+  const purple = white + atLeast(c.alone, f.alone);
+  const both = purple + enter;
+  const core = both + atLeast(c.hush, f.hush);
+  const drained = core + atLeast(c.drain, f.drain);
+  const pressed = drained + c.press;
+  const arrive = pressed + atLeast(c.fly, f.fly);
+  const first = arrive + atLeast(c.hold, f.hold);
+  // The strikes quick (作者 ブラッシュアップ §14: 中間の多段ヒットは短く) — never closer than a multi-hit's floor on screen.
+  const quick = Math.max(atLeast(c.quick, f.quick), Math.round(MULTI_HIT_GAP_FLOOR_MS / speed));
   const all = beat.hits ?? [beat.amount];
   const struck = beat.spread ?? [{ target: beat.target, hits: all }];
   // The strikes that landed (one that brought them all down ends it); the fourth, the collapse, after a breath.
@@ -626,13 +654,14 @@ function collapseFx(
     reel: reel(collapsed ? 9 : 5),
     number: numberTier(beat, ctx, collapsed),
     amounts: all,
-    collapse: { circles: c.circles, meet, core: meet - c.core, pressed, strikes, burst: collapsed ? impact : -1, after },
-    trackAt: meet,
+    collapse: { white, purple, enter, both, core, drained, pressed, arrive, strikes, burst: collapsed ? impact : -1, after },
+    // The camera stays on her and her circles (the picture of it) until the core flies — then onto them.
+    trackAt: pressed,
     jolt: COLLAPSE_JOLT,
     also: struck.filter((x) => x.target !== beat.target && x.hits.length > 0).map((x) => x.target),
     ...(breakAt !== undefined ? { breakAt } : {}),
     // The next turn waits for the collapse and its afterglow (its own wait, 450–700ms, already counted) —
     // and, when it breaks them, for its BREAK after.
-    hold: impact + hitStop + after + 250 - 450 + (breakAt !== undefined ? after : 0) + (lowered ? COLLAPSE_SAY_MS : 0),
+    hold: impact + hitStop + after + 250 - 450 + (breakAt !== undefined ? after : 0) + (lowered ? COLLAPSE_SAY_MS / speed : 0),
   };
 }

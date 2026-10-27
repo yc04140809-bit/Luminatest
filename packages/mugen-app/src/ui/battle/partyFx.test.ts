@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { COLLAPSE_FLOOR_MS, COLLAPSE_FX, HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -362,5 +362,51 @@ describe('a cut-in move\'s camera follows it — TRACK (作者 2026-10-23, FF Re
     expect(beatFx(beat({}), ctx({ cutIn: true })).camera?.[0].kind).toBe('KICK');
     expect(beatFx(beat({ kind: 'SKILL', missed: true }), ctx({ cutIn: true })).camera?.[0]?.kind).not.toBe('TRACK');
     expect(beatFx(beat({ actor: 'kaos', kind: 'MEND', target: 'grave' }), ctx({ cutIn: true })).camera).toBeUndefined();
+  });
+});
+
+describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles seen (作者 2026-10-26 魔法陣ブラッシュアップ)', () => {
+  const collapse = (speed: number) =>
+    beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9], magicDown: true }), ctx({ skillId: 'soukyoku_rinkai', speed })).collapse!;
+
+  it('×1: the white alone first, then the black-purple, the two together (the hush), the core born while they are there, drinking them', () => {
+    const c = collapse(1);
+    expect(c.purple - c.white).toBe(COLLAPSE_FX.alone);
+    expect(c.both - c.purple).toBe(COLLAPSE_FX.enter);
+    // Together, both whole, before the core: 0.2–0.4s of hush; then the core drinks them.
+    expect(c.core - c.both).toBeGreaterThanOrEqual(200);
+    expect(c.core - c.both).toBeLessThanOrEqual(400);
+    expect(c.drained - c.core).toBeGreaterThanOrEqual(350);
+    // The white seen for more than a second in all, the black-purple about one; never a passing flash.
+    expect(c.drained - c.white).toBeGreaterThanOrEqual(1100);
+    expect(c.drained - c.purple).toBeGreaterThanOrEqual(900);
+    // The core flies once they are spent; the strikes quick after it.
+    expect(c.arrive).toBeGreaterThan(c.pressed);
+    expect(c.strikes[0]).toBeGreaterThan(c.arrive);
+  });
+
+  it('×2: never a blink — on screen the white alone, the two together and the drinking each keep their floor; the strikes no closer than a multi-hit', () => {
+    const c = collapse(0.5);
+    const screen = (ms: number) => ms * 0.5;
+    expect(screen(c.purple - c.white)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.alone);
+    expect(screen(c.core - c.both)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.hush);
+    expect(screen(c.drained - c.core)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.drain);
+    const gaps = c.strikes.slice(1, 3).map((t, i) => screen(t - c.strikes[i]));
+    for (const g of gaps) expect(g).toBeGreaterThanOrEqual(MULTI_HIT_GAP_FLOOR_MS);
+    // And quicker than ×1 on screen.
+    expect(screen(c.burst)).toBeLessThan(collapse(1).burst);
+  });
+
+  it('the time goes to the circles and the collapse, not the strikes: the middle three are quick (the multi-hit floor), the whole under 2.8s to the collapse at ×1', () => {
+    const c = collapse(1);
+    expect(c.strikes[1] - c.strikes[0]).toBe(MULTI_HIT_GAP_FLOOR_MS);
+    expect(c.burst).toBeLessThan(2800);
+  });
+
+  it('the camera stays on her and her circles until the core flies', () => {
+    const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9] }), ctx({ skillId: 'soukyoku_rinkai', cutIn: true }));
+    const track = fx.camera![0] as { kind: string; impact: number };
+    expect(track.kind).toBe('TRACK');
+    expect(track.impact).toBe(fx.collapse!.pressed);
   });
 });

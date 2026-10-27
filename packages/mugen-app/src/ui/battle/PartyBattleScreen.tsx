@@ -39,7 +39,7 @@ import type { BattleBackgroundKey } from '@mugen/assets/keys';
 import type { ArtBox } from '@mugen/core/art/artStates';
 import { battleEnemyArt, battlePartyArt, type BattlePartyId } from './battleArt';
 import { battleBackgroundArt } from '../../assets/battleBackground';
-import { playSfx } from '../../platform/audio';
+import { audioManager, playSfx } from '../../platform/audio';
 import { hitStop, screenShake, shakeAllowed } from '../fx/screenShake';
 import { CAMERA_COMBOS, camera, cameraSequence } from '../fx/camera';
 import { beatFx, counterFx, type BeatContext, type BeatFx } from './partyFx';
@@ -168,6 +168,15 @@ const RESULT_FAST_SHARE = 0.7;
 const COLLAPSE_GONE_MS = 450;
 /** 《双極臨界》: how long 「MAGIC DOWN」 is up on each it lowered (as SPEED DOWN after 《彼岸花》). */
 const MAGIC_DOWN_SAID_MS = 1300;
+/** 《双極臨界》's circles: how big (a share of the screen's height), and how far either side of her (shares of its width). */
+const COLLAPSE_RING_SHARE = 0.48;
+const COLLAPSE_RING_SPREAD = { white: 0.17, violet: 0.17 } as const;
+/** 《双極臨界》 on the field: her circles over everyone else, she before them, the core and its light over all. */
+const COLLAPSE_Z = { circles: 25, caster: 40, core: 50 } as const;
+/** 《双極臨界》: the motes running out of each circle into the core. */
+const COLLAPSE_MOTES = 8;
+/** Her eyes on her battle drawing (kaos-battle-v2, shares of it): the right, gold, and the left, blue — as drawn, never swapped. */
+const KAOS_EYES = { gold: { x: 45.9, y: 14.6 }, blue: { x: 50.8, y: 14.0 } } as const;
 const SHAKE_MS = 450;
 /** COMBO is shown from this many (one blow is not a combo). */
 const COMBO_SHOWN_FROM = 2;
@@ -466,13 +475,26 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     key: number;
     art: Collapse;
     spots: { x: number; y: number }[];
-    ring: number;
-    meet: number;
-    core: number;
-    pressed: number;
-    strikes: number[];
-    burst: number;
-    after: number;
+    /** Where (% of the field): her white circle, her black-purple one, the core born between them. */
+    white: { x: number; y: number };
+    violet: { x: number; y: number };
+    born: { x: number; y: number };
+    /** The field's size (px), for the light running from each circle into the core. */
+    w: number;
+    h: number;
+    t: {
+      white: number;
+      purple: number;
+      enter: number;
+      both: number;
+      core: number;
+      drained: number;
+      pressed: number;
+      arrive: number;
+      strikes: number[];
+      burst: number;
+      after: number;
+    };
   } | null>(null);
   /** The beat whose 魔防DOWN has been said (as its afterglow faded): on the plate from then. */
   const [loweredSaid, setLoweredSaid] = useState(-1);
@@ -604,6 +626,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     if (!at) return;
     const speed = fast ? 0.5 : 1;
     const timers: number[] = [];
+    /** The music drawn back for 《双極臨界》's hush — let back at once if this beat is cut short. */
+    let hushed = false;
     const later = (ms: number, f: () => void) => timers.push(window.setTimeout(() => at.isConnected && f(), ms));
     const ctx = beatContext(beat, true);
     /** What the count does as a beat's blows land: one more at each blow before the last; at the last, as it stands. */
@@ -650,9 +674,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
         later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
-      // 《双極臨界 → 界核崩壊》: the circles over the middle of them, the core, a pulse at each strike, the collapse.
+      // 《双極臨界 → 界核崩壊》 (魔法陣ブラッシュアップ): her two circles either side of her, the core born between them
+      // and drinking them, flying onto the creatures; a pulse at each strike; the collapse over them.
       if (p.collapse && isEnemyId(beat.target)) {
         const box = at.getBoundingClientRect();
+        const pc = (px: number, of: number) => Math.round((px / of) * 1000) / 10;
         const spots = [beat.target, ...(p.also ?? [])].flatMap((id) => {
           const el = at.querySelector<HTMLElement>(`[data-enemy="${id}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${id}"]`);
           const r = el?.getBoundingClientRect();
@@ -662,6 +688,22 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           const y = ((r.top + r.height * (giant ? 0.35 : 0.5) - box.top) / box.height) * 100;
           return [{ x: Math.round(x), y: Math.round(y) }];
         });
+        // Her circles either side of her (作者 §4: her white wing's side — the screen's left as she is drawn — the
+        // white-gold; her dark wing's side the black-purple), at her chest's height; the core between them, above her.
+        const me = at.querySelector<HTMLElement>(`[data-testid="pb-figure-${beat.actor}"] > img`)?.getBoundingClientRect();
+        const kx = me ? me.left + me.width * 0.48 - box.left : box.width * 0.68;
+        // About her chest — between the party's cards above on the right and the commands below (the circle passes
+        // behind the small command diamonds rather than the cards).
+        const ky = Math.min(box.height * 0.48, Math.max(box.height * 0.4, me ? me.top + me.height * 0.36 - box.top : box.height * 0.44));
+        // Both whole on the screen: the pair moved in from an edge together, she still between them.
+        const half = box.height * COLLAPSE_RING_SHARE * 0.5;
+        const edge = 6;
+        let wx = kx - box.width * COLLAPSE_RING_SPREAD.white;
+        let vx = kx + box.width * COLLAPSE_RING_SPREAD.violet;
+        const over = vx + half - (box.width - edge);
+        if (over > 0) [wx, vx] = [wx - over, vx - over];
+        const under = edge - (wx - half);
+        if (under > 0) [wx, vx] = [wx + under, vx + under];
         const c = p.collapse;
         const t = (ms: number) => Math.round(when(ms));
         const burst = c.burst >= 0 ? t(c.burst) : -1;
@@ -669,21 +711,44 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           key: lastKey,
           art: kaosCollapse(spots),
           spots,
-          ring: t(c.circles),
-          meet: t(c.meet),
-          core: t(c.core),
-          pressed: t(c.pressed),
-          // A strike's pulse and burst of light as it lands (after the holds before it).
-          strikes: c.strikes.map(t),
-          burst,
-          after: Math.round(c.after * speed),
+          white: { x: pc(wx, box.width), y: pc(ky, box.height) },
+          violet: { x: pc(vx, box.width), y: pc(ky, box.height) },
+          born: { x: pc((wx + vx) / 2, box.width), y: pc(Math.max(box.height * 0.16, ky - box.height * 0.2), box.height) },
+          w: Math.round(box.width),
+          h: Math.round(box.height),
+          t: {
+            white: t(c.white),
+            purple: t(c.purple),
+            enter: Math.round(c.enter * speed),
+            both: t(c.both),
+            core: t(c.core),
+            drained: t(c.drained),
+            pressed: t(c.pressed),
+            arrive: t(c.arrive),
+            // A strike's pulse and burst of light as it lands (after the holds before it).
+            strikes: c.strikes.map(t),
+            burst,
+            after: Math.round(c.after * speed),
+          },
         };
         setCollapse(shown);
-        later(shown.ring, () => playSfx('battle_charge_aura'));
+        const tt = shown.t;
+        // Each circle's sound as it opens; the hush (the music drawn back) while the two are there; the core's.
+        later(tt.white, () => playSfx('battle_charge_aura'));
+        later(tt.purple, () => playSfx('battle_magic_dark'));
+        later(tt.both, () => {
+          hushed = true;
+          audioManager.duckBgmTo(0.35, 120);
+        });
+        later(tt.core, () => {
+          hushed = false;
+          audioManager.duckBgmTo(1, 400);
+          playSfx('battle_buff');
+        });
         c.strikes.slice(0, burst >= 0 ? -1 : undefined).forEach((ms, i) => later(t(ms), () => playSfx(i % 2 === 0 ? 'battle_magic_holy' : 'battle_magic_dark')));
         // 魔防DOWN said on each as the afterglow fades (its sound with it); all of it taken away once the blast
         // is gone and that has been read.
-        const faded = (burst >= 0 ? burst : shown.strikes[shown.strikes.length - 1]) + Math.round(p.hitStop * speed) + shown.after;
+        const faded = (burst >= 0 ? burst : tt.strikes[tt.strikes.length - 1]) + Math.round(p.hitStop * speed) + tt.after;
         const lowered = !!(beat.magicDown || beat.spread?.some((x) => x.magicDown));
         later(faded, () => {
           setLoweredSaid(shown.key);
@@ -773,7 +838,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           fall();
         },
       });
-    return () => timers.forEach((t) => window.clearTimeout(t));
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      if (hushed) audioManager.duckBgmTo(1, 200);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKeyOf(state)]);
 
@@ -990,6 +1058,85 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // A move of theirs playing — its cut-in, its blows until the last lands, 《彼岸花》's bloom: the giant's
   // plate steps back so the move is seen (作者 実機 2026-10-25: 演出が見れない).
   const showing = cutIns.playing || !!bloom || !!collapse || (!!last && !isEnemyId(last.actor) && landed !== lastKey);
+  /** 《双極臨界》's times and places as custom properties (collapse.css), for each of its layers. */
+  const collapseVars = (c: NonNullable<typeof collapse>): CSSProperties => {
+    const t = c.t;
+    const end = t.burst >= 0 ? t.burst : t.strikes[t.strikes.length - 1];
+    return {
+      ['--cx' as string]: `${c.art.x}%`,
+      ['--cy' as string]: `${c.art.y}%`,
+      ['--white-at' as string]: `${t.white}ms`,
+      ['--purple-at' as string]: `${t.purple}ms`,
+      ['--enter' as string]: `${t.enter}ms`,
+      ['--both-at' as string]: `${t.both}ms`,
+      ['--core-at' as string]: `${t.core}ms`,
+      ['--drained-at' as string]: `${t.drained}ms`,
+      ['--pressed-at' as string]: `${t.pressed}ms`,
+      ['--arrive-at' as string]: `${t.arrive}ms`,
+      ['--burst-at' as string]: `${end}ms`,
+      ['--after' as string]: `${t.after}ms`,
+    };
+  };
+  /**
+   * 《双極臨界》 on the field (it moves with the camera, which stays on her until the core flies): BEHIND everyone,
+   * the field darkened a little and her two circles either side of her — opening, turning their own ways, lit
+   * together, then drunk dry by the core; IN FRONT, the light running out of each circle into the core between
+   * them, and the core itself — born small while they are still there, growing as it drinks, pressed, then
+   * flying onto the creatures, where it holds, throbbing, until 界核崩壊.
+   */
+  const collapseOnField = (c: NonNullable<typeof collapse>, layer: 'back' | 'front') => {
+    const vars = collapseVars(c);
+    if (layer === 'back')
+      return (
+        <span key={`clb${c.key}`} className="pb-cl-back" data-testid="pb-collapse-field" aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.circles }}>
+          <span className="pb-cl-hush" />
+          {(['white', 'violet'] as const).map((k) => (
+            <span key={k} className={`pb-cl-ring ${k}`} style={{ left: `${c[k].x}%`, top: `${c[k].y}%`, height: `${COLLAPSE_RING_SHARE * 100}%` }}>
+              <img data-testid={`pb-collapse-ring-${k}`} src={k === 'white' ? SPECIAL_FX_ART.kaosGold : SPECIAL_FX_ART.kaosViolet} alt="" />
+            </span>
+          ))}
+        </span>
+      );
+    // Each circle's light into the core: a streak from it and motes running along it.
+    const streams = (['white', 'violet'] as const).map((k) => {
+      const dx = ((c.born.x - c[k].x) / 100) * c.w;
+      const dy = ((c.born.y - c[k].y) / 100) * c.h;
+      return { k, dx, dy, len: Math.hypot(dx, dy), deg: (Math.atan2(dy, dx) * 180) / Math.PI };
+    });
+    // The core flies from where it was born to the middle of the creatures.
+    const fx0 = ((c.born.x - c.art.x) / 100) * c.w;
+    const fy0 = ((c.born.y - c.art.y) / 100) * c.h;
+    return (
+      <span key={`clf${c.key}`} className={`pb-cl-front${c.t.burst >= 0 ? ' burst' : ''}`} aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.core }}>
+        {streams.map((st) => (
+          <span key={st.k} style={{ left: `${c[st.k].x}%`, top: `${c[st.k].y}%` }} className="pb-cl-source">
+            <i className={`pb-cl-beam ${st.k}`} data-testid="pb-collapse-beam" style={{ width: `${Math.round(st.len)}px`, rotate: `${st.deg}deg` }} />
+            {Array.from({ length: COLLAPSE_MOTES }, (_, i) => (
+              <i
+                key={i}
+                className={`pb-cl-mote ${st.k}`}
+                data-testid="pb-collapse-mote"
+                style={{
+                  ['--mx' as string]: `${Math.round(st.dx)}px`,
+                  ['--my' as string]: `${Math.round(st.dy)}px`,
+                  // Off round the circle's ring, each its own moment of the drinking.
+                  ['--m0x' as string]: `${Math.round(Math.cos(i * 2.4) * c.h * COLLAPSE_RING_SHARE * 0.32)}px`,
+                  ['--m0y' as string]: `${Math.round(Math.sin(i * 2.4) * c.h * COLLAPSE_RING_SHARE * 0.32)}px`,
+                  ['--md' as string]: i / COLLAPSE_MOTES,
+                }}
+              />
+            ))}
+          </span>
+        ))}
+        <span
+          className="pb-cl-corebox"
+          style={{ left: `${c.art.x}%`, top: `${c.art.y}%`, ['--fx' as string]: `${Math.round(fx0)}px`, ['--fy' as string]: `${Math.round(fy0)}px` }}
+        >
+          <img className="pb-cl-core" data-testid="pb-collapse-core" src={SPECIAL_FX_ART.kaosCore} alt="" />
+        </span>
+      </span>
+    );
+  };
   const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
@@ -1016,6 +1163,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
 
       {/* THE FIELD — the creature left, the party right (a triangle). */}
       <div className="pb-field" data-shake-layer="field">
+        {collapse && collapse.key === lastKey && collapseOnField(collapse, 'back')}
         {state.enemies.map((e, i) => {
           const spot = foeSpots[i];
           const eBroken = isBroken(e);
@@ -1100,7 +1248,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   className="pb-float slow mdown"
                   data-testid="pb-float-mdown"
                   style={{
-                    animationDelay: `${(collapse.burst >= 0 ? collapse.burst : collapse.strikes[collapse.strikes.length - 1]) + Math.round((fx?.hitStop ?? 0) * (fast ? 0.5 : 1)) + collapse.after}ms`,
+                    animationDelay: `${(collapse.t.burst >= 0 ? collapse.t.burst : collapse.t.strikes[collapse.t.strikes.length - 1]) + Math.round((fx?.hitStop ?? 0) * (fast ? 0.5 : 1)) + collapse.t.after}ms`,
                     translate: many ? `0 ${-18 * (i % 3)}px` : undefined,
                   }}
                 >
@@ -1125,10 +1273,21 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               className={`pb-figure${m.down ? ' down' : ''}${actor === m.id ? ' acting' : ''}${m.guardTurns > 0 ? ' guard' : ''}${m.regenTurns > 0 ? ' regen' : ''}`}
               data-testid={`pb-figure-${m.id}`}
               data-slot={spot.slot}
-              style={footStyle(spot, FOOT_AT[m.id] ?? 0.5, FIGURE_SCALE[m.id] ?? 1)}
+              style={{
+                ...footStyle(spot, FOOT_AT[m.id] ?? 0.5, FIGURE_SCALE[m.id] ?? 1),
+                // 《双極臨界》: she stands before her circles; the rest of the field behind them (the light on her alone).
+                ...(collapse && collapse.key === lastKey && last?.actor === m.id ? { zIndex: COLLAPSE_Z.caster } : {}),
+              }}
             >
               <span className="pb-shadow" aria-hidden="true" />
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}
+              {/* 《双極臨界》: her eyes lit as her two circles are there together (作者 §8) — right gold, left blue, as drawn. */}
+              {m.id === 'kaos' && collapse && collapse.key === lastKey && last?.actor === m.id && (
+                <span className="pb-eyes" data-testid="pb-kaos-eyes" aria-hidden="true" style={collapseVars(collapse)}>
+                  <i className="pb-eye gold" style={{ left: `${KAOS_EYES.gold.x}%`, top: `${KAOS_EYES.gold.y}%` }} />
+                  <i className="pb-eye blue" style={{ left: `${KAOS_EYES.blue.x}%`, top: `${KAOS_EYES.blue.y}%` }} />
+                </span>
+              )}
               {/* 月影の構え held: a faint red-black arc at his feet, barely breathing (specialFx.css). */}
               {m.guardTurns > 0 && !m.down && <i className="sx-stance" data-testid={`pb-stance-${m.id}`} aria-hidden="true" />}
               {specials(m.id, false, art.party[m.id]?.src)}
@@ -1178,6 +1337,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             {flashName}
           </span>
         )}
+        {collapse && collapse.key === lastKey && collapseOnField(collapse, 'front')}
       </div>
 
       {/* A MOVE WITH A CUT-IN (作者 実機 2026-10-24: 「カメラワークが‼️って感じではない」): as the camera
@@ -1317,32 +1477,20 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </span>
       )}
 
-      {/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, collapse.css): the gold
-          circle and the purple meet over them; the core swells, is pressed small, holds; a pulse at each strike;
-          界核崩壊 — the blast, a white flash, the space cracked, shards; the afterglow. */}
+      {/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, collapse.css): over the
+          creatures, once her core has come — a pulse at each strike; 界核崩壊 — the blast, a white flash, the
+          space cracked, shards; the afterglow. (Her circles and the core are on the field: collapseOnField.) */}
       {collapse && collapse.key === lastKey && (
         <span
           key={`cl${lastKey}`}
           className="pb-collapse"
           data-testid="pb-collapse"
-          data-burst={collapse.burst >= 0 ? 'yes' : 'no'}
+          data-burst={collapse.t.burst >= 0 ? 'yes' : 'no'}
           aria-hidden="true"
-          style={{
-            ['--cx' as string]: `${collapse.art.x}%`,
-            ['--cy' as string]: `${collapse.art.y}%`,
-            ['--ring-at' as string]: `${collapse.ring}ms`,
-            ['--meet-at' as string]: `${collapse.meet}ms`,
-            ['--core-at' as string]: `${collapse.core}ms`,
-            ['--pressed-at' as string]: `${collapse.pressed}ms`,
-            ['--burst-at' as string]: `${collapse.burst >= 0 ? collapse.burst : collapse.strikes[collapse.strikes.length - 1]}ms`,
-            ['--after' as string]: `${collapse.after}ms`,
-          }}
+          style={collapseVars(collapse)}
         >
           <span className="pb-cl-dark" />
-          <img className="pb-cl-ring violet" data-testid="pb-collapse-violet" src={SPECIAL_FX_ART.kaosViolet} alt="" />
-          <img className="pb-cl-ring gold" data-testid="pb-collapse-gold" src={SPECIAL_FX_ART.kaosGold} alt="" />
-          <img className="pb-cl-core" data-testid="pb-collapse-core" src={SPECIAL_FX_ART.kaosCore} alt="" />
-          {collapse.strikes.slice(0, collapse.burst >= 0 ? -1 : undefined).map((ms, i) => (
+          {collapse.t.strikes.slice(0, collapse.t.burst >= 0 ? -1 : undefined).map((ms, i) => (
             <span key={`w${i}`}>
               <span className={`pb-cl-wave${i % 2 ? ' violet' : ''}`} data-testid="pb-collapse-wave" style={{ ['--wave-at' as string]: `${ms}ms` }} />
               {collapse.spots.map((sp, j) => (
@@ -1350,7 +1498,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               ))}
             </span>
           ))}
-          {collapse.burst >= 0 && (
+          {collapse.t.burst >= 0 && (
             <>
               <img className="pb-cl-blast" data-testid="pb-collapse-blast" src={SPECIAL_FX_ART.kaosCollapse} alt="" />
               <span className="pb-cl-glow" />

@@ -1448,25 +1448,203 @@
   .pb-petal, .pb-bloom-veil, .pb-bloom-white, .pb-trace, .pb-glint, .pb-figure > img.pb-ghost { display: none; }
 }
 
-/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, partyFx collapseFx). Over the
-   creatures (--cx/--cy): the gold circle from her side turning clockwise, the purple from beyond them turning
-   the other way, sliding together (--ring-at, --meet-at); the light-and-dark core forming as they meet
-   (--core-at), swelling, pressed small (--pressed-at), throbbing still; a pulse at each strike (.pb-cl-wave,
-   their own delays); at --burst-at the core bursts: the cosmic blast, a white flash (short), the space
-   cracked (paths drawn out from it), crystal shards; the afterglow (--after). Times are the beat's, the
-   speed applied. Each picture is the author's, its fringe cleaned, as WebP. */
+/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書, then 魔法陣ブラッシュアップ; kaosCollapse.ts, partyFx
+   collapseFx). ON THE FIELD (it moves with the camera, which stays on her until the core flies):
+   OVER everyone but her (.pb-cl-back; she stands before it) — the field a little darker, deepest in the hush; her white-gold circle on her
+   white wing's side (--white-at) and her black-purple one on her dark wing's side (--purple-at), each opening
+   out of nothing (small → bigger than itself → settled, flaring), turning its own way the whole time (white
+   clockwise, purple the other way, a turn every 3s), both lit brighter in the hush (--both-at), then drunk dry
+   by the core (--core-at → --drained-at: a last flare, shrinking, gone).
+   IN FRONT (.pb-cl-front) — from --core-at the light running out of each circle into the core (a streak and
+   motes), and the core: born small while the circles are still there, growing as it drinks, pressed small
+   (--pressed-at), flying onto the creatures (--arrive-at), throbbing there until --burst-at.
+   OVER THE SCREEN (.pb-collapse, from the core's flight): a pulse at each strike (--wave-at), and at --burst-at
+   界核崩壊 — the cosmic blast, a white flash (short), the space cracked, crystal shards; the afterglow (--after).
+   Times are the beat's on screen (the speed and the holds applied). Each picture is the author's, its faint
+   veil cleaned, as WebP. */
+.pb-cl-back,
+.pb-cl-front { position: absolute; inset: 0; pointer-events: none; }
+.pb-cl-hush {
+  position: absolute;
+  inset: -20%;
+  background: rgba(6, 3, 14, 0.5);
+  opacity: 0;
+  animation:
+    pb-cl-hush-in var(--enter) ease-out var(--white-at) both,
+    pb-cl-hush-deep calc(var(--core-at) - var(--both-at)) ease-out var(--both-at) forwards,
+    pb-cl-hush-out 300ms ease-in var(--pressed-at) forwards;
+}
+@keyframes pb-cl-hush-in { from { opacity: 0; } to { opacity: 0.55; } }
+@keyframes pb-cl-hush-deep { from { opacity: 0.55; } to { opacity: 1; } }
+@keyframes pb-cl-hush-out { from { opacity: 1; } to { opacity: 0; } }
+
+.pb-cl-ring {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+.pb-cl-ring > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+.pb-cl-ring.white > img {
+  filter: drop-shadow(0 0 12px rgba(255, 230, 160, 0.75));
+  animation:
+    pb-cl-spin-cw 3000ms linear var(--white-at) infinite,
+    pb-cl-open var(--enter) cubic-bezier(0.2, 0.9, 0.3, 1.2) var(--white-at) both,
+    pb-cl-lit-white calc(var(--core-at) - var(--both-at)) ease-in-out var(--both-at) forwards,
+    pb-cl-drain calc(var(--drained-at) - var(--core-at)) ease-in var(--core-at) forwards;
+}
+.pb-cl-ring.violet > img {
+  filter: drop-shadow(0 0 12px rgba(160, 92, 255, 0.8));
+  animation:
+    pb-cl-spin-ccw 3000ms linear var(--purple-at) infinite,
+    pb-cl-open var(--enter) cubic-bezier(0.2, 0.9, 0.3, 1.2) var(--purple-at) both,
+    pb-cl-lit-violet calc(var(--core-at) - var(--both-at)) ease-in-out var(--both-at) forwards,
+    pb-cl-drain calc(var(--drained-at) - var(--core-at)) ease-in var(--core-at) forwards;
+}
+@keyframes pb-cl-spin-cw { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes pb-cl-spin-ccw { from { rotate: 0deg; } to { rotate: -360deg; } }
+/* Out of nothing: small, past its size, settled — flaring as it comes. */
+@keyframes pb-cl-open {
+  0% { opacity: 0; scale: 0.2; }
+  45% { opacity: 1; }
+  70% { scale: 1.08; }
+  100% { opacity: 1; scale: 1; }
+}
+/* The two there together: each lit brighter, its own colour (the hush). `forwards` only — a fill backwards
+   would show each circle whole before it has opened. */
+@keyframes pb-cl-lit-white {
+  0% { opacity: 1; filter: drop-shadow(0 0 12px rgba(255, 230, 160, 0.75)); }
+  50%, 100% { opacity: 1; filter: brightness(1.25) drop-shadow(0 0 22px rgba(255, 236, 180, 1)); }
+}
+@keyframes pb-cl-lit-violet {
+  0% { opacity: 1; filter: drop-shadow(0 0 12px rgba(160, 92, 255, 0.8)); }
+  50%, 100% { opacity: 1; filter: brightness(1.2) drop-shadow(0 0 22px rgba(176, 110, 255, 1)); }
+}
+/* Drunk dry by the core: a last flare, then shrinking and fading as its light runs out of it — never a plain fade. */
+@keyframes pb-cl-drain {
+  0% { opacity: 1; scale: 1; }
+  20% { opacity: 1; scale: 1.04; filter: brightness(1.7) drop-shadow(0 0 26px rgba(255, 255, 255, 0.9)); }
+  100% { opacity: 0; scale: 0.45; filter: brightness(2) blur(2px); }
+}
+
+/* The light out of each circle into the core: a streak from it, swept toward the core, then thinning. */
+.pb-cl-source { position: absolute; width: 0; height: 0; }
+.pb-cl-beam {
+  position: absolute;
+  left: 0;
+  top: -3px;
+  height: 6px;
+  transform-origin: 0 50%;
+  border-radius: 3px;
+  opacity: 0;
+  animation: pb-cl-beam calc(var(--drained-at) - var(--core-at)) ease-out var(--core-at) both;
+}
+.pb-cl-beam.white { background: linear-gradient(90deg, rgba(255, 244, 210, 0), rgba(255, 244, 210, 0.95) 40%, #fff); box-shadow: 0 0 10px rgba(255, 228, 150, 0.9); }
+.pb-cl-beam.violet { background: linear-gradient(90deg, rgba(150, 80, 255, 0), rgba(176, 110, 255, 0.95) 40%, #f2e6ff); box-shadow: 0 0 10px rgba(150, 80, 255, 0.9); }
+@keyframes pb-cl-beam {
+  0% { opacity: 0; scale: 0 1; }
+  30% { opacity: 1; scale: 1 1; }
+  75% { opacity: 0.9; scale: 1 0.7; }
+  100% { opacity: 0; scale: 1 0.2; }
+}
+/* …and motes off its ring running along it into the core, one after another. */
+.pb-cl-mote {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: pb-cl-mote calc((var(--drained-at) - var(--core-at)) * 0.55) ease-in calc(var(--core-at) + (var(--drained-at) - var(--core-at)) * 0.45 * var(--md)) both;
+}
+.pb-cl-mote.white { background: radial-gradient(circle, #fff 0 35%, rgba(255, 220, 140, 0.9) 60%, transparent 72%); }
+.pb-cl-mote.violet { background: radial-gradient(circle, #f4e8ff 0 35%, rgba(170, 100, 255, 0.95) 60%, transparent 72%); }
+@keyframes pb-cl-mote {
+  0% { opacity: 0; translate: var(--m0x) var(--m0y); }
+  15% { opacity: 1; }
+  100% { opacity: 0.2; translate: var(--mx) var(--my); }
+}
+
+/* The core: born small between the circles while they are still there, growing as it drinks them, pressed
+   small, flying onto the creatures, throbbing there — and gone as it bursts. */
+.pb-cl-corebox {
+  position: absolute;
+  height: 46%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  translate: var(--fx) var(--fy);
+  animation: pb-cl-fly calc(var(--arrive-at) - var(--pressed-at)) cubic-bezier(0.5, 0, 0.75, 0.4) var(--pressed-at) both;
+}
+@keyframes pb-cl-fly { from { translate: var(--fx) var(--fy); } to { translate: 0 0; } }
+.pb-cl-core {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  scale: 0.12;
+  filter: drop-shadow(0 0 14px rgba(255, 226, 160, 0.6)) drop-shadow(0 0 22px rgba(150, 80, 255, 0.5));
+  animation:
+    pb-cl-core-grow calc(var(--drained-at) - var(--core-at)) cubic-bezier(0.3, 0.5, 0.4, 1) var(--core-at) both,
+    pb-cl-core-press calc(var(--pressed-at) - var(--drained-at)) ease-in var(--drained-at) forwards,
+    pb-cl-core-throb 180ms ease-in-out var(--arrive-at) infinite alternate;
+}
+.pb-cl-front.burst .pb-cl-core {
+  animation:
+    pb-cl-core-grow calc(var(--drained-at) - var(--core-at)) cubic-bezier(0.3, 0.5, 0.4, 1) var(--core-at) both,
+    pb-cl-core-press calc(var(--pressed-at) - var(--drained-at)) ease-in var(--drained-at) forwards,
+    pb-cl-core-throb 180ms ease-in-out var(--arrive-at) infinite alternate,
+    pb-cl-core-out 140ms ease-in var(--burst-at) forwards;
+}
+@keyframes pb-cl-core-grow { 0% { opacity: 0; scale: 0.12; rotate: -30deg; } 25% { opacity: 1; } 100% { opacity: 1; scale: 1.05; rotate: 0deg; } }
+@keyframes pb-cl-core-press { from { opacity: 1; scale: 1.05; } to { opacity: 1; scale: 0.62; } }
+@keyframes pb-cl-core-throb { from { opacity: 1; scale: 0.62; } to { opacity: 1; scale: 0.7; } }
+@keyframes pb-cl-core-out { to { opacity: 0; scale: 1.5; } }
+
+/* Her eyes, lit as her two circles stand together (作者 §8): the right gold, the left blue — as drawn. */
+.pb-eyes { position: absolute; inset: 0; pointer-events: none; }
+.pb-eye {
+  position: absolute;
+  width: 3.4%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: pb-eye calc(var(--drained-at) - var(--both-at) + 200ms) ease-in-out var(--both-at) both;
+}
+/* A thin glint across each — the light catching it. */
+.pb-eye::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 420%;
+  height: 18%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, currentColor 50%, transparent);
+  opacity: 0.8;
+}
+.pb-eye.gold { color: rgba(255, 214, 110, 0.95); background: radial-gradient(circle, rgba(255, 236, 170, 0.95) 0 22%, rgba(255, 190, 50, 0.8) 42%, rgba(255, 170, 30, 0) 72%); }
+.pb-eye.blue { color: rgba(130, 205, 255, 0.95); background: radial-gradient(circle, rgba(200, 236, 255, 0.95) 0 22%, rgba(70, 170, 255, 0.8) 42%, rgba(40, 140, 255, 0) 72%); }
+@keyframes pb-eye { 0% { opacity: 0; scale: 0.4; } 25% { opacity: 1; scale: 1.25; } 70% { opacity: 0.9; scale: 1; } 100% { opacity: 0; scale: 0.8; } }
+
+/* Over the screen once the core flies: a little darker, until the afterglow fades. */
 .pb-collapse { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
 .pb-cl-dark {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at var(--cx) var(--cy), rgba(30, 10, 60, 0.25), rgba(4, 2, 10, 0.62) 70%);
+  background: radial-gradient(circle at var(--cx) var(--cy), rgba(30, 10, 60, 0.2), rgba(4, 2, 10, 0.55) 70%);
   opacity: 0;
-  animation: pb-cl-dark calc(var(--burst-at) + var(--after) - var(--ring-at)) ease-out var(--ring-at) both;
+  animation: pb-cl-dark calc(var(--burst-at) + var(--after) - var(--pressed-at)) ease-out var(--pressed-at) both;
 }
 @keyframes pb-cl-dark { 0% { opacity: 0; } 18% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
-
-.pb-cl-ring,
-.pb-cl-core,
 .pb-cl-blast {
   position: absolute;
   left: var(--cx);
@@ -1476,43 +1654,6 @@
   opacity: 0;
   will-change: transform, opacity;
 }
-.pb-cl-ring { height: 62%; }
-.pb-cl-ring.gold { animation: pb-cl-gold calc(var(--meet-at) - var(--ring-at) + 160ms) cubic-bezier(0.3, 0.6, 0.4, 1) var(--ring-at) both; filter: drop-shadow(0 0 10px rgba(255, 210, 107, 0.7)); }
-.pb-cl-ring.violet { animation: pb-cl-violet calc(var(--meet-at) - var(--ring-at) + 160ms) cubic-bezier(0.3, 0.6, 0.4, 1) var(--ring-at) both; filter: drop-shadow(0 0 10px rgba(160, 92, 255, 0.75)); }
-/* From her side (the right), clockwise; from beyond them (the left), the other way — met at the middle, into the core. */
-@keyframes pb-cl-gold {
-  0% { opacity: 0; transform: translateX(46%) scale(0.55) rotate(0deg); }
-  22% { opacity: 1; }
-  80% { opacity: 1; transform: translateX(0) scale(0.9) rotate(200deg); }
-  100% { opacity: 0; transform: translateX(0) scale(0.25) rotate(260deg); }
-}
-@keyframes pb-cl-violet {
-  0% { opacity: 0; transform: translateX(-46%) scale(0.55) rotate(0deg); }
-  22% { opacity: 0.95; }
-  80% { opacity: 0.95; transform: translateX(0) scale(0.9) rotate(-200deg); }
-  100% { opacity: 0; transform: translateX(0) scale(0.25) rotate(-260deg); }
-}
-.pb-cl-core {
-  height: 46%;
-  filter: drop-shadow(0 0 14px rgba(255, 226, 160, 0.6)) drop-shadow(0 0 22px rgba(150, 80, 255, 0.5));
-  animation:
-    pb-cl-core-in calc(var(--pressed-at) - var(--core-at)) cubic-bezier(0.2, 0.9, 0.3, 1) var(--core-at) both,
-    pb-cl-core-hold 180ms ease-in-out var(--pressed-at) infinite alternate;
-}
-.pb-collapse[data-burst='yes'] .pb-cl-core {
-  animation:
-    pb-cl-core-in calc(var(--pressed-at) - var(--core-at)) cubic-bezier(0.2, 0.9, 0.3, 1) var(--core-at) both,
-    pb-cl-core-hold 180ms ease-in-out var(--pressed-at) infinite alternate,
-    pb-cl-core-out 140ms ease-in var(--burst-at) forwards;
-}
-/* It swells, then is pressed small (to 0.62 of itself) — and held there, throbbing. */
-@keyframes pb-cl-core-in {
-  0% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
-  55% { opacity: 1; transform: scale(1.12) rotate(0deg); }
-  100% { opacity: 1; transform: scale(0.62) rotate(8deg); }
-}
-@keyframes pb-cl-core-hold { from { opacity: 1; transform: scale(0.62) rotate(8deg); } to { opacity: 1; transform: scale(0.68) rotate(14deg); } }
-@keyframes pb-cl-core-out { to { opacity: 0; transform: scale(1.5) rotate(30deg); } }
 
 /* At each strike: a ring of light out from the core, gold and purple by turns. */
 .pb-cl-wave {
@@ -1646,7 +1787,8 @@
 .pb-dia[data-ready='yes'] .pb-dia-plate { filter: drop-shadow(0 0 6px rgba(255, 214, 120, 0.95)) drop-shadow(0 0 10px rgba(170, 100, 255, 0.7)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .pb-cl-ring, .pb-cl-core, .pb-cl-blast, .pb-cl-wave, .pb-cl-hit, .pb-cl-shard, .pb-cl-cracks path, .pb-cl-glow, .pb-cl-dark { animation-name: pb-hit-fade; }
+  .pb-cl-ring > img, .pb-cl-core, .pb-cl-blast, .pb-cl-wave, .pb-cl-hit, .pb-cl-shard, .pb-cl-cracks path, .pb-cl-glow, .pb-cl-dark, .pb-cl-hush, .pb-eye { animation-name: pb-hit-fade; }
+  .pb-cl-beam, .pb-cl-mote, .pb-cl-corebox { animation: none; translate: 0 0; }
   .pb-cl-white, .pb-cl-shard { display: none; }
   .pb-charge[data-ready='yes'] { animation: none; }
 }
