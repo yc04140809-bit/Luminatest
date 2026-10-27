@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { COLLAPSE_FLOOR_MS, COLLAPSE_FX, HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { COLLAPSE_FLOOR_MS, COLLAPSE_FX, COLLAPSE_VIDEO, HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -365,48 +365,58 @@ describe('a cut-in move\'s camera follows it — TRACK (作者 2026-10-23, FF Re
   });
 });
 
-describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles seen (作者 2026-10-26 魔法陣ブラッシュアップ)', () => {
-  const collapse = (speed: number) =>
-    beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9], magicDown: true }), ctx({ skillId: 'soukyoku_rinkai', speed })).collapse!;
+describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles, the seal, the suction film (作者 2026-10-26 魔法陣ブラッシュアップ, 動画＋PNG統合)', () => {
+  const collapse = (speed: number, hits: number[] = [4, 5, 5, 9]) =>
+    beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits, magicDown: true }), ctx({ skillId: 'soukyoku_rinkai', speed })).collapse!;
 
-  it('×1: the white alone first, then the black-purple, the two together (the hush), the core born while they are there, drinking them', () => {
+  it('×1: the white alone first (0.5s), then the black-purple, the two together, their light into the seal while they are still there', () => {
     const c = collapse(1);
     expect(c.purple - c.white).toBe(COLLAPSE_FX.alone);
+    expect(c.purple - c.white).toBeGreaterThanOrEqual(450);
     expect(c.both - c.purple).toBe(COLLAPSE_FX.enter);
-    // Together, both whole, before the core: 0.2–0.4s of hush; then the core drinks them.
+    // Both there (opened through drunk dry) 0.8s or more; the hush before the seal 0.2–0.4s.
+    expect(c.drained - c.both).toBeGreaterThanOrEqual(750);
     expect(c.core - c.both).toBeGreaterThanOrEqual(200);
     expect(c.core - c.both).toBeLessThanOrEqual(400);
-    expect(c.drained - c.core).toBeGreaterThanOrEqual(350);
-    // The white seen for more than a second in all, the black-purple about one; never a passing flash.
-    expect(c.drained - c.white).toBeGreaterThanOrEqual(1100);
-    expect(c.drained - c.purple).toBeGreaterThanOrEqual(900);
-    // The core flies once they are spent; the strikes quick after it.
-    expect(c.arrive).toBeGreaterThan(c.pressed);
-    expect(c.strikes[0]).toBeGreaterThan(c.arrive);
+    // The film begins while the circles are still being drunk (no gap: the seal falls into it).
+    expect(c.video).toBeLessThan(c.drained);
+    expect(c.video).toBeGreaterThan(c.core);
   });
 
-  it('×2: never a blink — on screen the white alone, the two together and the drinking each keep their floor; the strikes no closer than a multi-hit', () => {
+  it('the film is the move from there: the strikes in its crush, the fourth at its release — its own time at its own speed', () => {
+    const c = collapse(1);
+    const film = (ms: number) => Math.round(ms / COLLAPSE_VIDEO.rate);
+    expect(c.rate).toBe(COLLAPSE_VIDEO.rate);
+    expect(c.strikes.slice(0, 3)).toEqual(COLLAPSE_VIDEO.strikes.map((t) => c.video + film(t)));
+    expect(c.burst).toBe(c.video + film(COLLAPSE_VIDEO.pull));
+    expect(c.strikes[3]).toBe(c.burst);
+  });
+
+  it('×2: the film quicker but not doubled (1.7), the circle phase keeping its floors on screen', () => {
     const c = collapse(0.5);
     const screen = (ms: number) => ms * 0.5;
+    expect(c.rate).toBe(COLLAPSE_VIDEO.rateFast);
     expect(screen(c.purple - c.white)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.alone);
     expect(screen(c.core - c.both)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.hush);
     expect(screen(c.drained - c.core)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.drain);
-    const gaps = c.strikes.slice(1, 3).map((t, i) => screen(t - c.strikes[i]));
-    for (const g of gaps) expect(g).toBeGreaterThanOrEqual(MULTI_HIT_GAP_FLOOR_MS);
-    // And quicker than ×1 on screen.
+    // The pull on screen: its 2.4s at 1.7.
+    expect(screen(c.burst - c.video)).toBeCloseTo(COLLAPSE_VIDEO.pull / COLLAPSE_VIDEO.rateFast, -1);
     expect(screen(c.burst)).toBeLessThan(collapse(1).burst);
   });
 
-  it('the time goes to the circles and the collapse, not the strikes: the middle three are quick (the multi-hit floor), the whole under 2.8s to the collapse at ×1', () => {
-    const c = collapse(1);
-    expect(c.strikes[1] - c.strikes[0]).toBe(MULTI_HIT_GAP_FLOOR_MS);
-    expect(c.burst).toBeLessThan(2800);
+  it('brought down before the fourth: no collapse strike (no hold), the film still runs to its release', () => {
+    const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 9, hits: [4, 5] }), ctx({ skillId: 'soukyoku_rinkai' }));
+    expect(fx.collapse!.burst).toBe(-1);
+    expect(fx.hitStop).toBe(0);
+    expect(fx.collapse!.strikes).toHaveLength(2);
   });
 
-  it('the camera stays on her and her circles until the core flies', () => {
+  it('the camera stays on her and her circles until the film takes over; the strikes in the crush hold nothing (the film runs on)', () => {
     const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9] }), ctx({ skillId: 'soukyoku_rinkai', cutIn: true }));
     const track = fx.camera![0] as { kind: string; impact: number };
     expect(track.kind).toBe('TRACK');
-    expect(track.impact).toBe(fx.collapse!.pressed);
+    expect(track.impact).toBe(fx.collapse!.video);
+    expect(fx.stages!.every((st) => st.hitStop === 0)).toBe(true);
+    expect(fx.hitStop).toBe(HIT_STOPS.higanbana);
   });
 });

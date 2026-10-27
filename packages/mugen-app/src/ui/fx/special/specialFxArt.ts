@@ -17,8 +17,16 @@
  *   kaosWings       ケイオス: the twin wings, black-gold and silver-white, behind her (its edge faded out)
  *   kaosGold        ケイオス: the gold circle (《双極臨界》 — it turns clockwise; 作者 2026-10-26, fringe cleaned)
  *   kaosViolet      ケイオス: the purple circle (《双極臨界》 — it turns the other way)
- *   kaosCore        ケイオス: the light-and-dark core the two become (《双極臨界》)
- *   kaosCollapse    ケイオス: the cosmic blast as the core bursts (界核崩壊)
+ *   kaosSeal        ケイオス: the bipolar seal — white half, black-purple half — their light becomes over the creatures
+ *   kaosFilm        ケイオス: the suction film (WebM, keyed — no black left): the pull, the crush, the stillness, the
+ *                   release (作者 2026-10-26「双極臨界フル通し」, cut: its first 0.7s, the long stillness and its
+ *                   all-white frame out)
+ *   kaosGoldSwirl   ケイオス: gold drawn in with the film (white, black-purple and a little gold — never purple alone)
+ *   kaosVoid        ケイオス: purple-black smoke taking the screen's edges while the film plays
+ *   kaosResidue     ケイオス: purple-black residue left after the release
+ *   kaosPullRing    ケイオス: a ring of warped space closing in on the point while the film pulls
+ * (The other pictures the author sent for it — the holy and the purple-black explosions, the purple-gold vortex,
+ * the gold black hole — are not used: the film carries the pull and the release itself.)
  */
 import graveImpact from '@mugen/assets/files/effects/grave-heavy-impact.webp';
 import heroCrescent from '@mugen/assets/files/effects/hero-redmoon-crescent.webp';
@@ -28,8 +36,12 @@ import heroPetals from '@mugen/assets/files/effects/hero-higanbana-petals.webp';
 import kaosWings from '@mugen/assets/files/effects/kaos-twin-wings.webp';
 import kaosGold from '@mugen/assets/files/effects/kaos-circle-gold.webp';
 import kaosViolet from '@mugen/assets/files/effects/kaos-circle-purple.webp';
-import kaosCore from '@mugen/assets/files/effects/kaos-core.webp';
-import kaosCollapse from '@mugen/assets/files/effects/kaos-collapse.webp';
+import kaosSeal from '@mugen/assets/files/effects/kaos-seal.webp';
+import kaosFilm from '@mugen/assets/files/effects/kaos-collapse-video.webm';
+import kaosGoldSwirl from '@mugen/assets/files/effects/kaos-gold-swirl.webp';
+import kaosVoid from '@mugen/assets/files/effects/kaos-void-frame.webp';
+import kaosResidue from '@mugen/assets/files/effects/kaos-residue.webp';
+import kaosPullRing from '@mugen/assets/files/effects/kaos-pull-ring.webp';
 
 export const SPECIAL_FX_ART = {
   graveImpact,
@@ -40,8 +52,12 @@ export const SPECIAL_FX_ART = {
   kaosWings,
   kaosGold,
   kaosViolet,
-  kaosCore,
-  kaosCollapse,
+  kaosSeal,
+  kaosFilm,
+  kaosGoldSwirl,
+  kaosVoid,
+  kaosResidue,
+  kaosPullRing,
 } as const;
 
 export type SpecialFxArtKey = keyof typeof SPECIAL_FX_ART;

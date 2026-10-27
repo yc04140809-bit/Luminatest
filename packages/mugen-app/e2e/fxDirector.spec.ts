@@ -351,11 +351,11 @@ test.describe('with motion', () => {
     // No move longer than the longest — at ×2 they are halved: 《瞬断》's TRACK held through its three cuts
     // (作者 2026-10-24 A: its cuts kept 140ms apart even at ×2, so this one is not halved all the way —
     // (260 + 2 × 280 + 110 + 150 + 200 + 240) × ½ — about 760).
-    // ケイオス's 《双極臨界》 (作者 2026-10-26, 魔法陣ブラッシュアップ), when AUTO uses it: one TRACK — on her and her
-    // circles until the core flies, then held through its four strikes — (3950 + 150 + 200 + 240) × ½, about 2270:
-    // its own length, not moves piling up.
+    // ケイオス's 《双極臨界》 (作者 2026-10-26, 魔法陣ブラッシュアップ, 動画＋PNG統合), when AUTO uses it: one TRACK — on
+    // her and her circles until the suction film takes over, then held through its pull to the release — (4764 + 150 +
+    // 200 + 240) × ½, about 2680: its own length, not moves piling up.
     const finisher = got.filter((m) => m.ms > 770);
-    expect(finisher.every((m) => m.ms <= 2400)).toBe(true);
+    expect(finisher.every((m) => m.ms <= 2900)).toBe(true);
     expect(Math.max(...got.filter((m) => m.ms <= 770).map((m) => m.ms))).toBeLessThanOrEqual(770);
     // Back at rest once the last blow's moves are over (they never pile up, so this comes soon).
     await expect.poll(() => atRest(page, '.pb-field'), { timeout: 2_000 }).toBe(true);

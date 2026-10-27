@@ -95,6 +95,13 @@ const BESIDE: readonly (readonly [number, number])[] = [
   [0.06, 0],
   [0.04, -0.08],
   [-0.05, -0.06],
+  // Further round it — on a small screen a button covers more of the painting (dist's y counts 941/1672).
+  [-0.06, 0],
+  [0, 0.1],
+  [0, -0.12],
+  [0.05, 0.08],
+  [-0.05, 0.08],
+  [-0.04, -0.1],
 ];
 
 /**
@@ -105,11 +112,16 @@ const BESIDE: readonly (readonly [number, number])[] = [
 export async function goTo(page: Page, id: string) {
   for (let i = 0; i < 3; i++) {
     const t = (await things(page)).find((x) => x.id === id)!;
-    let at: P = t.mark;
+    let at: P | undefined;
     for (const [dx, dy] of [[0, 0] as const, ...BESIDE]) {
-      at = { x: t.mark.x + dx, y: t.mark.y + dy };
-      if (!(await underAButton(page, at))) break;
+      const q = { x: t.mark.x + dx, y: t.mark.y + dy };
+      if (!(await underAButton(page, q))) {
+        at = q;
+        break;
+      }
     }
+    // Every spot round it under a button: never press the button instead (the caller's own check says so).
+    if (!at) return;
     await touch(page, at);
     if (dist(await hero(page), t.stand) < 0.01) return;
   }

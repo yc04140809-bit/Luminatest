@@ -1448,20 +1448,21 @@
   .pb-petal, .pb-bloom-veil, .pb-bloom-white, .pb-trace, .pb-glint, .pb-figure > img.pb-ghost { display: none; }
 }
 
-/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書, then 魔法陣ブラッシュアップ; kaosCollapse.ts, partyFx
-   collapseFx). ON THE FIELD (it moves with the camera, which stays on her until the core flies):
-   OVER everyone but her (.pb-cl-back; she stands before it) — the field a little darker, deepest in the hush; her white-gold circle on her
-   white wing's side (--white-at) and her black-purple one on her dark wing's side (--purple-at), each opening
-   out of nothing (small → bigger than itself → settled, flaring), turning its own way the whole time (white
-   clockwise, purple the other way, a turn every 3s), both lit brighter in the hush (--both-at), then drunk dry
-   by the core (--core-at → --drained-at: a last flare, shrinking, gone).
-   IN FRONT (.pb-cl-front) — from --core-at the light running out of each circle into the core (a streak and
-   motes), and the core: born small while the circles are still there, growing as it drinks, pressed small
-   (--pressed-at), flying onto the creatures (--arrive-at), throbbing there until --burst-at.
-   OVER THE SCREEN (.pb-collapse, from the core's flight): a pulse at each strike (--wave-at), and at --burst-at
-   界核崩壊 — the cosmic blast, a white flash (short), the space cracked, crystal shards; the afterglow (--after).
-   Times are the beat's on screen (the speed and the holds applied). Each picture is the author's, its faint
-   veil cleaned, as WebP. */
+/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書, 魔法陣ブラッシュアップ, then 動画＋PNG統合 — the film
+   is the move, the pictures carry into and out of it; kaosCollapse.ts, partyFx collapseFx / COLLAPSE_VIDEO).
+   ON THE FIELD (it moves with the camera, which stays on her until the film takes over):
+   OVER everyone but her (.pb-cl-back; she stands before it) — the field a little darker, deepest in the hush; her
+   white-gold circle on her white wing's side (--white-at) and her black-purple one on her dark wing's side
+   (--purple-at), each opening out of nothing (small → bigger than itself → settled, flaring), turning its own way
+   the whole time (white clockwise, purple the other way, a turn every 3s), both lit brighter in the hush
+   (--both-at), then drunk dry (--core-at → --drained-at: a last flare, shrinking, gone).
+   IN FRONT (.pb-cl-front) — from --core-at the light running out of each circle over to the creatures (a streak
+   and motes), into the bipolar seal forming there, which falls in on itself into the film (--video-at).
+   OVER THE SCREEN (.pb-collapse, from the film) — dark, the edges in smoke, THE FILM (the pull, the crush, the
+   stillness, the release at --release-at, held there with the blow), gold drawn in with it, a burst of light at
+   each strike (--wave-at); at the release a white flash (short), a ring of force out, gold-white light; residue
+   in the afterglow (--after). Times are the beat's on screen (the speed and the holds applied). Each picture is
+   the author's, its fringe cleaned, as WebP; the film keyed to VP9 with alpha. */
 .pb-cl-back,
 .pb-cl-front { position: absolute; inset: 0; pointer-events: none; }
 .pb-cl-hush {
@@ -1472,7 +1473,7 @@
   animation:
     pb-cl-hush-in var(--enter) ease-out var(--white-at) both,
     pb-cl-hush-deep calc(var(--core-at) - var(--both-at)) ease-out var(--both-at) forwards,
-    pb-cl-hush-out 300ms ease-in var(--pressed-at) forwards;
+    pb-cl-hush-out 300ms ease-in var(--video-at) forwards;
 }
 @keyframes pb-cl-hush-in { from { opacity: 0; } to { opacity: 0.55; } }
 @keyframes pb-cl-hush-deep { from { opacity: 0.55; } to { opacity: 1; } }
@@ -1571,40 +1572,27 @@
   100% { opacity: 0.2; translate: var(--mx) var(--my); }
 }
 
-/* The core: born small between the circles while they are still there, growing as it drinks them, pressed
-   small, flying onto the creatures, throbbing there — and gone as it bursts. */
-.pb-cl-corebox {
+/* The bipolar seal (kaos-seal — white half, black-purple half): forming over the creatures as the circles' light
+   runs into it, turning slowly; as the film begins it falls in on itself — spun up, crushed to nothing — into the
+   film's own pull. */
+.pb-cl-seal {
   position: absolute;
-  height: 46%;
+  height: 64%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  translate: var(--fx) var(--fy);
-  animation: pb-cl-fly calc(var(--arrive-at) - var(--pressed-at)) cubic-bezier(0.5, 0, 0.75, 0.4) var(--pressed-at) both;
-}
-@keyframes pb-cl-fly { from { translate: var(--fx) var(--fy); } to { translate: 0 0; } }
-.pb-cl-core {
-  width: 100%;
-  height: 100%;
-  display: block;
   opacity: 0;
-  scale: 0.12;
-  filter: drop-shadow(0 0 14px rgba(255, 226, 160, 0.6)) drop-shadow(0 0 22px rgba(150, 80, 255, 0.5));
+  filter: drop-shadow(0 0 16px rgba(255, 236, 190, 0.55)) drop-shadow(0 0 22px rgba(150, 80, 255, 0.5));
   animation:
-    pb-cl-core-grow calc(var(--drained-at) - var(--core-at)) cubic-bezier(0.3, 0.5, 0.4, 1) var(--core-at) both,
-    pb-cl-core-press calc(var(--pressed-at) - var(--drained-at)) ease-in var(--drained-at) forwards,
-    pb-cl-core-throb 180ms ease-in-out var(--arrive-at) infinite alternate;
+    pb-cl-seal-form calc(var(--drained-at) - var(--core-at)) cubic-bezier(0.25, 0.7, 0.35, 1) var(--core-at) both,
+    pb-cl-seal-turn 4000ms linear var(--core-at) infinite,
+    pb-cl-seal-fall 420ms cubic-bezier(0.6, 0, 0.9, 0.5) var(--video-at) forwards;
 }
-.pb-cl-front.burst .pb-cl-core {
-  animation:
-    pb-cl-core-grow calc(var(--drained-at) - var(--core-at)) cubic-bezier(0.3, 0.5, 0.4, 1) var(--core-at) both,
-    pb-cl-core-press calc(var(--pressed-at) - var(--drained-at)) ease-in var(--drained-at) forwards,
-    pb-cl-core-throb 180ms ease-in-out var(--arrive-at) infinite alternate,
-    pb-cl-core-out 140ms ease-in var(--burst-at) forwards;
+@keyframes pb-cl-seal-form { 0% { opacity: 0; scale: 0.25; } 35% { opacity: 1; } 100% { opacity: 1; scale: 1; } }
+@keyframes pb-cl-seal-turn { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes pb-cl-seal-fall {
+  0% { opacity: 1; scale: 1; filter: brightness(1.3) drop-shadow(0 0 22px rgba(255, 255, 255, 0.8)); }
+  100% { opacity: 0; scale: 0.08; filter: brightness(2.2) blur(2px); }
 }
-@keyframes pb-cl-core-grow { 0% { opacity: 0; scale: 0.12; rotate: -30deg; } 25% { opacity: 1; } 100% { opacity: 1; scale: 1.05; rotate: 0deg; } }
-@keyframes pb-cl-core-press { from { opacity: 1; scale: 1.05; } to { opacity: 1; scale: 0.62; } }
-@keyframes pb-cl-core-throb { from { opacity: 1; scale: 0.62; } to { opacity: 1; scale: 0.7; } }
-@keyframes pb-cl-core-out { to { opacity: 0; scale: 1.5; } }
 
 /* Her eyes, lit as her two circles stand together (作者 §8): the right gold, the left blue — as drawn. */
 .pb-eyes { position: absolute; inset: 0; pointer-events: none; }
@@ -1635,46 +1623,98 @@
 .pb-eye.blue { color: rgba(130, 205, 255, 0.95); background: radial-gradient(circle, rgba(200, 236, 255, 0.95) 0 22%, rgba(70, 170, 255, 0.8) 42%, rgba(40, 140, 255, 0) 72%); }
 @keyframes pb-eye { 0% { opacity: 0; scale: 0.4; } 25% { opacity: 1; scale: 1.25; } 70% { opacity: 0.9; scale: 1; } 100% { opacity: 0; scale: 0.8; } }
 
-/* Over the screen once the core flies: a little darker, until the afterglow fades. */
-.pb-collapse { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+/* OVER THE SCREEN once the film takes over (作者 動画＋PNG統合 §10: かなり暗く — the creatures, Kaos and the HUD still
+   faintly read): the screen darkened hard; its edges taken by purple-black smoke; the film over the creatures; gold
+   drawn in with it; a burst of light on each one struck in the crush; the release — a short white flash, a ring of
+   force out, gold-white light; the afterglow — purple-black residue. */
+.pb-collapse { position: absolute; inset: 0; pointer-events: none; }
+/* The release's white flash, over the whole screen and its HUD. */
+.pb-cl-flash { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
 .pb-cl-dark {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at var(--cx) var(--cy), rgba(30, 10, 60, 0.2), rgba(4, 2, 10, 0.55) 70%);
+  background: radial-gradient(circle at var(--cx) var(--cy), rgba(10, 4, 22, 0.55), rgba(3, 1, 8, 0.82) 62%);
+  inset: -25%;
+  background-size: 100% 100%;
   opacity: 0;
-  animation: pb-cl-dark calc(var(--burst-at) + var(--after) - var(--pressed-at)) ease-out var(--pressed-at) both;
+  animation:
+    pb-cl-dark-in 360ms ease-out calc(var(--video-at) - 260ms) both,
+    pb-cl-dark-out calc(var(--after) + 500ms) ease-in calc(var(--release-at) + 120ms) forwards;
 }
-@keyframes pb-cl-dark { 0% { opacity: 0; } 18% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
-.pb-cl-blast {
+@keyframes pb-cl-dark-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pb-cl-dark-out { to { opacity: 0; } }
+.pb-cl-void {
+  position: absolute;
+  left: -4%;
+  top: -4%;
+  width: 108%;
+  height: 108%;
+  object-fit: cover;
+  opacity: 0;
+  animation:
+    pb-cl-void-in 600ms ease-out calc(var(--video-at) - 200ms) both,
+    pb-cl-void-pull calc(var(--release-at) - var(--video-at)) ease-in var(--video-at) both,
+    pb-cl-dark-out calc(var(--after) + 500ms) ease-in calc(var(--release-at) + 120ms) forwards;
+}
+@keyframes pb-cl-void-in { from { opacity: 0; } to { opacity: 0.9; } }
+/* Drawn in with the pull — the edges closing on the middle. */
+@keyframes pb-cl-void-pull { from { scale: 1.08; } to { scale: 1; } }
+/* THE FILM (kaos-collapse-video.webm, keyed — no black left): over the middle of the creatures, a little bigger than
+   the screen is tall; faded in as the seal falls into it; held at the release with the blow (its hit-stop —
+   PartyBattleScreen pauses it); its own release and smoke after. */
+.pb-cl-film {
   position: absolute;
   left: var(--cx);
   top: var(--cy);
-  translate: -50% -50%;
+  height: 170%;
   aspect-ratio: 1;
+  translate: -50% -50%;
+  object-fit: contain;
   opacity: 0;
-  will-change: transform, opacity;
+  /* Brighter, the purple held back a little (作者 §14–15: 明度調整・紫を少し抑える): the pull read on a dark field. */
+  filter: brightness(1.6) contrast(1.08) saturate(0.8);
+  animation: pb-cl-film-in 380ms ease-out var(--video-at) both;
 }
-
-/* At each strike: a ring of light out from the core, gold and purple by turns. */
-.pb-cl-wave {
+@keyframes pb-cl-film-in { from { opacity: 0; scale: 1.12; } to { opacity: 1; scale: 1; } }
+/* Warped space (kaos-pull-ring) closing on the point — twice, one after the other, through the pull. */
+.pb-cl-pull {
   position: absolute;
   left: var(--cx);
   top: var(--cy);
-  width: 30%;
+  height: 150%;
   aspect-ratio: 1;
   translate: -50% -50%;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 216, 130, 0.9);
-  box-shadow: 0 0 18px rgba(255, 210, 107, 0.6), inset 0 0 14px rgba(255, 210, 107, 0.4);
   opacity: 0;
-  animation: pb-cl-wave 320ms ease-out var(--wave-at) both;
+  animation: pb-cl-pull calc((var(--release-at) - var(--video-at)) * 0.5) cubic-bezier(0.55, 0, 0.9, 0.6) calc(var(--video-at) + (var(--release-at) - var(--video-at)) * 0.42 * var(--pull-i)) both;
 }
-.pb-cl-wave.violet { border-color: rgba(190, 130, 255, 0.92); box-shadow: 0 0 18px rgba(160, 92, 255, 0.65), inset 0 0 14px rgba(160, 92, 255, 0.4); }
-@keyframes pb-cl-wave { 0% { opacity: 0.95; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.4); } }
-/* …and a burst of light on each one struck. */
+@keyframes pb-cl-pull {
+  0% { opacity: 0; scale: 1.2; rotate: 0deg; }
+  25% { opacity: 0.38; }
+  85% { opacity: 0.3; scale: 0.15; rotate: 200deg; }
+  100% { opacity: 0; scale: 0.05; rotate: 240deg; }
+}
+/* Gold drawn in with it (作者 §15: 白＋黒紫＋少量の金 — never purple alone): turning, pulled to the point. */
+.pb-cl-gold {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  height: 62%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: pb-cl-gold-pull calc(var(--release-at) - var(--video-at)) cubic-bezier(0.55, 0, 0.85, 0.45) var(--video-at) both;
+}
+@keyframes pb-cl-gold-pull {
+  0% { opacity: 0; scale: 1.15; rotate: 0deg; }
+  18% { opacity: 0.32; }
+  85% { opacity: 0.3; scale: 0.2; rotate: -420deg; }
+  100% { opacity: 0; scale: 0.05; rotate: -520deg; }
+}
+/* A burst of light on each one struck in the crush, gold and purple by turns. */
 .pb-cl-hit {
   position: absolute;
-  width: 15%;
+  width: 7%;
   aspect-ratio: 1;
   translate: -50% -50%;
   border-radius: 50%;
@@ -1684,65 +1724,51 @@
 }
 .pb-cl-hit.violet { background: radial-gradient(circle, #fff 0 8%, rgba(200, 150, 255, 0.92) 18%, rgba(160, 92, 255, 0) 62%); }
 @keyframes pb-cl-hit { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); } }
-
-/* 界核崩壊: the cosmic blast — big, turning a little, gone through the afterglow. */
-.pb-cl-blast {
-  height: 120%;
-  filter: drop-shadow(0 0 18px rgba(200, 160, 255, 0.55));
-  animation: pb-cl-blast calc(var(--after) + 520ms) cubic-bezier(0.15, 0.85, 0.3, 1) var(--burst-at) both;
+/* 界核崩壊 — the release: a ring of force out from the point (the space giving way), past the screen's edges. */
+.pb-cl-wave.burst {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: 40%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 244, 220, 0.95);
+  box-shadow: 0 0 24px rgba(255, 230, 170, 0.8), 0 0 40px rgba(170, 100, 255, 0.6), inset 0 0 20px rgba(200, 150, 255, 0.5);
+  opacity: 0;
+  animation: pb-cl-wave-out 520ms cubic-bezier(0.1, 0.7, 0.3, 1) var(--release-at) both;
 }
-@keyframes pb-cl-blast {
-  0% { opacity: 0; transform: scale(0.25) rotate(-12deg); }
-  12% { opacity: 1; }
-  60% { opacity: 1; transform: scale(1.05) rotate(4deg); }
-  100% { opacity: 0; transform: scale(1.2) rotate(8deg); }
-}
-/* The white flash: once, short (as 《彼岸花》's third). */
+@keyframes pb-cl-wave-out { 0% { opacity: 1; scale: 0.1; } 70% { opacity: 0.7; } 100% { opacity: 0; scale: 4.2; } }
+/* The white flash: once, short (作者 §20: 0.05〜0.1秒, never blinking). */
 .pb-cl-white {
   position: absolute;
   inset: 0;
   background: #fff;
   opacity: 0;
-  animation: pb-cl-white 100ms ease-out var(--burst-at) both;
+  animation: pb-cl-white 80ms ease-out var(--release-at) both;
 }
 @keyframes pb-cl-white { 0% { opacity: 0; } 18% { opacity: 0.85; } 60% { opacity: 0.35; } 100% { opacity: 0; } }
-/* The space cracked: white-gold lines drawn out from the core, a purple haze along them, fading with the afterglow. */
-.pb-cl-cracks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.pb-cl-cracks path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
-.pb-cl-crack-haze { stroke: rgba(150, 80, 255, 0.55); stroke-width: 7px; filter: blur(3px); }
-.pb-cl-crack-cut { stroke: rgba(255, 246, 220, 0.96); stroke-width: 2px; }
-.pb-cl-cracks path { animation: pb-cl-crack calc(var(--after) + 420ms) ease-out var(--burst-at) both; }
-@keyframes pb-cl-crack { 0% { stroke-dashoffset: 100; opacity: 1; } 22% { stroke-dashoffset: 0; opacity: 1; } 70% { opacity: 0.8; } 100% { stroke-dashoffset: 0; opacity: 0; } }
-/* Crystal shards flying out. */
-.pb-cl-shard {
-  position: absolute;
-  left: var(--cx);
-  top: var(--cy);
-  width: calc(var(--sz) * 1px);
-  height: calc(var(--sz) * 1.9px);
-  translate: -50% -50%;
-  clip-path: polygon(50% 0, 100% 45%, 50% 100%, 0 45%);
-  background: linear-gradient(160deg, #fffaf0, #ffd36b 55%, #8a5a10);
-  opacity: 0;
-  animation: pb-cl-shard calc(var(--after) + 480ms) cubic-bezier(0.1, 0.8, 0.3, 1) calc(var(--burst-at) + var(--sd)) both;
-}
-.pb-cl-shard.white { background: linear-gradient(160deg, #fff, #dfe8ff 55%, #8890b0); }
-.pb-cl-shard.violet { background: linear-gradient(160deg, #f4e8ff, #b77bff 55%, #3b1670); }
-@keyframes pb-cl-shard {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
-  10% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(var(--dx) * 1vw), calc(var(--dy) * 1vh)) rotate(var(--sr)) scale(1); }
-}
-/* The afterglow: gold and purple light where it burst, fading. */
+/* Gold-white light where it gave way, fading with the afterglow. */
 .pb-cl-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at var(--cx) var(--cy), rgba(255, 228, 170, 0.5), rgba(170, 100, 255, 0.28) 22%, transparent 48%);
+  background: radial-gradient(circle at var(--cx) var(--cy), rgba(255, 240, 210, 0.55), rgba(255, 210, 120, 0.3) 14%, rgba(170, 100, 255, 0.22) 26%, transparent 48%);
   opacity: 0;
-  animation: pb-cl-glow calc(var(--after) + 260ms) ease-out var(--burst-at) both;
+  animation: pb-cl-glow calc(var(--after) + 260ms) ease-out var(--release-at) both;
 }
 @keyframes pb-cl-glow { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+/* What is left: purple-black residue drifting and thinning, from the point. */
+.pb-cl-residue {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  height: 70%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  opacity: 0;
+  animation: pb-cl-residue calc(var(--after) + 700ms) ease-out calc(var(--release-at) + 160ms) both;
+}
+@keyframes pb-cl-residue { 0% { opacity: 0; scale: 0.6; } 25% { opacity: 0.85; } 100% { opacity: 0; scale: 1.15; translate: -50% -56%; } }
 
 /* 魔防DOWN on a creature (its badge beside 速度DOWN), and said over it as the afterglow fades. */
 .pb-mdown-badge {
@@ -1787,9 +1813,9 @@
 .pb-dia[data-ready='yes'] .pb-dia-plate { filter: drop-shadow(0 0 6px rgba(255, 214, 120, 0.95)) drop-shadow(0 0 10px rgba(170, 100, 255, 0.7)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .pb-cl-ring > img, .pb-cl-core, .pb-cl-blast, .pb-cl-wave, .pb-cl-hit, .pb-cl-shard, .pb-cl-cracks path, .pb-cl-glow, .pb-cl-dark, .pb-cl-hush, .pb-eye { animation-name: pb-hit-fade; }
-  .pb-cl-beam, .pb-cl-mote, .pb-cl-corebox { animation: none; translate: 0 0; }
-  .pb-cl-white, .pb-cl-shard { display: none; }
+  .pb-cl-ring > img, .pb-cl-seal, .pb-cl-pull, .pb-cl-wave, .pb-cl-hit, .pb-cl-glow, .pb-cl-dark, .pb-cl-hush, .pb-cl-void, .pb-cl-gold, .pb-cl-residue, .pb-eye { animation-name: pb-hit-fade; }
+  .pb-cl-beam, .pb-cl-mote { animation: none; translate: 0 0; }
+  .pb-cl-white, .pb-cl-film { display: none; }
   .pb-charge[data-ready='yes'] { animation: none; }
 }
 .pb-float.slow.mdown { color: #e2c4ff; -webkit-text-stroke-color: #24103e; }

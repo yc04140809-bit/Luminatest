@@ -120,10 +120,12 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     const id = (await scene.getAttribute('data-scene', { timeout: 1_000 }).catch(() => null)) ?? '';
     if (!scenes.includes(id)) break;
     const key = `${id}:${await scene.getAttribute('data-at', { timeout: 1_000 }).catch(() => '')}`;
-    // Between one line and the next (a stage being kept): wait for it.
-    if (key === last || !(await next.isEnabled().catch(() => false))) {
+    // Between one line and the next (a stage being kept): wait for it. Every look at つぎへ is short: after the
+    // last line it is gone, and a look with no time limit would wait for it for good (the 4-minute hang seen in
+    // full runs — 2026-10-27).
+    if (key === last || !(await next.isEnabled({ timeout: 1_000 }).catch(() => false))) {
       // A tap that did not land (the line still there a second later, the button free): tap again.
-      if (key === last && Date.now() - clickedAt > 2_000 && (await next.isEnabled().catch(() => false))) {
+      if (key === last && Date.now() - clickedAt > 2_000 && (await next.isEnabled({ timeout: 1_000 }).catch(() => false))) {
         // …only if it is still the very same line.
         clickedAt = Date.now();
         await tapLine(page, last);
@@ -387,7 +389,7 @@ for (const [w, h] of [
 async function readUntil(page: Page, text: string) {
   for (let i = 0; i < 300; i++) {
     if (((await page.getByTestId('finale-line').textContent()) ?? '') === text) return;
-    if (!(await page.getByTestId('finale-next').isEnabled().catch(() => false))) {
+    if (!(await page.getByTestId('finale-next').isEnabled({ timeout: 1_000 }).catch(() => false))) {
       await page.waitForTimeout(50);
       continue;
     }

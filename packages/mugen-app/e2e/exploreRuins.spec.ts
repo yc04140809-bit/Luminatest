@@ -70,8 +70,15 @@ test('a touch on the floor walks there — forward out of the picture and back i
   const frontTall = await height(page, 'walk-hero');
   const frontFeet = (await page.getByTestId('walk-hero').boundingBox())!;
   // Back, into the picture: higher on the screen and smaller.
-  const back = await openFloor(page, 0.62, [0.5, 0.48]);
-  await touch(page, back);
+  // (A find lying on the road can leave openFloor nothing there but off the road, where the floor stops short
+  // of the back: the road itself, well behind where he stands, clear of anything a touch would be taken for —
+  // the walk snaps to a thing within 0.08.)
+  const lying = await things(page);
+  const back = [0.62, 0.6, 0.58]
+    .flatMap((y) => Array.from({ length: 11 }, (_, i) => ({ x: 0.5 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.02, y })))
+    .find((q) => q.y <= atFront.y - 0.1 && lying.every((t) => dist(q, t.stand) > 0.1 && dist(q, t.mark) > 0.05));
+  expect(back, 'open floor at the back').toBeTruthy();
+  await touch(page, back!);
   const atBack = await hero(page);
   expect(atBack.y).toBeLessThan(atFront.y - 0.08);
   const backScale = await scale(page);
@@ -178,6 +185,16 @@ test('after the three, the place goes on: small finds turn up somewhere else, on
     const waiting = (await things(page)).filter((t) => t.kind === 'find');
     // Never more than two waiting at once.
     expect(waiting.length).toBeLessThanOrEqual(2);
+    // The once-in-a-world rainbow find can turn up among them (exploreRareFinds): not a small find — taken as
+    // a player would, its card put away, and not counted; left lying it would hold a spot the whole time.
+    const rainbow = waiting.find((t) => t.grade === 'RAINBOW');
+    if (rainbow) {
+      await goTo(page, rainbow.id);
+      await page.getByTestId('walk-look').click();
+      await page.getByTestId('walk-prize-close').click();
+      await expect(page.getByTestId('walk-prize')).toHaveCount(0);
+      continue;
+    }
     const f = waiting[0];
     if (!f) {
       // Nothing waiting: walk about, and give it a moment.

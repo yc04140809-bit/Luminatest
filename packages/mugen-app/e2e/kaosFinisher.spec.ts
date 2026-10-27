@@ -4,7 +4,8 @@ import { expect, test, type Page } from '@playwright/test';
  * ケイオス 《双極臨界 → 界核崩壊》 in the party fight (作者 2026-10-26「ケイオス必殺技 正式実装指示書」): charged by her
  * turns (3 → 2 → 1 → READY, never on her first turn, MP or not), her own gold-and-purple cut-in, the two
  * circles meeting into the core over them, four strikes at all of them (COMBO each), 界核崩壊 — the blast, a
- * white flash, the space cracked, shards — the afterglow, 魔防DOWN; the same at ×2, quicker; and a fight
+ * white flash (動画＋PNG統合: her circles' light into the bipolar seal, the seal into the keyed suction film — the
+ * pull, the crush, the stillness, the release held with the blow — residue after), 魔防DOWN; the same at ×2, quicker; and a fight
  * won by it seen through before 「勝利！」. The numbers and AUTO are the core's (partyKaosFinisher.test.ts).
  */
 
@@ -25,7 +26,7 @@ async function turnOf(page: Page, id: string) {
 async function record(page: Page) {
   await page.evaluate(() => {
     const w = window as unknown as { __cl: Record<string, number | string | boolean> };
-    w.__cl = { waves: 0, shards: 0, kaosMoved: false, pressable: false };
+    w.__cl = { kaosMoved: false, pressable: false };
     const t0 = performance.now();
     const tick = () => {
       const now = Math.round(performance.now() - t0);
@@ -37,10 +38,16 @@ async function record(page: Page) {
       } else if (c.cutOn !== undefined) c.cutOff ??= now;
       if (document.querySelector('[data-testid="pb-collapse"]')) c.on ??= now;
       else if (c.on !== undefined) c.off ??= now;
-      c.waves = Math.max(c.waves as number, document.querySelectorAll('[data-testid="pb-collapse-wave"]').length);
-      c.shards = Math.max(c.shards as number, document.querySelectorAll('[data-testid="pb-collapse-shard"]').length);
-      if (document.querySelector('[data-testid="pb-collapse-blast"]')) c.blast ??= now;
-      if (document.querySelector('[data-testid="pb-collapse-cracks"]')) c.cracks ??= now;
+      // The film: when it plays, where it stands at the white flash (its release), whether it is held there.
+      const film = document.querySelector<HTMLVideoElement>('[data-testid="pb-collapse-film"]');
+      if (film && !film.paused && film.currentTime > 0) c.filmOn ??= now;
+      const flash = document.querySelector('[data-testid="pb-collapse-white"]');
+      if (flash && Number(getComputedStyle(flash).opacity) > 0.2 && c.flashAt === undefined) {
+        c.flashAt = now;
+        c.filmAtFlash = film ? film.currentTime : -1;
+      }
+      // Held with the blow (paused short of its end — it is 3.47s long).
+      if (film && c.filmOn !== undefined && film.paused && film.currentTime > 2 && film.currentTime < 3.2) c.filmHeld = true;
       if (document.querySelector('[data-testid="pb-float-mdown"]')) c.said ??= now;
       const badge = document.querySelector('[data-testid="pb-mdown-badge"]');
       if (badge) {
@@ -54,16 +61,16 @@ async function record(page: Page) {
       };
       const wo = op('pb-collapse-ring-white');
       const vo = op('pb-collapse-ring-violet');
-      const co = op('pb-collapse-core');
+      const so = op('pb-collapse-seal');
       if (wo > 0.6) c.whiteOn ??= now;
       if (vo > 0.6) c.violetOn ??= now;
       if (wo > 0.6 && vo > 0.6) {
         c.bothFrom ??= now;
         c.bothTo = now;
       }
-      if (co > 0.3 && c.coreBorn === undefined) {
-        c.coreBorn = now;
-        c.ringsAtBirth = Math.max(wo, vo);
+      if (so > 0.3 && c.sealOn === undefined) {
+        c.sealOn = now;
+        c.ringsAtSeal = Math.max(wo, vo);
       }
       if (c.whiteOn !== undefined && wo < 0.05 && vo < 0.05) c.ringsGone ??= now;
       const eyes = document.querySelectorAll<HTMLElement>('[data-testid="pb-kaos-eyes"] .pb-eye');
@@ -141,11 +148,15 @@ test.describe('with motion', () => {
       await collapse(page);
       await expect(page.getByTestId('pb-collapse')).toBeVisible({ timeout: 8_000 });
       // The pictures: the white-gold circle, the black-purple, the core.
-      for (const id of ['pb-collapse-ring-white', 'pb-collapse-ring-violet', 'pb-collapse-core']) await expect(page.getByTestId(id)).toHaveCount(1);
+      for (const id of ['pb-collapse-ring-white', 'pb-collapse-ring-violet', 'pb-collapse-seal', 'pb-collapse-film', 'pb-collapse-gold', 'pb-collapse-void']) await expect(page.getByTestId(id)).toHaveCount(1);
       await expect(page.getByTestId('pb-collapse-ring-white')).toHaveAttribute('src', /kaos-circle-gold/);
       await expect(page.getByTestId('pb-collapse-ring-violet')).toHaveAttribute('src', /kaos-circle-purple/);
-      await expect(page.getByTestId('pb-collapse-core')).toHaveAttribute('src', /kaos-core/);
-      await expect(page.getByTestId('pb-collapse-blast')).toHaveAttribute('src', /kaos-collapse/);
+      await expect(page.getByTestId('pb-collapse-seal')).toHaveAttribute('src', /kaos-seal/);
+      await expect(page.getByTestId('pb-collapse-film')).toHaveAttribute('src', /kaos-collapse-video.*\.webm/);
+      await expect(page.getByTestId('pb-collapse-residue')).toHaveAttribute('src', /kaos-residue/);
+      await expect(page.getByTestId('pb-collapse-pull')).toHaveCount(2);
+      // The film keyed: a WebM with its own alpha, on the field (moving with the camera), never a black square.
+      expect(await page.getByTestId('pb-collapse-film').evaluate((v) => (v as HTMLVideoElement).muted && !!v.closest('[data-shake-layer="field"]'))).toBe(true);
       // The white turns clockwise, the black-purple the other way.
       const turns = await page.evaluate(() =>
         ['white', 'violet'].map((k) => getComputedStyle(document.querySelector(`[data-testid="pb-collapse-ring-${k}"]`)!).animationName.split(',')[0].trim()),
@@ -166,7 +177,7 @@ test.describe('with motion', () => {
         const t = el.getAnimations()[0]?.effect?.getTiming();
         return { ms: Number(t?.duration ?? 0), times: Number(t?.iterations ?? 0) };
       });
-      expect(white).toEqual({ ms: 100, times: 1 });
+      expect(white).toEqual({ ms: 80, times: 1 });
       // COMBO: four on each of three.
       await expect(page.getByTestId('pb-combo')).toContainText('12', { timeout: 8_000 });
       await expect(page.getByTestId('pb-collapse')).toHaveCount(0, { timeout: 10_000 });
@@ -180,17 +191,19 @@ test.describe('with motion', () => {
       expect((c.bothTo as number) - (c.bothFrom as number)).toBeGreaterThanOrEqual(fast ? 300 : 400);
       expect(c.eyesLit as number).toBeGreaterThanOrEqual((c.bothFrom as number) - 120);
       expect(c.goldLeftOfBlue).toBe(true);
-      expect(c.coreBorn as number).toBeGreaterThan(c.bothFrom as number);
-      expect(c.ringsAtBirth as number).toBeGreaterThan(0.5);
-      expect(c.ringsGone as number).toBeGreaterThan(c.coreBorn as number);
+      expect(c.sealOn as number).toBeGreaterThan(c.bothFrom as number);
+      expect(c.ringsAtSeal as number).toBeGreaterThan(0.5);
+      expect(c.ringsGone as number).toBeGreaterThan(c.sealOn as number);
+      // The seal falls into the film: the film plays once the circles' light is in it, the release at its own moment.
+      expect(c.filmOn as number).toBeGreaterThan(c.sealOn as number);
+      expect(c.filmAtFlash as number).toBeGreaterThan(2.1);
+      expect(c.filmAtFlash as number).toBeLessThan(2.6);
+      expect(c.filmHeld).toBe(true);
       expect((c.ringsGone as number) - (c.whiteOn as number)).toBeGreaterThanOrEqual(fast ? 800 : 1100);
       expect(c.beams).toBe(2);
       expect(c.motes).toBeGreaterThanOrEqual(16);
-      // After her cut-in, never under it; three pulses before the collapse, the blast and cracks and shards at it.
+      // After her cut-in, never under it.
       expect(c.on as number).toBeGreaterThanOrEqual((c.cutOff as number) - 50);
-      expect(c.waves).toBe(3);
-      expect(c.shards).toBeGreaterThanOrEqual(12);
-      expect(c.cracks).toBe(c.blast);
       // 魔防DOWN said on them as the afterglow fades — and only then on the plate.
       expect(c.said).toBeDefined();
       expect((c.badge as number) - (c.on as number)).toBeGreaterThan(fast ? 900 : 1700);
@@ -199,8 +212,8 @@ test.describe('with motion', () => {
       expect(c.kaosMoved).toBe(false);
       // Its length on screen, from her cut-in's end to the last of it: ×2 the quicker, neither too short to see.
       const ms = (c.off as number) - (c.on as number);
-      if (fast) expect(ms).toBeLessThan(4600);
-      else expect(ms).toBeGreaterThan(3000);
+      if (fast) expect(ms).toBeLessThan(5800);
+      else expect(ms).toBeGreaterThan(4000);
     });
   }
 

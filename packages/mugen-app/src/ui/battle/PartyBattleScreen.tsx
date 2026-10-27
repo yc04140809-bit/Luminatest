@@ -42,7 +42,7 @@ import { battleBackgroundArt } from '../../assets/battleBackground';
 import { audioManager, playSfx } from '../../platform/audio';
 import { hitStop, screenShake, shakeAllowed } from '../fx/screenShake';
 import { CAMERA_COMBOS, camera, cameraSequence } from '../fx/camera';
-import { beatFx, counterFx, type BeatContext, type BeatFx } from './partyFx';
+import { COLLAPSE_VIDEO, beatFx, counterFx, type BeatContext, type BeatFx } from './partyFx';
 import { SpecialFx } from '../fx/special/SpecialFx';
 import { SPECIAL_FX } from '../fx/special/specialFx';
 import { CageIcon, SparkIcon, SwordIcon } from './BattleIcons';
@@ -172,7 +172,11 @@ const MAGIC_DOWN_SAID_MS = 1300;
 const COLLAPSE_RING_SHARE = 0.48;
 const COLLAPSE_RING_SPREAD = { white: 0.17, violet: 0.17 } as const;
 /** 《双極臨界》 on the field: her circles over everyone else, she before them, the core and its light over all. */
-const COLLAPSE_Z = { circles: 25, caster: 40, core: 50 } as const;
+const COLLAPSE_Z = { circles: 25, caster: 40, film: 45, core: 50 } as const;
+/** 《双極臨界》: the stillness before the release — the music gone (on screen at ×1). */
+const COLLAPSE_STILL_MS = 220;
+/** How late the drawn seal may be before the film starts without it (and the flash before the film is held anyway). */
+const COLLAPSE_CUE_SLACK_MS = 400;
 /** 《双極臨界》: the motes running out of each circle into the core. */
 const COLLAPSE_MOTES = 8;
 /** Her eyes on her battle drawing (kaos-battle-v2, shares of it): the right, gold, and the left, blue — as drawn, never swapped. */
@@ -440,7 +444,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     // …and ケイオス's circles, core and blast (《双極臨界》).
     const pics = [
       ...(finishers.includes('higanbana') ? [SPECIAL_FX_ART.heroHiganbana, SPECIAL_FX_ART.heroPetals] : []),
-      ...(finishers.includes('soukyoku_rinkai') ? [SPECIAL_FX_ART.kaosGold, SPECIAL_FX_ART.kaosViolet, SPECIAL_FX_ART.kaosCore, SPECIAL_FX_ART.kaosCollapse] : []),
+      ...(finishers.includes('soukyoku_rinkai')
+        ? [SPECIAL_FX_ART.kaosGold, SPECIAL_FX_ART.kaosViolet, SPECIAL_FX_ART.kaosSeal, SPECIAL_FX_ART.kaosGoldSwirl, SPECIAL_FX_ART.kaosVoid, SPECIAL_FX_ART.kaosResidue, SPECIAL_FX_ART.kaosPullRing]
+        : []),
     ];
     for (const src of pics) {
       const pic = new Image();
@@ -475,13 +481,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     key: number;
     art: Collapse;
     spots: { x: number; y: number }[];
-    /** Where (% of the field): her white circle, her black-purple one, the core born between them. */
+    /** Where (% of the field): her white circle, her black-purple one (the seal and the film are over the creatures: art). */
     white: { x: number; y: number };
     violet: { x: number; y: number };
-    born: { x: number; y: number };
-    /** The field's size (px), for the light running from each circle into the core. */
+    /** The field's size (px), for the light running from each circle into the seal. */
     w: number;
     h: number;
+    /** The suction film shown (not with less motion asked for). */
+    film: boolean;
     t: {
       white: number;
       purple: number;
@@ -489,10 +496,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       both: number;
       core: number;
       drained: number;
-      pressed: number;
-      arrive: number;
+      video: number;
+      /** The film's speed on screen. */
+      rate: number;
       strikes: number[];
       burst: number;
+      /** The release on screen (whether or not it is the fourth strike). */
+      release: number;
       after: number;
     };
   } | null>(null);
@@ -516,6 +526,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const ended = useRef(false);
   /** The screen, so a shake or the camera moves this fight's field and painting (ui/fx) and nothing else. */
   const root = useRef<HTMLDivElement>(null);
+  /** 《双極臨界》's suction film, played and held from the beat (it is the move's own clock from its start). */
+  const collapseFilm = useRef<HTMLVideoElement>(null);
+  /** The film started as the seal is seen falling into it, and held as the white flash is seen — the drawn clock,
+   *  which starts only once the overlay is on the screen (a slow frame puts it behind the beat's timers). */
+  const collapseCue = useRef<{ key: number; play: () => void; hold: () => void } | null>(null);
   const actor = currentActor(state);
   const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
 
@@ -674,8 +689,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
         later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
-      // 《双極臨界 → 界核崩壊》 (魔法陣ブラッシュアップ): her two circles either side of her, the core born between them
-      // and drinking them, flying onto the creatures; a pulse at each strike; the collapse over them.
+      // 《双極臨界 → 界核崩壊》 (魔法陣ブラッシュアップ, 動画＋PNG統合): her two circles either side of her; their light
+      // into the bipolar seal over the creatures; the seal into the suction film — the crush, the stillness — and its
+      // release, 界核崩壊; the afterglow.
       if (p.collapse && isEnemyId(beat.target)) {
         const box = at.getBoundingClientRect();
         const pc = (px: number, of: number) => Math.round((px / of) * 1000) / 10;
@@ -689,7 +705,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           return [{ x: Math.round(x), y: Math.round(y) }];
         });
         // Her circles either side of her (作者 §4: her white wing's side — the screen's left as she is drawn — the
-        // white-gold; her dark wing's side the black-purple), at her chest's height; the core between them, above her.
+        // white-gold; her dark wing's side the black-purple).
         const me = at.querySelector<HTMLElement>(`[data-testid="pb-figure-${beat.actor}"] > img`)?.getBoundingClientRect();
         const kx = me ? me.left + me.width * 0.48 - box.left : box.width * 0.68;
         // About her chest — between the party's cards above on the right and the commands below (the circle passes
@@ -707,15 +723,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         const c = p.collapse;
         const t = (ms: number) => Math.round(when(ms));
         const burst = c.burst >= 0 ? t(c.burst) : -1;
+        // The film's speed on screen: its own at this fight's speed.
+        const filmRate = c.rate;
+        const release = t(c.video) + Math.round(COLLAPSE_VIDEO.pull / filmRate);
         const shown = {
           key: lastKey,
           art: kaosCollapse(spots),
           spots,
           white: { x: pc(wx, box.width), y: pc(ky, box.height) },
           violet: { x: pc(vx, box.width), y: pc(ky, box.height) },
-          born: { x: pc((wx + vx) / 2, box.width), y: pc(Math.max(box.height * 0.16, ky - box.height * 0.2), box.height) },
           w: Math.round(box.width),
           h: Math.round(box.height),
+          film: shakeAllowed(),
           t: {
             white: t(c.white),
             purple: t(c.purple),
@@ -723,17 +742,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             both: t(c.both),
             core: t(c.core),
             drained: t(c.drained),
-            pressed: t(c.pressed),
-            arrive: t(c.arrive),
-            // A strike's pulse and burst of light as it lands (after the holds before it).
+            video: t(c.video),
+            rate: filmRate,
+            // A strike's burst of light as it lands.
             strikes: c.strikes.map(t),
             burst,
+            release,
             after: Math.round(c.after * speed),
           },
         };
         setCollapse(shown);
         const tt = shown.t;
-        // Each circle's sound as it opens; the hush (the music drawn back) while the two are there; the core's.
+        // Each circle's sound as it opens; the hush (the music drawn back) while the two are there; the seal forming.
         later(tt.white, () => playSfx('battle_charge_aura'));
         later(tt.purple, () => playSfx('battle_magic_dark'));
         later(tt.both, () => {
@@ -745,16 +765,48 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           audioManager.duckBgmTo(1, 400);
           playSfx('battle_buff');
         });
+        // The film: from its first frame, at its speed — and the moment before the release, silence (the stillness).
+        let filmStarted = false;
+        let filmHeld = false;
+        const playFilm = () => {
+          const v = collapseFilm.current;
+          if (!v || filmStarted) return;
+          filmStarted = true;
+          v.playbackRate = filmRate;
+          v.currentTime = 0;
+          void v.play().catch(() => undefined);
+        };
+        // The release: the world held with the blow (its hit-stop) — the film too — then on.
+        const holdFilm = () => {
+          if (burst < 0 || filmHeld) return;
+          filmHeld = true;
+          collapseFilm.current?.pause();
+          later(Math.round(p.hitStop * speed), () => void collapseFilm.current?.play().catch(() => undefined));
+        };
+        collapseCue.current = { key: shown.key, play: playFilm, hold: holdFilm };
+        // Only if the seal's fall or the flash is never seen (a very late frame): from the beat's clock.
+        later(tt.video + COLLAPSE_CUE_SLACK_MS, playFilm);
+        later(tt.video, () => playSfx('battle_charge_aura'));
+        later(Math.max(tt.video, release - COLLAPSE_STILL_MS * speed), () => {
+          hushed = true;
+          audioManager.duckBgmTo(0.12, 60);
+        });
+        later(release, () => {
+          hushed = false;
+          audioManager.duckBgmTo(1, 500);
+        });
+        later(release + COLLAPSE_CUE_SLACK_MS, holdFilm);
         c.strikes.slice(0, burst >= 0 ? -1 : undefined).forEach((ms, i) => later(t(ms), () => playSfx(i % 2 === 0 ? 'battle_magic_holy' : 'battle_magic_dark')));
-        // 魔防DOWN said on each as the afterglow fades (its sound with it); all of it taken away once the blast
-        // is gone and that has been read.
-        const faded = (burst >= 0 ? burst : tt.strikes[tt.strikes.length - 1]) + Math.round(p.hitStop * speed) + tt.after;
+        // 魔防DOWN said on each as the afterglow fades (its sound with it); all of it taken away once the film has
+        // run out and that has been read.
+        const faded = Math.max(burst, release) + Math.round(p.hitStop * speed) + tt.after;
         const lowered = !!(beat.magicDown || beat.spread?.some((x) => x.magicDown));
         later(faded, () => {
           setLoweredSaid(shown.key);
           if (lowered) playSfx('battle_debuff');
         });
-        later(faded + COLLAPSE_GONE_MS + (lowered ? MAGIC_DOWN_SAID_MS : 0), () => setCollapse((v) => (v?.key === shown.key ? null : v)));
+        const filmEnd = release + Math.round(p.hitStop * speed) + Math.round(COLLAPSE_VIDEO.release / filmRate);
+        later(Math.max(faded + COLLAPSE_GONE_MS, filmEnd) + (lowered ? MAGIC_DOWN_SAID_MS : 0), () => setCollapse((v) => (v?.key === shown.key ? null : v)));
       }
       // The characters' own effects: each one's sounds at its landing — once for a moment, however many it falls on.
       const heard = new Set<number>();
@@ -841,6 +893,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
       if (hushed) audioManager.duckBgmTo(1, 200);
+      collapseCue.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKeyOf(state)]);
@@ -1061,7 +1114,6 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** 《双極臨界》's times and places as custom properties (collapse.css), for each of its layers. */
   const collapseVars = (c: NonNullable<typeof collapse>): CSSProperties => {
     const t = c.t;
-    const end = t.burst >= 0 ? t.burst : t.strikes[t.strikes.length - 1];
     return {
       ['--cx' as string]: `${c.art.x}%`,
       ['--cy' as string]: `${c.art.y}%`,
@@ -1071,21 +1123,53 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       ['--both-at' as string]: `${t.both}ms`,
       ['--core-at' as string]: `${t.core}ms`,
       ['--drained-at' as string]: `${t.drained}ms`,
-      ['--pressed-at' as string]: `${t.pressed}ms`,
-      ['--arrive-at' as string]: `${t.arrive}ms`,
-      ['--burst-at' as string]: `${end}ms`,
+      ['--video-at' as string]: `${t.video}ms`,
+      ['--release-at' as string]: `${t.release}ms`,
       ['--after' as string]: `${t.after}ms`,
     };
   };
   /**
-   * 《双極臨界》 on the field (it moves with the camera, which stays on her until the core flies): BEHIND everyone,
-   * the field darkened a little and her two circles either side of her — opening, turning their own ways, lit
-   * together, then drunk dry by the core; IN FRONT, the light running out of each circle into the core between
-   * them, and the core itself — born small while they are still there, growing as it drinks, pressed, then
-   * flying onto the creatures, where it holds, throbbing, until 界核崩壊.
+   * 《双極臨界》 on the field (it moves with the camera, which stays on her until the film takes over): OVER everyone
+   * but her, the field darkened a little and her two circles either side of her — opening, turning their own ways,
+   * lit together, then drunk dry; IN FRONT, the light running out of each circle over to the creatures, into the
+   * bipolar seal forming there — white half and black-purple half, the two made one — which falls in on itself as
+   * the suction film begins (the film is over the screen: the overlay).
    */
-  const collapseOnField = (c: NonNullable<typeof collapse>, layer: 'back' | 'front') => {
+  const collapseOnField = (c: NonNullable<typeof collapse>, layer: 'back' | 'over' | 'front') => {
     const vars = collapseVars(c);
+    if (layer === 'over')
+      // THE FILM and what carries into and out of it (作者 2026-10-26 動画＋PNG統合 — the film is the move): the field
+      // darkened hard (the creatures, Kaos and the HUD still faintly read), its edges taken by purple-black smoke
+      // (kaos-void-frame); the suction film over the creatures (kaos-collapse-video — keyed, no black left), big
+      // enough that the whole field is drawn into it; a little gold drawn in with it (kaos-gold-swirl — white,
+      // black-purple and gold, never purple alone); a burst of light on each one struck in the crush; the release —
+      // a ring of force out, gold-white light; the afterglow — purple-black residue (kaos-residue).
+      return (
+        <span key={`clo${c.key}`} className="pb-collapse" data-testid="pb-collapse" data-burst={c.t.burst >= 0 ? 'yes' : 'no'} aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.film }}>
+          <span className="pb-cl-dark" />
+          <img className="pb-cl-void" data-testid="pb-collapse-void" src={SPECIAL_FX_ART.kaosVoid} alt="" />
+          {c.film && (
+            <video ref={collapseFilm} className="pb-cl-film" data-testid="pb-collapse-film" src={SPECIAL_FX_ART.kaosFilm} muted playsInline preload="auto" disablePictureInPicture />
+          )}
+          {/* Warped space closing on the point, twice, as the film pulls (the pull read as a pull). */}
+          {[0, 1].map((i) => (
+            <img key={`r${i}`} className="pb-cl-pull" data-testid="pb-collapse-pull" src={SPECIAL_FX_ART.kaosPullRing} alt="" style={{ ['--pull-i' as string]: i }} />
+          ))}
+          <img className="pb-cl-gold" data-testid="pb-collapse-gold" src={SPECIAL_FX_ART.kaosGoldSwirl} alt="" />
+          {c.t.strikes.slice(0, c.t.burst >= 0 ? -1 : undefined).map((ms, i) =>
+            c.spots.map((sp, j) => (
+              <span key={`h${i}-${j}`} className={`pb-cl-hit${i % 2 ? ' violet' : ''}`} style={{ left: `${sp.x}%`, top: `${sp.y}%`, ['--wave-at' as string]: `${ms}ms` }} />
+            )),
+          )}
+          {c.t.burst >= 0 && (
+            <>
+              <span className="pb-cl-glow" />
+              <span className="pb-cl-wave burst" data-testid="pb-collapse-wave" />
+              <img className="pb-cl-residue" data-testid="pb-collapse-residue" src={SPECIAL_FX_ART.kaosResidue} alt="" />
+            </>
+          )}
+        </span>
+      );
     if (layer === 'back')
       return (
         <span key={`clb${c.key}`} className="pb-cl-back" data-testid="pb-collapse-field" aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.circles }}>
@@ -1097,17 +1181,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           ))}
         </span>
       );
-    // Each circle's light into the core: a streak from it and motes running along it.
+    // Each circle's light into the seal: a streak from it and motes running along it.
     const streams = (['white', 'violet'] as const).map((k) => {
-      const dx = ((c.born.x - c[k].x) / 100) * c.w;
-      const dy = ((c.born.y - c[k].y) / 100) * c.h;
+      const dx = ((c.art.x - c[k].x) / 100) * c.w;
+      const dy = ((c.art.y - c[k].y) / 100) * c.h;
       return { k, dx, dy, len: Math.hypot(dx, dy), deg: (Math.atan2(dy, dx) * 180) / Math.PI };
     });
-    // The core flies from where it was born to the middle of the creatures.
-    const fx0 = ((c.born.x - c.art.x) / 100) * c.w;
-    const fy0 = ((c.born.y - c.art.y) / 100) * c.h;
     return (
-      <span key={`clf${c.key}`} className={`pb-cl-front${c.t.burst >= 0 ? ' burst' : ''}`} aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.core }}>
+      <span key={`clf${c.key}`} className="pb-cl-front" aria-hidden="true" style={{ ...vars, zIndex: COLLAPSE_Z.core }}>
         {streams.map((st) => (
           <span key={st.k} style={{ left: `${c[st.k].x}%`, top: `${c[st.k].y}%` }} className="pb-cl-source">
             <i className={`pb-cl-beam ${st.k}`} data-testid="pb-collapse-beam" style={{ width: `${Math.round(st.len)}px`, rotate: `${st.deg}deg` }} />
@@ -1128,12 +1209,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             ))}
           </span>
         ))}
-        <span
-          className="pb-cl-corebox"
-          style={{ left: `${c.art.x}%`, top: `${c.art.y}%`, ['--fx' as string]: `${Math.round(fx0)}px`, ['--fy' as string]: `${Math.round(fy0)}px` }}
-        >
-          <img className="pb-cl-core" data-testid="pb-collapse-core" src={SPECIAL_FX_ART.kaosCore} alt="" />
-        </span>
+        <img
+          className="pb-cl-seal"
+          data-testid="pb-collapse-seal"
+          src={SPECIAL_FX_ART.kaosSeal}
+          alt=""
+          style={{ left: `${c.art.x}%`, top: `${c.art.y}%` }}
+          onAnimationStart={(e) => e.animationName === 'pb-cl-seal-fall' && collapseCue.current?.key === c.key && collapseCue.current.play()}
+        />
       </span>
     );
   };
@@ -1337,6 +1420,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             {flashName}
           </span>
         )}
+        {collapse && collapse.key === lastKey && collapseOnField(collapse, 'over')}
         {collapse && collapse.key === lastKey && collapseOnField(collapse, 'front')}
       </div>
 
@@ -1477,51 +1561,15 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </span>
       )}
 
-      {/* ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書; kaosCollapse.ts, collapse.css): over the
-          creatures, once her core has come — a pulse at each strike; 界核崩壊 — the blast, a white flash, the
-          space cracked, shards; the afterglow. (Her circles and the core are on the field: collapseOnField.) */}
-      {collapse && collapse.key === lastKey && (
-        <span
-          key={`cl${lastKey}`}
-          className="pb-collapse"
-          data-testid="pb-collapse"
-          data-burst={collapse.t.burst >= 0 ? 'yes' : 'no'}
-          aria-hidden="true"
-          style={collapseVars(collapse)}
-        >
-          <span className="pb-cl-dark" />
-          {collapse.t.strikes.slice(0, collapse.t.burst >= 0 ? -1 : undefined).map((ms, i) => (
-            <span key={`w${i}`}>
-              <span className={`pb-cl-wave${i % 2 ? ' violet' : ''}`} data-testid="pb-collapse-wave" style={{ ['--wave-at' as string]: `${ms}ms` }} />
-              {collapse.spots.map((sp, j) => (
-                <span key={j} className={`pb-cl-hit${i % 2 ? ' violet' : ''}`} style={{ left: `${sp.x}%`, top: `${sp.y}%`, ['--wave-at' as string]: `${ms}ms` }} />
-              ))}
-            </span>
-          ))}
-          {collapse.t.burst >= 0 && (
-            <>
-              <img className="pb-cl-blast" data-testid="pb-collapse-blast" src={SPECIAL_FX_ART.kaosCollapse} alt="" />
-              <span className="pb-cl-glow" />
-              <svg className="pb-cl-cracks" data-testid="pb-collapse-cracks" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {collapse.art.cracks.map((d, i) => (
-                  <g key={i}>
-                    <path className="pb-cl-crack-haze" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
-                    <path className="pb-cl-crack-cut" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
-                  </g>
-                ))}
-              </svg>
-              {collapse.art.shards.map((sh, i) => (
-                <i
-                  key={i}
-                  className={`pb-cl-shard ${sh.tone}`}
-                  data-testid="pb-collapse-shard"
-                  style={{ ['--dx' as string]: sh.dx, ['--dy' as string]: sh.dy, ['--sr' as string]: `${sh.rot}deg`, ['--sz' as string]: sh.size, ['--sd' as string]: `${sh.delay}ms` }}
-                />
-              ))}
-              {/* The white flash: once, short (as 《彼岸花》's third). */}
-              <span className="pb-cl-white" data-testid="pb-collapse-white" />
-            </>
-          )}
+      {/* 《双極臨界》's release — the white flash over everything, the HUD too (作者 §20: once, 0.05〜0.1秒). The rest of it
+          is on the field, moving with the camera (collapseOnField). */}
+      {collapse && collapse.key === lastKey && collapse.t.burst >= 0 && (
+        <span key={`clw${lastKey}`} className="pb-cl-flash" aria-hidden="true" style={collapseVars(collapse)}>
+          <span
+            className="pb-cl-white"
+            data-testid="pb-collapse-white"
+            onAnimationStart={(e) => e.animationName === 'pb-cl-white' && collapseCue.current?.key === collapse.key && collapseCue.current.hold()}
+          />
         </span>
       )}
 
