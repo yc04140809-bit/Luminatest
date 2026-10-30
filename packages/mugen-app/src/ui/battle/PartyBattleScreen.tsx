@@ -168,8 +168,8 @@ const RESULT_FAST_SHARE = 0.7;
 const COLLAPSE_GONE_MS = 450;
 /** 《双極臨界》: how long 「MAGIC DOWN」 is up on each it lowered (as SPEED DOWN after 《彼岸花》). */
 const MAGIC_DOWN_SAID_MS = 1300;
-/** 《双極臨界》: 魔防DOWN said this far into the afterglow (v2 §34: in it, after the release). */
-const MAGIC_DOWN_AFTER_SHARE = 0.4;
+/** 《双極臨界》: how far its creatures are drawn toward the point as it pulls (px at most, a share of the way there). */
+const COLLAPSE_DRAG = { most: 44, share: 0.35, giant: 8 } as const;
 /**
  * 《双極臨界》's circles (v2 §14–15): beside her at her shoulders and wings — white-gold on her right (the screen's left
  * as she is drawn), black-purple on her left — never over anyone else in the party. Tried in turn, the biggest first:
@@ -177,8 +177,11 @@ const MAGIC_DOWN_AFTER_SHARE = 0.4;
  */
 const COLLAPSE_RING_SHARES = [0.4, 0.36, 0.32, 0.28] as const;
 const COLLAPSE_RING_HEIGHTS = [0.34, 0.3, 0.38, 0.26] as const;
-/** 《双極臨界》 on the field: her circles over everyone else, she before them, the core and its light over all. */
-const COLLAPSE_Z = { circles: 25, caster: 40, film: 45, core: 50 } as const;
+/**
+ * 《双極臨界》 on the field: her circles over everyone else, the dark and the film over them, she over the dark (lit at
+ * her edges — 2026-10-30 F-4), the core, its light and its numbers over all.
+ */
+const COLLAPSE_Z = { circles: 25, film: 45, caster: 46, core: 50 } as const;
 /** How late the drawn seal may be before the film starts without it (and the flash before the film is held anyway). */
 const COLLAPSE_CUE_SLACK_MS = 400;
 /** 《双極臨界》: the motes running out of each circle into the core. */
@@ -492,6 +495,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     violet: { x: number; y: number };
     /** How big her circles are (a share of the field's height). */
     ring: number;
+    /** Over each one struck (% of the field): where its number shows at the release, and how much it took in all. */
+    heads: { id: string; x: number; y: number; amount: number }[];
     /** The field's size (px), for the light running from each circle into the seal. */
     w: number;
     h: number;
@@ -539,6 +544,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** The film started as the seal is seen falling into it, and held as the white flash is seen — the drawn clock,
    *  which starts only once the overlay is on the screen (a slow frame puts it behind the beat's timers). */
   const collapseCue = useRef<{ key: number; play: () => void; hold: () => void; land?: () => void } | null>(null);
+  /** 《双極臨界》: its creatures drawn toward the point (let go at the release, or if the beat is cut short). */
+  const collapseDrags = useRef<Animation[]>([]);
   const actor = currentActor(state);
   const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
 
@@ -763,6 +770,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           if (place.over === 0) break;
         }
         const { wx, vx, y: ky } = place;
+        // Over each one's head (a giant's, well down its picture — on the screen), the number it took (2026-10-30 F-5).
+        const heads = [beat.target, ...(p.also ?? [])].flatMap((id) => {
+          const r = (at.querySelector<HTMLElement>(`[data-enemy="${id}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${id}"]`))?.getBoundingClientRect();
+          const hits = beat.spread ? beat.spread.find((x) => x.target === id)?.hits : id === beat.target ? (beat.hits ?? [beat.amount]) : undefined;
+          if (!r || !hits || hits.length === 0) return [];
+          const y = r.top + r.height * (giant ? 0.3 : 0.08) - box.top;
+          return [{ id, x: pc(r.left + r.width * 0.5 - box.left, box.width), y: Math.max(14, pc(y, box.height)), amount: hits.reduce((a, b) => a + b, 0) }];
+        });
         const c = p.collapse;
         const t = (ms: number) => Math.round(when(ms));
         // The film's speed on screen: its own at this fight's speed.
@@ -775,6 +790,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           white: { x: pc(wx, box.width), y: pc(ky, box.height) },
           violet: { x: pc(vx, box.width), y: pc(ky, box.height) },
           ring: place.share,
+          heads,
           w: Math.round(box.width),
           h: Math.round(box.height),
           film: shakeAllowed(),
@@ -856,21 +872,61 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         // Only if the seal's fall or the flash is never seen (a very late frame): from the beat's clock.
         after(tt.video + COLLAPSE_CUE_SLACK_MS, playFilm);
         after(tt.video, () => playSfx('battle_charge_aura'));
-        // The stillness: the music gone, nothing sounding, the film held.
+        // The stillness (2026-10-30 F-2: 画面全体が完全に止まる): the music gone, nothing sounding, the film held — and
+        // everything else on the screen held with it (the wings, everyone's breathing, the HUD). Not the collapse's own
+        // layers (all of their pull is over by now, their release waits on its own time) nor the camera (it is holding
+        // still on them already, and held it would jolt late, after the white flash).
         after(Math.max(tt.video, release - tt.still), () => {
           hushed = true;
           audioManager.duckBgmTo(0, 40);
           filmStill = true;
           collapseFilm.current?.pause();
+          if (!shakeAllowed()) return;
+          const held = at
+            .getAnimations({ subtree: true })
+            .filter((a) => {
+              const on = (a.effect as KeyframeEffect | null)?.target as HTMLElement | null;
+              return a.playState === 'running' && !!on && !on.dataset.shakeLayer && !on.closest('.pb-collapse, .pb-cl-flash, .pb-cl-front, .pb-cl-back');
+            });
+          for (const a of held) a.pause();
+          later(tt.still, () => held.forEach((a) => a.playState === 'paused' && a.play()));
+        });
+        // Each one struck drawn toward the point as it pulls (2026-10-30 F-3) — a little at first, then harder, shaking
+        // with it; let go at the release (it reels from there). On `transform`, as its reel is: the screen's shake owns
+        // `translate`, and is the only thing that moves by it.
+        const drags = collapseDrags.current;
+        after(tt.video, () => {
+          if (!shakeAllowed()) return;
+          const field = at.getBoundingClientRect();
+          const cx = field.left + (shown.art.x / 100) * field.width;
+          const cy = field.top + (shown.art.y / 100) * field.height;
+          shown.heads.forEach((hd, n) => {
+            const img = at.querySelector<HTMLElement>(`[data-enemy="${hd.id}"] > img`);
+            if (!img || typeof img.animate !== 'function') return;
+            const r = img.getBoundingClientRect();
+            const dx = cx - (r.left + r.width / 2);
+            const dy = cy - (r.top + r.height / 2);
+            const far = Math.hypot(dx, dy) || 1;
+            const most = giant ? COLLAPSE_DRAG.giant : Math.min(COLLAPSE_DRAG.most, far * COLLAPSE_DRAG.share);
+            const steps = 24;
+            const frames = Array.from({ length: steps + 1 }, (_, i) => {
+              const k = i / steps;
+              const pull = most * k ** 2.2;
+              const shake = i === 0 ? 0 : (1 + 4 * k) * Math.sin(i * 2.9 + n * 1.7);
+              return { transform: `translate(${((dx / far) * pull + shake).toFixed(1)}px, ${((dy / far) * pull - shake * 0.5).toFixed(1)}px)` };
+            });
+            drags.push(img.animate(frames, { duration: Math.max(1, release - tt.still - tt.video), fill: 'forwards' }));
+          });
         });
         after(release, () => {
           hushed = false;
           audioManager.duckBgmTo(1, 500);
+          drags.forEach((a) => a.cancel());
         });
         after(release + COLLAPSE_CUE_SLACK_MS, holdFilm);
-        // 魔防DOWN said on each in the afterglow (its sound with it), and the line that says so; all of it taken away once
-        // the film has run out and that has been read.
-        const faded = release + hold + Math.round(tt.after * MAGIC_DOWN_AFTER_SHARE);
+        // 魔防DOWN said on each as the afterglow fades (its sound with it), and the line that says so — after the line of
+        // the release, never over it (2026-10-30 F-5); all of it taken away once the film has run out and that has been read.
+        const faded = release + hold + tt.after;
         const lowered = !!(beat.magicDown || beat.spread?.some((x) => x.magicDown));
         after(faded, () => {
           setLoweredSaid(shown.key);
@@ -970,6 +1026,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       });
     return () => {
       over = true;
+      for (const a of collapseDrags.current) a.cancel();
+      collapseDrags.current = [];
       timers.forEach((t) => window.clearTimeout(t));
       if (hushed) audioManager.duckBgmTo(1, 200);
       collapseCue.current = null;
@@ -1147,6 +1205,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** A creature's numbers of this beat: the beat's own on the one aimed at; a move at all of them, each one's. */
   const partsOn = (id: string): number[] | null => {
     if (!last || last.amount <= 0) return null;
+    // 《双極臨界》's are over each one's head, over its light (collapseOnField 'front').
+    if (fx?.collapse) return null;
     const mine = last.spread?.find((x) => x.target === id);
     if (mine) return mine.hits.length > 0 ? [...mine.hits] : null;
     return last.target === id ? parts : null;
@@ -1268,7 +1328,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                 ['--spin' as string]: `${k.spin}deg`,
                 ['--s' as string]: `${k.size}px`,
               }}
-            />
+            >
+              {/* The crystal itself, cut and turning over (2026-10-30 F-7: 厚み・縁の発光・回転 — never paper). */}
+              <b style={{ ['--tumble' as string]: `${520 + (i % 4) * 90}ms` }} />
+            </i>
           ))}
           {SUCTION.motes.map((m, i) => (
             <i
@@ -1298,7 +1361,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               key={`s${i}`}
               className={`pb-cl-shard ${sh.tone}`}
               style={{ ['--dx' as string]: `${sh.dx}%`, ['--dy' as string]: `${sh.dy}%`, ['--rot' as string]: `${sh.rot}deg`, ['--s' as string]: `${sh.size}px`, ['--lag' as string]: `${sh.delay}ms` }}
-            />
+            >
+              <b style={{ ['--tumble' as string]: `${380 + (i % 5) * 70}ms` }} />
+            </i>
           ))}
           <span className="pb-cl-glow" />
           <img className="pb-cl-residue" data-testid="pb-collapse-residue" src={SPECIAL_FX_ART.kaosResidue} alt="" />
@@ -1355,6 +1420,20 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             ))}
           </span>
         ))}
+        {/* 界核崩壊: what each one took, over its head (2026-10-30 F-5 — 敵ごとに個別のダメージ数字), from the release. */}
+        {landed === c.key &&
+          c.heads.map((hd) => (
+            <span
+              key={`n${hd.id}`}
+              className={`pb-float big stay pb-cl-num${c.heads.length > 1 ? ' many' : ''}`}
+              data-testid="pb-collapse-num"
+              data-enemy={hd.id}
+              // Gone about as 「MAGIC DOWN」 comes (the end of the afterglow).
+              style={{ left: `${hd.x}%`, top: `${hd.y}%`, ['--pb-impact' as string]: '0ms', ['--num-ms' as string]: `${Math.round((c.t.after + 150 * (fast ? 0.5 : 1)) * 1.2)}ms` }}
+            >
+              {hd.amount}
+            </span>
+          ))}
         <img
           className="pb-cl-seal"
           data-testid="pb-collapse-seal"
@@ -1470,14 +1549,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   SPEED DOWN
                 </span>
               )}
-              {/* 魔防DOWN (《双極臨界》): said on each in the afterglow (v2 §34). */}
+              {/* 魔防DOWN (《双極臨界》): said on each as the afterglow fades, after the release's own line (2026-10-30 F-5). */}
               {loweredOn(e.id) && collapse?.key === lastKey && (
                 <span
                   key={`md${lastKey}`}
                   className="pb-float slow mdown"
                   data-testid="pb-float-mdown"
                   style={{
-                    animationDelay: `${collapse.t.release + Math.round((fx?.hitStop ?? 0) * (fast ? 0.5 : 1)) + Math.round(collapse.t.after * MAGIC_DOWN_AFTER_SHARE)}ms`,
+                    animationDelay: `${collapse.t.release + Math.round((fx?.hitStop ?? 0) * (fast ? 0.5 : 1)) + collapse.t.after}ms`,
                     translate: many ? `0 ${-18 * (i % 3)}px` : undefined,
                   }}
                 >
@@ -1505,8 +1584,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               style={{
                 ...footStyle(spot, FOOT_AT[m.id] ?? 0.5, FIGURE_SCALE[m.id] ?? 1),
                 // 《双極臨界》: she stands before her circles; the rest of the field behind them (the light on her alone).
-                ...(collapse && collapse.key === lastKey && last?.actor === m.id ? { zIndex: COLLAPSE_Z.caster } : {}),
+                ...(collapse && collapse.key === lastKey && last?.actor === m.id ? { ...collapseVars(collapse), zIndex: COLLAPSE_Z.caster } : {}),
               }}
+              data-rim={collapse && collapse.key === lastKey && last?.actor === m.id ? 'yes' : undefined}
             >
               <span className="pb-shadow" aria-hidden="true" />
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}

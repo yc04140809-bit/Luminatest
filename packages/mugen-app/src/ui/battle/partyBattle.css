@@ -1735,11 +1735,37 @@
 .pb-cl-crystal {
   height: calc(var(--s) * 1.6);
   margin-top: calc(var(--s) * -0.8);
-  clip-path: polygon(50% 0, 100% 38%, 72% 100%, 22% 92%, 0 34%);
   animation: pb-cl-crystal calc(var(--pull) + 200ms - 60ms) linear calc(var(--video-at) - 200ms) both;
 }
-.pb-cl-crystal.violet { background: linear-gradient(160deg, #d8b8ff, #6a2cc0 45%, #1c0832); filter: drop-shadow(0 0 4px rgba(170, 100, 255, 0.9)); }
-.pb-cl-crystal.silver { background: linear-gradient(160deg, #ffffff, #c9cfe0 45%, #5a5f78); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.85)); }
+/* A crystal, not a scrap of paper (2026-10-30 F-7): cut in facets — a bright edge, a lit face, a dark face, a thin
+   highlight — turning over as it goes (edge-on, then its other face: its thickness shows), with a halo of its own light
+   behind it. No filter on it: a glow filtered round something that turns every frame is redrawn every frame (it cost a
+   second's stall on its own). */
+.pb-cl-crystal::before,
+.pb-cl-shard::before {
+  content: '';
+  position: absolute;
+  inset: -45%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(190, 130, 255, 0.55), rgba(150, 80, 255, 0.18) 45%, transparent 68%);
+}
+.pb-cl-crystal.silver::before,
+.pb-cl-shard.white::before { background: radial-gradient(circle, rgba(240, 244, 255, 0.6), rgba(200, 210, 255, 0.18) 45%, transparent 68%); }
+.pb-cl-shard.gold::before { background: radial-gradient(circle, rgba(255, 226, 150, 0.6), rgba(255, 190, 70, 0.2) 45%, transparent 68%); }
+.pb-cl-crystal > b,
+.pb-cl-shard > b {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 34%, 78% 100%, 20% 94%, 0 32%);
+  will-change: transform;
+  animation: pb-cl-tumble var(--tumble) linear infinite;
+}
+.pb-cl-crystal.violet > b,
+.pb-cl-shard.violet > b { background: linear-gradient(118deg, #f6ecff 0 10%, #b27cff 10% 34%, #6a2cc0 34% 58%, #2a0a52 58% 72%, #d2b0ff 72% 76%, #1a0634 76%); }
+.pb-cl-crystal.silver > b,
+.pb-cl-shard.white > b { background: linear-gradient(118deg, #ffffff 0 10%, #e6eaf6 10% 34%, #a9b0c8 34% 58%, #5a5f78 58% 72%, #ffffff 72% 76%, #3c4058 76%); }
+.pb-cl-shard.gold > b { background: linear-gradient(118deg, #fffaf0 0 10%, #ffe08a 10% 34%, #e0a030 34% 58%, #8a5410 58% 72%, #fff1c0 72% 76%, #5a3608 76%); }
+@keyframes pb-cl-tumble { 0% { scale: 1 1; } 25% { scale: 0.18 1; } 50% { scale: -1 1; } 75% { scale: -0.18 1; } 100% { scale: 1 1; } }
 @keyframes pb-cl-crystal {
   0% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)) rotate(0deg); animation-timing-function: ease-out; }
   12% { opacity: 0.95; }
@@ -1834,13 +1860,9 @@
   width: calc(var(--s) * 0.6);
   height: var(--s);
   margin: calc(var(--s) / -2) 0 0 calc(var(--s) * -0.3);
-  clip-path: polygon(50% 0, 100% 40%, 60% 100%, 0 70%);
   opacity: 0;
   animation: pb-cl-shard calc(var(--after) + 200ms) cubic-bezier(0.15, 0.7, 0.4, 1) calc(var(--release-at) + var(--lag)) forwards;
 }
-.pb-cl-shard.gold { background: linear-gradient(160deg, #fff6d8, #ffc850 50%, #9a6410); }
-.pb-cl-shard.white { background: linear-gradient(160deg, #fff, #dfe3f0 50%, #8a90a8); }
-.pb-cl-shard.violet { background: linear-gradient(160deg, #e8d4ff, #8a44e0 50%, #2a0c4c); }
 @keyframes pb-cl-shard {
   0% { opacity: 1; translate: calc(var(--dx) * 0.15) calc(var(--dy) * 0.15); rotate: 0deg; }
   100% { opacity: 0; translate: var(--dx) var(--dy); rotate: var(--rot); }
@@ -1885,6 +1907,25 @@
   animation: pb-cl-residue calc(var(--after) + 700ms) ease-out calc(var(--release-at) + 160ms) both;
 }
 @keyframes pb-cl-residue { 0% { opacity: 0; scale: 0.6; } 25% { opacity: 0.85; } 100% { opacity: 0; scale: 1.15; translate: -50% -56%; } }
+
+/* Kaos in the dark (2026-10-30 F-4): over it, a little dimmed, lit at her edges — her outline and where she stands
+   read the whole time; herself again as it lifts. */
+.pb-figure[data-rim='yes'] > img {
+  animation:
+    pb-rim-in 360ms ease-out calc(var(--video-at) - 260ms) both,
+    pb-rim-out calc(var(--after) + 500ms) ease-in calc(var(--release-at) + 120ms) forwards;
+}
+@keyframes pb-rim-in {
+  from { filter: none; }
+  to { filter: brightness(0.62) saturate(0.85) drop-shadow(0 0 1.5px rgba(255, 246, 225, 0.95)) drop-shadow(0 0 7px rgba(176, 116, 255, 0.85)); }
+}
+@keyframes pb-rim-out {
+  from { filter: brightness(0.62) saturate(0.85) drop-shadow(0 0 1.5px rgba(255, 246, 225, 0.95)) drop-shadow(0 0 7px rgba(176, 116, 255, 0.85)); }
+  to { filter: none; }
+}
+/* 界核崩壊's number over each one struck (2026-10-30 F-5), over the light of it. */
+.pb-cl-num { margin-top: -30px; animation-duration: var(--num-ms, 1000ms); }
+.pb-cl-num.many { font-size: 26px; }
 
 /* 魔防DOWN on a creature (its badge beside 速度DOWN), and said over it as the afterglow fades. */
 .pb-mdown-badge {
@@ -1932,7 +1973,10 @@
   .pb-cl-ring > img, .pb-cl-seal, .pb-cl-warp, .pb-cl-wave, .pb-cl-glow, .pb-cl-dark, .pb-cl-close, .pb-cl-hush, .pb-cl-void, .pb-cl-core, .pb-cl-blaze, .pb-cl-cracks, .pb-cl-residue, .pb-eye { animation-name: pb-hit-fade; }
   .pb-cl-ring { animation: none; }
   .pb-cl-mote, .pb-cl-dust, .pb-cl-crystal, .pb-cl-shard { animation: none; display: none; }
+  .pb-figure[data-rim='yes'] > img { animation: none; }
   .pb-cl-white, .pb-cl-invert, .pb-cl-film { display: none; }
   .pb-charge[data-ready='yes'] { animation: none; }
 }
 .pb-float.slow.mdown { color: #e2c4ff; -webkit-text-stroke-color: #24103e; }
+/* Lower down on it than its number (over its head, fading by then): the two never one on the other (2026-10-30 F-5). */
+.pb-float.slow.mdown { top: 62%; }

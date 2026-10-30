@@ -28,6 +28,9 @@ async function record(page: Page) {
     const w = window as unknown as { __cl: Record<string, number | string | boolean> };
     w.__cl = { kaosMoved: false, pressable: false };
     const t0 = performance.now();
+    document.addEventListener('animationstart', (e) => {
+      if (e.animationName === 'pb-cl-white') w.__cl.flashStart ??= Math.round(performance.now() - t0);
+    });
     const tick = () => {
       const now = Math.round(performance.now() - t0);
       const c = w.__cl;
@@ -46,6 +49,11 @@ async function record(page: Page) {
         c.flashAt = now;
         c.filmAtFlash = film ? film.currentTime : -1;
       }
+      // (It is 80ms: on a slow frame it can be over between two looks — its start is heard of too.)
+      if (c.flashStart !== undefined && c.flashAt === undefined) {
+        c.flashAt = c.flashStart;
+        c.filmAtFlash = film ? film.currentTime : -1;
+      }
       // Held with the blow (paused short of its end — it is 3.47s long); and before it, held at the point (the stillness).
       if (film && c.filmOn !== undefined && film.paused && film.currentTime > 2 && film.currentTime < 3.2) c.filmHeld = true;
       if (film && c.filmOn !== undefined && c.flashAt === undefined && film.paused && film.currentTime > 2 && c.stillAt === undefined) {
@@ -58,7 +66,35 @@ async function record(page: Page) {
         c.hp0 ??= hp;
         if (hp !== c.hp0) c.hpAt ??= now;
       }
-      if (document.querySelector('[data-testid="pb-float"], [data-testid="pb-float-cut"]')) c.numberAt ??= now;
+      if (document.querySelector('[data-testid="pb-float"], [data-testid="pb-float-cut"], [data-testid="pb-collapse-num"]')) c.numberAt ??= now;
+      // Over each one's head, its own number (2026-10-30 F-5).
+      const nums = [...document.querySelectorAll('[data-testid="pb-collapse-num"]')];
+      if (nums.length > ((c.nums as number) ?? 0)) {
+        c.nums = nums.length;
+        c.numsText = nums.map((n) => n.textContent).join(',');
+      }
+      // The stillness (F-2): nothing running on the screen but the collapse's own layers.
+      if (c.stillAt !== undefined && c.flashAt === undefined && now - (c.stillAt as number) > 40 && c.stillRunning === undefined) {
+        c.stillRunning = (document.querySelector('[data-testid="pb-screen"]') as HTMLElement)
+          .getAnimations({ subtree: true })
+          .filter((a) => {
+            const on = (a.effect as KeyframeEffect).target as HTMLElement;
+            // (the camera excepted: it holds still on them, and is never held — or its jolt would come late)
+            return a.playState === 'running' && !on.dataset.shakeLayer && !on.closest('.pb-collapse, .pb-cl-flash, .pb-cl-front, .pb-cl-back');
+          }).length;
+      }
+      // The creatures drawn toward the point (F-3), and Kaos lit at her edges in the dark (F-4).
+      for (const img of document.querySelectorAll<HTMLElement>('.pb-foe > img')) {
+        // (on `transform`, as its reel is — the screen's shake owns `translate`)
+        const t = getComputedStyle(img).transform;
+        const m = t && t !== 'none' ? new DOMMatrixReadOnly(t) : null;
+        c.drag = Math.max((c.drag as number) ?? 0, m ? Math.hypot(m.m41, m.m42) : 0);
+      }
+      if (c.filmOn !== undefined && c.flashAt === undefined) {
+        const fig = document.querySelector<HTMLElement>('[data-testid="pb-figure-kaos"]');
+        const kimg = fig?.querySelector('img');
+        if (fig && kimg && getComputedStyle(kimg).filter.includes('drop-shadow') && Number(getComputedStyle(fig).zIndex) > 45) c.kaosLit = true;
+      }
       if ((document.querySelector('[data-testid="pb-combo"]')?.textContent ?? '').includes('12')) c.comboAt ??= now;
       const log = document.querySelector('[data-testid="pb-log"]')?.textContent ?? '';
       if (c.on !== undefined && log.includes('《双極臨界》') && !log.includes('ダメージ')) c.logUsed ??= now;
@@ -273,13 +309,22 @@ test.describe('with motion', () => {
       // The stillness (v2 §19–21): the film held at the point before the release — 0.12s or so at ×1, 0.08s at ×2.
       expect(c.stillFilm as number).toBeGreaterThan(2.25);
       expect(c.stillFilm as number).toBeLessThan(2.42);
-      expect((c.flashAt as number) - (c.stillAt as number)).toBeGreaterThanOrEqual(fast ? 60 : 100);
+      expect((c.flashAt as number) - (c.stillAt as number)).toBeGreaterThanOrEqual(fast ? 120 : 150);
+      // …and the whole screen still with it (F-2), the creatures drawn toward the point before it (F-3), Kaos's outline
+      // there in the dark (F-4).
+      expect(c.stillRunning).toBe(0);
+      expect(c.drag as number).toBeGreaterThan(15);
+      expect(c.kaosLit).toBe(true);
+      // Each one's own number over it (F-5): three struck, three numbers, 4+5+5+9 each.
+      expect(c.nums).toBe(3);
+      expect(c.numsText).toBe('23,23,23');
       // Every result with the release (v2 §33): HP, the numbers, COMBO, its line — none before the white flash; before
       // it the line says only that she used it; 魔防DOWN's line after, in the afterglow.
       for (const k of ['hpAt', 'numberAt', 'comboAt', 'logDamageAt']) expect(c[k] as number, k).toBeGreaterThanOrEqual((c.flashAt as number) - 34);
       for (const k of ['hpAt', 'numberAt', 'comboAt', 'logDamageAt']) expect(c[k] as number, k).toBeLessThanOrEqual((c.flashAt as number) + 120);
       expect(c.logUsed as number).toBeLessThan(c.flashAt as number);
-      expect(c.logMdownAt as number).toBeGreaterThan((c.flashAt as number) + (fast ? 60 : 150));
+      // The lines one after another, never at once (F-5): the release's, then 魔防DOWN's once the afterglow is over.
+      expect(c.logMdownAt as number).toBeGreaterThan((c.flashAt as number) + (fast ? 300 : 650));
       // After her cut-in, never under it.
       expect(c.on as number).toBeGreaterThanOrEqual((c.cutOff as number) - 50);
       // 魔防DOWN said on them in the afterglow — and only then on the plate.

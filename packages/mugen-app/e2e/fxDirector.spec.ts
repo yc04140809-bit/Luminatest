@@ -267,6 +267,9 @@ test.describe('with motion', () => {
       await page.goto('/?preview=party&higanbana=1&footing=40');
       if (fast) await page.getByTestId('pb-speed').click();
       await turnOf(page, 'hero');
+      // Where he stands once his turn's step forward (a CSS transition on his figure) is over: read in the middle
+      // of it, the place to come home to was off by up to a dozen px (2026-10-30, seen 2 in 25).
+      await expect.poll(() => page.getByTestId('pb-figure-hero').evaluate((el) => el.getAnimations().length), { timeout: 3_000 }).toBe(0);
       const hero = await page.getByTestId('pb-figure-hero').locator('img').boundingBox();
       const giant = await page.getByTestId('pb-foe').locator('img').boundingBox();
       await clear(page);
@@ -353,7 +356,8 @@ test.describe('with motion', () => {
     // (260 + 2 × 280 + 110 + 150 + 200 + 240) × ½ — about 760).
     // ケイオス's 《双極臨界》 (作者 2026-10-26, 魔法陣ブラッシュアップ, 動画＋PNG統合, グレードアップ v2), when AUTO uses it:
     // one TRACK — on her and her circles until the suction film takes over, then held through its pull and its
-    // stillness to the release — (5104 + 150 + 200 + 240) × ½, about 2850: its own length, not moves piling up.
+    // stillness (0.15s at ×2 — 2026-10-30) to the release — (5224 + 150 + 200 + 240) × ½, about 2910: its own length,
+    // not moves piling up.
     const finisher = got.filter((m) => m.ms > 770);
     expect(finisher.every((m) => m.ms <= 3050)).toBe(true);
     expect(Math.max(...got.filter((m) => m.ms <= 770).map((m) => m.ms))).toBeLessThanOrEqual(770);

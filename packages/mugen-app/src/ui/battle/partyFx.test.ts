@@ -383,25 +383,25 @@ describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles, the
     expect(c.video).toBeGreaterThan(c.core);
   });
 
-  it('the film to its point at its own speed, then the stillness (0.12–0.18s), then the release', () => {
+  it('the film to its point at its own speed, then the stillness (0.15–0.25s — 2026-10-30 F-2), then the release', () => {
     const c = collapse(1);
     const film = (ms: number) => Math.round(ms / COLLAPSE_VIDEO.rate);
     expect(c.rate).toBe(COLLAPSE_VIDEO.rate);
     expect(c.still).toBe(COLLAPSE_FX.still);
-    expect(c.still).toBeGreaterThanOrEqual(120);
-    expect(c.still).toBeLessThanOrEqual(180);
+    expect(c.still).toBeGreaterThanOrEqual(150);
+    expect(c.still).toBeLessThanOrEqual(250);
     expect(c.burst).toBe(c.video + film(COLLAPSE_VIDEO.pull) + c.still);
   });
 
-  it('×2: the film quicker but not doubled (1.7), the circles and the stillness keeping their floors on screen (still ≥ 0.08s)', () => {
+  it('×2: the film quicker but not doubled (1.7), the circles and the stillness keeping their floors on screen (still ≥ 0.15s)', () => {
     const c = collapse(0.5);
     const screen = (ms: number) => ms * 0.5;
     expect(c.rate).toBe(COLLAPSE_VIDEO.rateFast);
     expect(screen(c.purple - c.white)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.alone);
     expect(screen(c.core - c.both)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.hush);
     expect(screen(c.drained - c.core)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.drain);
-    expect(screen(c.still)).toBeGreaterThanOrEqual(80);
-    expect(screen(c.still)).toBeLessThanOrEqual(100);
+    expect(screen(c.still)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.still);
+    expect(screen(c.still)).toBeGreaterThanOrEqual(150);
     // The pull on screen: its 2.4s at 1.7.
     expect(screen(c.burst - c.still - c.video)).toBeCloseTo(COLLAPSE_VIDEO.pull / COLLAPSE_VIDEO.rateFast, -1);
     expect(screen(c.burst)).toBeLessThan(collapse(1).burst);

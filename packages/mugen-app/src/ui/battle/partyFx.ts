@@ -212,11 +212,12 @@ export const HIGANBANA_JOLT = { first: 0.4, last: 1.4 } as const;
  * opens on her other side; both there, turning their own ways — the hush (`hush`: the field darker, the music drawn
  * back, her eyes lit); then both are pulled out of shape into the bipolar seal over the creatures (`drain`), and as
  * they are spent the seal falls into the suction film (`overlap` before they are gone) — the film is the move from
- * there (COLLAPSE_VIDEO), crushed to a point; then everything stops (`still`: the film, the pull, the music, the
- * camera) — and 界核崩壊, where every number lands at once; its afterglow `after`. On screen never under the floors (×2).
+ * there (COLLAPSE_VIDEO), crushed to a point; then everything stops (`still` — 2026-10-30 F-2, 0.2s: the film, the
+ * pull, the music, the camera, the whole screen) — and 界核崩壊, where every number lands at once; its afterglow `after`.
  */
-export const COLLAPSE_FX = { white: 60, enter: 320, alone: 520, hush: 360, drain: 420, overlap: 220, still: 150, after: 600 } as const;
-export const COLLAPSE_FLOOR_MS = { enter: 230, alone: 280, hush: 300, drain: 320, still: 90, after: 300 } as const;
+export const COLLAPSE_FX = { white: 60, enter: 320, alone: 520, hush: 360, drain: 420, overlap: 220, still: 200, after: 600 } as const;
+/** On screen never under these (×2) — the stillness too (2026-10-30 F-2: ×2 で 0.1s は短すぎる). */
+export const COLLAPSE_FLOOR_MS = { enter: 230, alone: 280, hush: 300, drain: 320, still: 150, after: 300 } as const;
 /**
  * THE SUCTION FILM (kaos-collapse-video.webm — the author's 「双極臨界フル通し」 cut and keyed: its first 0.7s, the
  * long stillness and its one all-white frame taken out; the game's own flash stands where that frame was): `pull`
