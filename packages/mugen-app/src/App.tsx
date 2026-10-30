@@ -50,6 +50,7 @@ import { battleBgmChoice, hasBattleBgmChoice, setBattleBgmChoice } from './platf
 import { DebugEntry } from './dev/DebugEntry';
 import { ThemeIntro, themeIntroSkipped } from './ui/themeIntro';
 import { resultFaceFor } from './ui/battle/resultFace';
+import { SHOP_VOICE_SPOTS, useShopVoices } from './ui/audio/shopVoices';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -363,6 +364,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'HOME' && shop) setShop(false);
   }, [state.screen, shop]);
+  // A shop's keeper says their welcome as it is walked into, their thanks back out to the village (ui/audio/shopVoices).
+  useShopVoices(
+    bakery ? SHOP_VOICE_SPOTS.BAKERY : shop ? SHOP_VOICE_SPOTS.ITEM_SHOP : tavern ? SHOP_VOICE_SPOTS.TAVERN : null,
+    state.screen === 'HOME',
+  );
   // The ruins are a leaf of the map — kept through the boss's fight, closed anywhere else.
   useEffect(() => {
     if (ruins && state.screen !== 'EXPLORE' && state.screen !== 'BATTLE') setRuins(null);

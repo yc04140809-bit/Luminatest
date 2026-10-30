@@ -34,7 +34,7 @@ import { SFX_FILES } from '@mugen/assets/sfx';
 // The App's own pieces (the winnings, セキリュウガ, フウミミ), 2026-10-11.
 import { APP_BGM_ASSETS, APP_BGM_FALLBACK } from '@mugen/assets/appMusic';
 // Their voices: a line's id to its file (2026-10-30 タスクD).
-import { voicePlan, voiceSpeakerOf } from './voice';
+import { voiceGainOf, voicePlan, voiceSpeakerOf } from './voice';
 
 /** A piece's file: the App's own first, then the shared table, then the piece it borrows. */
 function bgmSrc(id: BgmId): string | null {
@@ -869,6 +869,9 @@ export class AudioManager {
       try {
         const audio = new Audio(queue[n]);
         audio.volume = this.voiceVolume;
+        // A quiet take made louder than its element can go (リゼル's whispered win and fall).
+        const gain = voiceGainOf(queue[n]);
+        if (gain > 1) this.boostVoice(audio, gain);
         audio.addEventListener('ended', () => {
           if (m.audio !== audio) return;
           m.audio = null;
@@ -884,6 +887,27 @@ export class AudioManager {
       }
     };
     say(0);
+  }
+
+  /**
+   * LOUDER THAN RECORDED: an element plays at most as loud as its file, so a quiet take is passed through a gain
+   * (Web Audio) on its way out. Where there is no Web Audio it is simply heard as recorded.
+   */
+  private voiceContext: AudioContext | null = null;
+  private boostVoice(audio: HTMLAudioElement, gain: number): void {
+    try {
+      if (typeof window === 'undefined') return;
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      this.voiceContext ??= new Ctx();
+      const ctx = this.voiceContext;
+      const amp = ctx.createGain();
+      amp.gain.value = gain;
+      ctx.createMediaElementSource(audio).connect(amp).connect(ctx.destination);
+      void ctx.resume?.().catch(() => {});
+    } catch {
+      /* heard as recorded */
+    }
   }
 
   /** What one side is saying, cut off (its scene left, the next line come) — and any still to follow it. Both, unasked. */

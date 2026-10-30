@@ -80,6 +80,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
       kicker: 'LEVI ABYSS LANCE',
       name: '冥槍・黒葬封界',
       sub: PROVISIONAL,
+      // His shout (ボイス第6便), by the move's provisional id (platform/voice.ts).
+      voice: 'battle.meisou_kokusou',
     },
   },
   {
@@ -95,6 +97,8 @@ export const CUT_IN_SAMPLES: readonly CutInSample[] = [
       kicker: 'ARIA CELESTIAL ARCHERY',
       name: '天弓・蒼薔薇祝界',
       sub: PROVISIONAL,
+      // Her shout (ボイス第7便), by the move's provisional id (platform/voice.ts).
+      voice: 'battle.tenkyuu_aobara',
     },
   },
 ];

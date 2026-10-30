@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PartyBattleState } from '@mugen/game/battle/partyBattle';
 import { STAR_FEATHER } from '@mugen/content/characters/partyMembers';
 import { playVoice } from '../../platform/audio';
-import { PINCH_SHARE } from '../../platform/voice';
+import { PINCH_SHARE, speaksInFights, VOICE_LINES } from '../../platform/voice';
 import type { Blow } from './blows';
 
 /**
@@ -19,19 +19,25 @@ import type { Blow } from './blows';
  * His name is the player's: none of this names him.
  */
 
-type Who = 'hero' | 'kaos';
-const VOICED: readonly Who[] = ['hero', 'kaos'];
-const isVoiced = (id: string): id is Who => (VOICED as readonly string[]).includes(id);
-
-/** As a fight opens: his word, then hers if she is in it. */
-export function startVoices(kaosIn: boolean): string[] {
-  return kaosIn ? ['battle.hero.start', 'battle.kaos.start'] : ['battle.hero.start'];
+/** Who speaks first: 主人公, ケイオス, then the rest as they stand in the party. */
+const FIRST = ['hero', 'kaos'];
+function inTurn(ids: readonly string[]): string[] {
+  const voiced = ids.filter(speaksInFights);
+  return [...FIRST.filter((id) => voiced.includes(id)), ...voiced.filter((id) => !FIRST.includes(id))];
 }
 
-/** A won fight's result: whoever of the two is standing, his word first. */
-export function winVoices(standing: { hero: boolean; kaos: boolean }): string[] {
-  return [...(standing.hero ? ['battle.hero.win'] : []), ...(standing.kaos ? ['battle.kaos.win'] : [])];
+/** As a fight opens: each of them who has a word for it (`battle.<id>.start`), 主人公 first. */
+export function startVoices(memberIds: readonly string[]): string[] {
+  return inTurn(memberIds).map((id) => `battle.${id}.start`);
 }
+
+/** A won fight's result: whoever of them is standing, 主人公 first. */
+export function winVoices(standingIds: readonly string[]): string[] {
+  return inTurn(standingIds).map((id) => `battle.${id}.win`);
+}
+
+/** Their word on being healed (レヴィ's, アリア's — `battle.<id>.care`), where they have one. */
+const careOf = (id: string): string | null => (VOICE_LINES[`battle.${id}.care`] ? `battle.${id}.care` : null);
 
 /** A blow taken by one of them (or the one they fight): their fall, their first pinch, or their hurt. `pinched`: already said. */
 export function hurtVoice(who: string, hp: number, maxHp: number, pinched: boolean): { id: string; pinch: boolean } {
@@ -41,26 +47,31 @@ export function hurtVoice(who: string, hp: number, maxHp: number, pinched: boole
 }
 
 /**
- * What one beat of the three's fight says (null: nothing) and whose pinch it was, from the state before it and
- * after. A blow on two of them at once: the one hit hardest in meaning (a fall, then a pinch, then a hurt; his
- * first when alike) — one voice at a time.
+ * What one beat of the three's fight says (null: nothing), whose pinch it was, and a word to follow it (`then`:
+ * the one healed thanking — after the heal's own line), from the state before it and after. A blow on two of
+ * them at once: the one it means most for (a fall, then a pinch, then a hurt; 主人公 first when alike) — one
+ * voice at a time on their side.
  */
 export function partyBeatVoice(
   before: PartyBattleState,
   next: PartyBattleState,
   pinched: ReadonlySet<string>,
-): { id: string; pinch?: Who } | null {
+): { id: string; pinch?: string; then?: string } | null {
   const beat = next.last;
   if (!beat) return null;
-  if (isVoiced(beat.actor)) {
+  if (speaksInFights(beat.actor)) {
     if (beat.kind === 'ATTACK') return { id: `battle.${beat.actor}.attack` };
-    if (beat.kind === 'TECH' && beat.actor === 'kaos' && beat.name === STAR_FEATHER.name) return { id: `battle.${STAR_FEATHER.id}` };
+    const care = beat.target !== beat.actor ? careOf(beat.target) : null;
+    if (beat.kind === 'TECH' && beat.actor === 'kaos' && beat.name === STAR_FEATHER.name)
+      return { id: `battle.${STAR_FEATHER.id}`, ...(care ? { then: care } : {}) };
+    // A heal of theirs that says nothing itself (her 癒しの光): the one healed still answers.
+    if (beat.kind === 'MEND' && care) return { id: care };
     return null;
   }
   if (beat.kind !== 'ENEMY_ATTACK' || beat.missed) return null;
   const rank = { down: 3, pinch: 2, hurt: 1 } as const;
-  let best: { id: string; pinch?: Who; rank: number } | null = null;
-  for (const who of VOICED) {
+  let best: { id: string; pinch?: string; rank: number } | null = null;
+  for (const who of inTurn(next.members.map((m) => m.id))) {
     const was = before.members.find((m) => m.id === who);
     const now = next.members.find((m) => m.id === who);
     if (!was || !now || was.down || now.hp >= was.hp) continue;
@@ -105,7 +116,7 @@ export function useBattleVoices({
     if (opened.current) return;
     opened.current = true;
     // On the foe's mouth: his taunt is not cut by their first blow (their own lines in it are, by any of theirs).
-    playVoice([`battle.${foe}.start`, ...startVoices(kaosIn)], { mouth: 'foe' });
+    playVoice([`battle.${foe}.start`, ...startVoices(kaosIn ? ['hero', 'kaos'] : ['hero'])], { mouth: 'foe' });
   }, []);
   useLayoutEffect(() => {
     if (beat === 'STRIKE' && !skillSwing) playVoice('battle.hero.attack');

@@ -55,6 +55,7 @@ import { skillCutIn } from './cutin/skillCutIn';
 import { resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
 import { ResultOver } from './ResultFace';
 import { partyBeatVoice, startVoices, winVoices } from './battleVoices';
+import { GOUDAN } from '@mugen/content/characters/partyMembers';
 import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
@@ -539,7 +540,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
-    playVoice(startVoices(members.some((m) => m.id === 'kaos')));
+    playVoice(startVoices(members.map((m) => m.id)));
   }, []);
   useEffect(() => {
     const said = partyBeatVoice(voicedFrom.current, state, pinched.current);
@@ -547,6 +548,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     if (!said) return;
     if (said.pinch) pinched.current.add(said.pinch);
     playVoice(said.id);
+    // The one healed, after the heal's own line.
+    if (said.then) playVoice(said.then, { wait: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKeyOf(state)]);
   /** The creatures seen to fall: one beaten is drawn down only once the blow that beat it has landed. */
@@ -735,7 +738,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         };
         later(from, () => setBloom(bloom));
         // His second line as the lilies open, out of the last cut's stillness: 「散れ」.
-        later(from + bloom.at, () => playVoice('battle.higanbana.release'));
+        later(from + bloom.at, () => playVoice('battle.higanbana.release', { wait: true }));
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
         later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
@@ -943,7 +946,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         after(release, () => {
           hushed = false;
           // Her second line, out of the stillness: 「……界核崩壊」.
-          playVoice('battle.soukyoku_rinkai.release');
+          playVoice('battle.soukyoku_rinkai.release', { wait: true });
           audioManager.duckBgmTo(1, 500);
           drags.forEach((a) => a.cancel());
         });
@@ -1034,6 +1037,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       land: () => {
         setLanded(key);
         fall();
+        // 重撃・豪断 coming down: グレイヴ's second line (after his first, never over it).
+        if (beat.actor === 'grave' && beat.kind === 'TECH' && beat.name === GOUDAN.name) playVoice('battle.goudan.release', { wait: true });
         setCutsIn({ key, n: Number.MAX_SAFE_INTEGER });
         // A step of COMBO's worth reached (10, 20, 30, 40): a small sound with its glow.
         if (climbs && Math.min(4, Math.floor(after.hits / COMBO_STEP)) > Math.min(4, Math.floor(before.hits / COMBO_STEP))) playSfx('battle_buff');
@@ -1981,10 +1986,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             face={wonFace}
             heroName={members.find((m) => m.id === 'hero')?.name ?? ''}
             testId="pb-result-over"
-            say={winVoices({
-              hero: state.members.some((m) => m.id === 'hero' && !m.down),
-              kaos: state.members.some((m) => m.id === 'kaos' && !m.down),
-            })}
+            say={winVoices(state.members.filter((m) => !m.down).map((m) => m.id))}
           >
             {resultBox}
           </ResultOver>

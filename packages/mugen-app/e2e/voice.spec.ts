@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fightUntil } from './battle';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * THEIR VOICES (2026-10-30 タスクD; ケイオス 21本・主人公 9本, src/platform/voice.ts): each line heard where it
@@ -166,5 +167,78 @@ test('ガルド (still 「盗賊」 on screen): 「へっ、やるってのか�
   expect(said).toContain('v_gard_pinch01.mp3');
   expect(said.filter((f) => f === 'v_gard_pinch01.mp3')).toHaveLength(1);
   expect(said).toContain('v_hero_atk01.mp3');
+  expect(ear.errors).toEqual([]);
+});
+
+async function intoTheVillage(page: Page) {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+}
+
+test('the bakery: リナ’s welcome as it is walked into (one of three, not the last one again), her thanks back out on the village', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  const welcomes: string[] = [];
+  for (let n = 0; n < 2; n++) {
+    const before = (await ear.heard()).length;
+    await (await placeButton(page, 'bakery-button')).click();
+    await expect(page.getByTestId('bakery-screen')).toBeVisible();
+    await expect.poll(async () => (await ear.files()).slice(before).find((f) => /v_lina_welcome0[123]/.test(f)) ?? null).not.toBeNull();
+    welcomes.push((await ear.files()).slice(before).find((f) => /v_lina_welcome/.test(f))!);
+    const inside = (await ear.heard()).length;
+    await page.getByTestId('bakery-leave').click();
+    await expect(page.getByTestId('world-clock')).toBeVisible();
+    await expect.poll(async () => (await ear.files()).slice(inside)).toContain('v_lina_thanks01.mp3');
+  }
+  expect(welcomes[1]).not.toBe(welcomes[0]);
+  expect(ear.errors).toEqual([]);
+});
+
+test('the tool shop: ミレイ’s welcome, a word of hers when she is touched, her thanks back out', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  const before = (await ear.heard()).length;
+  await (await placeButton(page, 'shop-button')).click();
+  await expect(page.getByTestId('shop-screen')).toBeVisible();
+  await expect.poll(async () => (await ear.files()).slice(before).find((f) => /v_mirei_welcome0[123]/.test(f)) ?? null).not.toBeNull();
+  const touched = (await ear.heard()).length;
+  await page.getByTestId('shop-keeper-touch').click();
+  await expect(page.getByTestId('shop-touch-line')).toBeVisible();
+  await expect.poll(async () => (await ear.files()).slice(touched).find((f) => /v_mirei_touch0[12]/.test(f)) ?? null).not.toBeNull();
+  const inside = (await ear.heard()).length;
+  await page.getByTestId('shop-leave').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await expect.poll(async () => (await ear.files()).slice(inside)).toContain('v_mirei_thanks01.mp3');
+  expect(ear.errors).toEqual([]);
+});
+
+test('グレイヴ: his plain blow says its take, and 重撃・豪断 its two — the cut-in, then the blow coming down', async ({ page }) => {
+  test.setTimeout(90_000);
+  const ear = await listen(page);
+  await page.goto('/?preview=party');
+  await toTurnOf(page, 'grave');
+  let before = (await ear.heard()).length;
+  await page.getByTestId('pb-cmd-attack').click();
+  await expect.poll(async () => (await ear.files()).slice(before).find((f) => /v_grave_atk0[12]/.test(f)) ?? null).not.toBeNull();
+  await toTurnOf(page, 'grave');
+  before = (await ear.heard()).length;
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-goudan').click();
+  const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
+  if (await pick.isVisible().catch(() => false)) await pick.click();
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /v_grave_finisher/.test(f)), { timeout: 15_000 }).toEqual([
+    'v_grave_finisher01.mp3',
+    'v_grave_finisher02.mp3',
+  ]);
   expect(ear.errors).toEqual([]);
 });

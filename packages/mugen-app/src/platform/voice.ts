@@ -21,19 +21,32 @@
  *                                    file names are ids only — on screen he stays 「盗賊」 until found again)
  *   battle.<skill, spell or technique id>   its cut-in's shout, or its own moment (星癒の羽 `star_feather`)
  *   battle.<id>.release              a finisher's second line, at its release (《双極臨界》's 界核崩壊)
+ *   battle.<move id>.release         a move's second line, out of its stillness (《双極臨界》, 《彼岸花》, 重撃・豪断)
+ *   shop.<shop id>.welcome|thanks|touch   a shop's keeper: walked in (one of theirs at random), walked out to the
+ *                                    village, touched (ui/audio/shopVoices.ts; ALDEN_BAKERY リナ, ALDEN_ITEM_SHOP ミレイ)
+ *   event.<who>.<name>               a line for an event whose moment is still to be set (registered only)
  *   daily.<scene id>.<line no.>      a line of a small thing in the village (content/story/dailyScenes.ts), from 1
+ *
+ * A member of the fight speaks where the table has lines for them (`battle.<member id>.start` …): 主人公, ケイオス,
+ * グレイヴ now; レヴィ, アリア, リゼル as soon as they fight beside them (their lines are here already). レヴィ's and
+ * アリア's finishers are named here by provisional ids (`meisou_kokusou`, `tenkyuu_aobara`) until their moves exist.
  *
  * Heard at the voice volume, which is its own (platform/audio.ts `voice`): neither the music's nor the sounds'.
  */
 
-export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD';
+export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI';
 
 export interface VoiceLine {
   who: VoiceSpeaker;
   /** The files' names in mugen-assets/files/voice/. */
   files: readonly string[];
-  /** Several files: one after another (`SEQUENCE`, a page's lines) or one of them in turn (`ALTERNATE`, takes). */
-  play?: 'SEQUENCE' | 'ALTERNATE';
+  /**
+   * Several files: one after another (`SEQUENCE`, a page's lines), one of them in turn (`ALTERNATE`, takes), or
+   * one of them at random but never the one said last (`RANDOM`, a shop's welcomes).
+   */
+  play?: 'SEQUENCE' | 'ALTERNATE' | 'RANDOM';
+  /** Louder than recorded, in dB (a whispered take — リゼル's win and fall — that the music would bury). */
+  gainDb?: number;
   /** What is said, for whoever records it (not shown). */
   says: string;
 }
@@ -43,6 +56,13 @@ export const PINCH_SHARE = 0.3;
 
 const kaos = (files: readonly string[], says: string, play?: VoiceLine['play']): VoiceLine => ({ who: 'KAOS', files, says, ...(play ? { play } : {}) });
 const gald = (files: readonly string[], says: string): VoiceLine => ({ who: 'GALD', files, says });
+const by = (who: VoiceSpeaker) => (files: readonly string[], says: string, more: Partial<VoiceLine> = {}): VoiceLine => ({ who, files, says, ...more });
+const grave = by('GRAVE');
+const levi = by('LEVI');
+const aria = by('ARIA');
+const rizel = by('RIZEL');
+const lina = by('LINA');
+const mirei = by('MIREI');
 const hero = (files: readonly string[], says: string, play?: VoiceLine['play']): VoiceLine => ({ who: 'HERO', files, says, ...(play ? { play } : {}) });
 
 /** Line id → who says it and in which files. Not here: silent. */
@@ -85,6 +105,51 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'battle.gald.hurt': gald(['v_gard_dmg01.mp3'], 'ぐっ……！'),
   'battle.gald.pinch': gald(['v_gard_pinch01.mp3'], 'エルナが……待ってるんだ……！'),
   'battle.gald.down': gald(['v_gard_down01.mp3'], 'エルナ……すま、ねぇ……'),
+  // ---- 戦闘（グレイヴ — 第8便） ----
+  'battle.grave.start': grave(['v_grave_start01.mp3'], '（戦闘開始）'),
+  'battle.grave.attack': grave(['v_grave_atk01.mp3', 'v_grave_atk02.mp3'], '（通常攻撃 1・2）', { play: 'ALTERNATE' }),
+  'battle.grave.hurt': grave(['v_grave_dmg01.mp3'], '（被弾）'),
+  'battle.grave.pinch': grave(['v_grave_pinch01.mp3'], '（ピンチ）'),
+  'battle.grave.down': grave(['v_grave_down01.mp3'], '（戦闘不能）'),
+  'battle.grave.win': grave(['v_grave_win01.mp3'], '（勝利）'),
+  // 重撃・豪断: its cut-in, then — as its blow comes down — its release.
+  'battle.goudan': grave(['v_grave_finisher01.mp3'], '（必殺カットイン）'),
+  'battle.goudan.release': grave(['v_grave_finisher02.mp3'], '（必殺・放出）'),
+  // ---- 戦闘（レヴィ — 第6便。第2章で加入：それまで鳴らない） ----
+  'battle.levi.start': levi(['v_levi_start01.mp3'], '退くなら今のうちだ'),
+  'battle.levi.attack': levi(['v_levi_atk01.mp3'], '貫け'),
+  'battle.levi.hurt': levi(['v_levi_dmg01.mp3'], 'ちっ……'),
+  'battle.levi.pinch': levi(['v_levi_pinch01.mp3'], 'この程度で……！'),
+  'battle.levi.down': levi(['v_levi_down01.mp3'], 'ここまで、か……'),
+  'battle.levi.win': levi(['v_levi_win01.mp3'], 'ふん、当然だ'),
+  'battle.levi.care': levi(['v_levi_care01.mp3'], '……助かった、とは言わないからな'),
+  'battle.meisou_kokusou': levi(['v_levi_finisher01.mp3'], '冥槍・黒葬封界――'),
+  'battle.meisou_kokusou.release': levi(['v_levi_finisher02.mp3'], '葬れ！'),
+  // ---- 戦闘（アリア — 第7便。登場・加入は未定：それまで鳴らない） ----
+  'battle.aria.start': aria(['v_aria_start01.mp3'], '参ります'),
+  'battle.aria.attack': aria(['v_aria_atk01.mp3'], '射ちます！'),
+  'battle.aria.hurt': aria(['v_aria_dmg01.mp3'], 'くっ……！'),
+  'battle.aria.pinch': aria(['v_aria_pinch01.mp3'], 'ま、まだ……！'),
+  'battle.aria.down': aria(['v_aria_down01.mp3'], 'ごめん、なさい……'),
+  'battle.aria.win': aria(['v_aria_win01.mp3'], 'よかった……皆、無事ですね'),
+  'battle.aria.care': aria(['v_aria_care01.mp3'], 'あ、ありがとうございます……！'),
+  'battle.tenkyuu_aobara': aria(['v_aria_finisher01.mp3'], '天弓・蒼薔薇祝界――'),
+  'battle.tenkyuu_aobara.release': aria(['v_aria_finisher02.mp3'], '祝い、放ちます！'),
+  // ---- 戦闘（リゼル — 第9便。戦闘への参加は未定：それまで鳴らない。win・down は小声のテイク：+11dB） ----
+  'battle.rizel.start': rizel(['v_rizel_start01.mp3'], 'わ、私だって戦えます！'),
+  'battle.rizel.attack': rizel(['v_rizel_atk01.mp3'], 'やっ！'),
+  'battle.rizel.hurt': rizel(['v_rizel_dmg01.mp3'], 'きゃっ……！'),
+  'battle.rizel.pinch': rizel(['v_rizel_pinch01.mp3'], 'まだ……倒れるわけには……'),
+  'battle.rizel.win': rizel(['v_rizel_win01.mp3'], 'や、やった……？', { gainDb: 11 }),
+  'battle.rizel.down': rizel(['v_rizel_down01.mp3'], 'ごめんなさい……私、まだ……', { gainDb: 11 }),
+  // ---- 店（第4便 リナ＝パン屋、第5便 ミレイ＝道具屋） ----
+  'shop.ALDEN_BAKERY.welcome': lina(['v_lina_welcome01.mp3', 'v_lina_welcome02.mp3', 'v_lina_welcome03.mp3'], 'いらっしゃいませ〜！／いらっしゃい！ 焼きたてだよ！／あっ、待ってたよ！', { play: 'RANDOM' }),
+  'shop.ALDEN_BAKERY.thanks': lina(['v_lina_thanks01.mp3'], 'ありがとね！ また来てね！'),
+  'shop.ALDEN_ITEM_SHOP.welcome': mirei(['v_mirei_welcome01.mp3', 'v_mirei_welcome02.mp3', 'v_mirei_welcome03.mp3'], 'あら、いらっしゃい／いい品、揃ってるわよ／ふふ、目利きね', { play: 'RANDOM' }),
+  'shop.ALDEN_ITEM_SHOP.thanks': mirei(['v_mirei_thanks01.mp3'], '毎度あり。また来てね'),
+  'shop.ALDEN_ITEM_SHOP.touch': mirei(['v_mirei_touch01.mp3', 'v_mirei_touch02.mp3'], 'あら、なあに？／ふふ、買ってくれるなら許すわ', { play: 'RANDOM' }),
+  // リナ — イベント用（発火条件は今後）。
+  'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
   // ---- イベント（村の小さな出来事。未納品） ----
   'daily.LINA_BURNT_BREAD.4': kaos(['kaos_daily_lina_burnt_bread_4.mp3'], 'ん、おいしい♪ 焦げてるとこが一番おいしいかも。'),
   'daily.LINA_BURNT_BREAD.6': hero(['hero_daily_lina_burnt_bread_6.mp3'], '褒めてる。'),
@@ -117,10 +182,35 @@ export function voicePlan(id: string | null | undefined): string[] {
   if (!line || !id) return [];
   const urls = line.files.map((f) => byName.get(f)).filter((u): u is string => !!u);
   if (urls.length === 0) return [];
+  if (line.play === 'RANDOM') {
+    // At random, but never the same twice in a row.
+    const last = turns.get(id);
+    const choices = urls.map((_, i) => i).filter((i) => urls.length === 1 || i !== last);
+    const n = choices[Math.floor(voiceRandom() * choices.length)] ?? 0;
+    turns.set(id, n);
+    return [urls[n]];
+  }
   if (line.play !== 'ALTERNATE') return urls;
   const n = turns.get(id) ?? 0;
   turns.set(id, n + 1);
   return [urls[n % urls.length]];
+}
+
+/** The dice for RANDOM lines (a test sets them). */
+let voiceRandom: () => number = Math.random;
+export function setVoiceRandom(dice: () => number): void {
+  voiceRandom = dice;
+}
+
+/** How much louder than recorded the file at this url is played (a line's `gainDb`), as a factor; 1 for most. */
+export function voiceGainOf(url: string): number {
+  for (const line of Object.values(VOICE_LINES)) if (line.gainDb && line.files.some((f) => byName.get(f) === url)) return 10 ** (line.gainDb / 20);
+  return 1;
+}
+
+/** Whether this member of a fight has lines of their own (`battle.<id>.start` …). */
+export function speaksInFights(memberId: string): boolean {
+  return !!VOICE_LINES[`battle.${memberId}.start`];
 }
 
 /** Who says the file at this url (for a mouth that must not speak over its own side), or null. */

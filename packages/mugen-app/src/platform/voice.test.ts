@@ -10,7 +10,7 @@ vi.mock('@mugen/assets/appMusic', () => ({ APP_BGM_ASSETS: {}, APP_BGM_FALLBACK:
 vi.mock('@mugen/assets/sfx', () => ({ SFX_FILES: {} }));
 
 const { AudioManager, VOICE_GAP_MS } = await import('./audio');
-const { VOICE_LINES, lendVoiceFiles, voicePlan, voiceUrl } = await import('./voice');
+const { VOICE_LINES, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
 
 class FakeAudio {
   static made: FakeAudio[] = [];
@@ -53,12 +53,22 @@ afterEach(() => {
 const src = (a: { src: string }) => a.src.slice(a.src.lastIndexOf('/') + 1).replace(/\?.*$/, '');
 
 describe('the table', () => {
-  it('each line said by ケイオス or 主人公, its files named for them, each file once', () => {
+  it('each line said by one of them, its files named for them, each file once', () => {
     const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
     expect(new Set(files).size).toBe(files.length);
     for (const [id, line] of Object.entries(VOICE_LINES)) {
-      expect(id).toMatch(/^(battle|op|daily)\./);
-      const named = { KAOS: /^(v_chaos_|v_op_chaos|kaos_)/, HERO: /^(v_hero_|hero_)/, GALD: /^v_gard_/ }[line.who];
+      expect(id).toMatch(/^(battle|op|daily|shop|event)\./);
+      const named = {
+        KAOS: /^(v_chaos_|v_op_chaos|kaos_)/,
+        HERO: /^(v_hero_|hero_)/,
+        GALD: /^v_gard_/,
+        GRAVE: /^v_grave_/,
+        LEVI: /^v_levi_/,
+        ARIA: /^v_aria_/,
+        RIZEL: /^v_rizel_/,
+        LINA: /^v_lina_/,
+        MIREI: /^v_mirei_/,
+      }[line.who];
       for (const f of line.files) expect(f).toMatch(named);
       // 主人公 is the player's to name: no name of his is written here.
       expect(line.says).not.toMatch(/ノア/);
@@ -74,6 +84,28 @@ describe('the table', () => {
     for (const id of ['battle.gald.start', 'battle.gald.attack', 'battle.gald.hurt', 'battle.gald.pinch', 'battle.gald.down']) expect(voiceUrl(id), id).not.toBeNull();
     for (const id of ['op.op_01_intro_comic', 'battle.kaos.start', 'battle.star_feather', 'battle.soukyoku_rinkai.release', 'battle.hero.down', 'battle.higanbana'])
       expect(voiceUrl(id), id).not.toBeNull();
+  });
+
+  it('第4〜9便 too, every file in it and found: リナ 5, ミレイ 6, レヴィ 9, アリア 9, グレイヴ 9, リゼル 6', () => {
+    const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
+    for (const [prefix, n] of [['v_lina_', 5], ['v_mirei_', 6], ['v_levi_', 9], ['v_aria_', 9], ['v_grave_', 9], ['v_rizel_', 6]] as const)
+      expect(files.filter((f) => f.startsWith(prefix)), prefix).toHaveLength(n);
+    for (const id of Object.keys(VOICE_LINES).filter((k) => VOICE_LINES[k].files.every((f) => /^v_/.test(f)))) expect(voiceUrl(id), id).not.toBeNull();
+    // Who fights with a voice: the three now; レヴィ, アリア, リゼル the moment they join (their lines are here).
+    for (const id of ['hero', 'kaos', 'grave', 'levi', 'aria', 'rizel', 'gald']) expect(speaksInFights(id), id).toBe(true);
+    expect(speaksInFights('moss_rabbit')).toBe(false);
+  });
+
+  it('a shop’s welcome at random, never the same twice running; リゼル’s whispered win and fall made louder (+11dB)', () => {
+    let dice = 0;
+    setVoiceRandom(() => [0.1, 0.1, 0.9, 0.5][dice++ % 4]);
+    const said = Array.from({ length: 8 }, () => src({ src: voicePlan('shop.ALDEN_BAKERY.welcome')[0] }));
+    for (let i = 1; i < said.length; i++) expect(said[i]).not.toBe(said[i - 1]);
+    expect(new Set(said).size).toBeGreaterThan(1);
+    setVoiceRandom(Math.random);
+    expect(voiceGainOf(voiceUrl('battle.rizel.win')!)).toBeCloseTo(10 ** (11 / 20), 3);
+    expect(voiceGainOf(voiceUrl('battle.rizel.down')!)).toBeCloseTo(10 ** (11 / 20), 3);
+    expect(voiceGainOf(voiceUrl('battle.rizel.start')!)).toBe(1);
   });
 
   it('the opening in the order of its panels: three on the first page, three on the second, then one a page', () => {

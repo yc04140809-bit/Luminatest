@@ -7,11 +7,25 @@ const fight = (members: PartyMember[], last: Partial<PartyBeat> | null = null) =
   ({ members, last: last ? ({ amount: 0, read: 'PLAIN', target: '', ...last } as PartyBeat) : null }) as unknown as PartyBattleState;
 
 describe('what they say in a fight (ボイス第1便・第2便)', () => {
-  it('it opens: his word, then hers where she fights; won: whoever is standing, his first', () => {
-    expect(startVoices(true)).toEqual(['battle.hero.start', 'battle.kaos.start']);
-    expect(startVoices(false)).toEqual(['battle.hero.start']);
-    expect(winVoices({ hero: true, kaos: true })).toEqual(['battle.hero.win', 'battle.kaos.win']);
-    expect(winVoices({ hero: false, kaos: true })).toEqual(['battle.kaos.win']);
+  it('it opens: each of them with a word, 主人公 then ケイオス then the rest; won: whoever is standing, in that order', () => {
+    expect(startVoices(['grave', 'hero', 'kaos'])).toEqual(['battle.hero.start', 'battle.kaos.start', 'battle.grave.start']);
+    expect(startVoices(['hero'])).toEqual(['battle.hero.start']);
+    expect(winVoices(['kaos', 'hero'])).toEqual(['battle.hero.win', 'battle.kaos.win']);
+    expect(winVoices(['kaos', 'grave'])).toEqual(['battle.kaos.win', 'battle.grave.win']);
+    // A member with no lines of their own says nothing (and holds no place).
+    expect(startVoices(['hero', 'stranger'])).toEqual(['battle.hero.start']);
+  });
+
+  it('healed: the one healed answers after the heal’s own line, where they have a word for it (レヴィ, アリア)', () => {
+    const party = [member('hero', 100), member('kaos', 100), member('levi', 100)];
+    const none = new Set<string>();
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'TECH', name: '星癒の羽', target: 'levi' }), none)).toEqual({
+      id: 'battle.star_feather',
+      then: 'battle.levi.care',
+    });
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'TECH', name: '星癒の羽', target: 'hero' }), none)).toEqual({ id: 'battle.star_feather' });
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'MEND', target: 'levi' }), none)).toEqual({ id: 'battle.levi.care' });
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'MEND', target: 'hero' }), none)).toBeNull();
   });
 
   it('a blow taken: the fall, then the first pinch (30% or under), then the hurt', () => {
@@ -27,13 +41,13 @@ describe('what they say in a fight (ボイス第1便・第2便)', () => {
     expect(hurtVoice('gald', 0, 100, true).id).toBe('battle.gald.down');
   });
 
-  it('the three’s beats: a plain blow of theirs, 星癒の羽, a blow on them; グレイヴ, a skill, a miss say nothing', () => {
+  it('the three’s beats: a plain blow of theirs (グレイヴ’s too), 星癒の羽, a blow on them; a skill, a miss say nothing', () => {
     const party = [member('hero', 100), member('kaos', 100), member('grave', 180)];
     const none = new Set<string>();
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'ATTACK' }), none)).toEqual({ id: 'battle.kaos.attack' });
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'hero', kind: 'ATTACK' }), none)).toEqual({ id: 'battle.hero.attack' });
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'TECH', name: '星癒の羽' }), none)).toEqual({ id: 'battle.star_feather' });
-    expect(partyBeatVoice(fight(party), fight(party, { actor: 'grave', kind: 'ATTACK' }), none)).toBeNull();
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'grave', kind: 'ATTACK' }), none)).toEqual({ id: 'battle.grave.attack' });
     // A finisher's shout is its cut-in's.
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'SKILL', name: '双極臨界' }), none)).toBeNull();
     const struck = [member('hero', 100), member('kaos', 60), member('grave', 180)];

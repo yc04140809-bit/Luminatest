@@ -7,6 +7,8 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
+import { playVoice } from '../platform/audio';
+import { SHOP_VOICE_SPOTS, shopTouch } from './audio/shopVoices';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
 import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
 import { NewBadge } from './common/NewBadge';
@@ -132,6 +134,8 @@ export function ItemShopScreen({
       arcStage: SEKIRYUGA_STAGES.indexOf(world.getSekiryugaStage()),
     };
     const said = pickTouchReaction(SHOP_MIREI, taps.current, facts, lastLine.current);
+    // Her voice too: one of hers at random (platform/voice.ts `shop.ALDEN_ITEM_SHOP.touch`).
+    playVoice(shopTouch(SHOP_VOICE_SPOTS.ITEM_SHOP));
     lastLine.current = said.text;
     setFace(said.expression);
     setTouch({ ...said, n: taps.current });
