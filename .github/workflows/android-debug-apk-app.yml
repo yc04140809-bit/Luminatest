@@ -69,6 +69,8 @@ jobs:
     # push では両方。手動実行では選んだ種類だけ（job の if では matrix を読めないので、組み合わせ自体を作り分ける）。
     strategy:
       fail-fast: false
+      # 1つずつ（debug が先）。最初の実行で debug が作った署名の鍵を、showcase も使うため（下の「署名の鍵」）。
+      max-parallel: 1
       matrix:
         variant: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.variant != 'both') && format('["{0}"]', inputs.variant) || '["debug","showcase"]') }}
     name: APK (${{ matrix.variant }})
@@ -124,6 +126,25 @@ jobs:
           fi
           echo "using $SDKMANAGER"
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+
+      # 署名の鍵（2026-10-30: 実機で「アプリはインストールされていません」）。debug 鍵は Gradle が
+      # ~/.android/debug.keystore に無ければ作るので、毎回まっさらなランナーでは APK ごとに鍵が違い、
+      # 入っている版の上から新しい版を入れられなかった。1度作った鍵をキャッシュに取っておき、以後は
+      # 毎回同じ鍵で署名する（上書きでき、セーブも残る）。鍵はリポジトリには置かない。
+      - name: Signing key (the same every build)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: mugen-app-debug-keystore-v1
+
+      - name: Signing key (made once if there is none)
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey \
+              -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android | grep -E "SHA256:" | head -n1
 
       # リリース用ビルドにデバッグ用の道具が入らないことの確認（入っていたら失敗）。
       - name: Release build has no debug tools
