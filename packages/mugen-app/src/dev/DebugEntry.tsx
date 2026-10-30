@@ -80,6 +80,14 @@ export function DebugEntry() {
       >
         3人戦闘
       </button>
+      {/* ケイオスの《双極臨界》 with a stand-in shout (src/dev/voiceDummy.ts), to hear the voice on a phone. */}
+      <button
+        data-testid="debug-voice-dummy"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=party&collapse=1&voice=dummy`)}
+        style={DOOR}
+      >
+        ボイス確認（ダミー）
+      </button>
       <button
         data-testid="debug-battle-preview"
         onClick={() => window.location.assign(`${window.location.pathname}?preview=battle`)}

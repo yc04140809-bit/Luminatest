@@ -5,6 +5,8 @@ import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
 import { UNKNOWN_CONTINUATION_TEXT } from '@mugen/content/archive/galdChapters';
 import { Place } from './screens';
 import { NewBadge } from './common/NewBadge';
+import { memoryMeta } from './memoryWords';
+import { GALD } from '@mugen/content/characters/gald';
 import { IntroScreen } from './intro';
 import { OPENING_INTRO_RECALL } from '@mugen/content/story/openingIntro';
 
@@ -32,7 +34,9 @@ export const memoryMark = (eventId: string): string => `memory:${eventId}`;
  */
 
 /** One fact, with the fields a record needs to be checkable — tapped, it is looked at. */
-function EventRow({ event, isNew, onLook }: { event: MemoryEvent; isNew: boolean; onLook: () => void }) {
+function EventRow({ event, names, isNew, onLook }: { event: MemoryEvent; names: Readonly<Record<string, string>>; isNew: boolean; onLook: () => void }) {
+  // Where, who and how much, in the player's words only (memoryWords.ts) — a part with none is left out.
+  const meta = memoryMeta(event, names);
   return (
     <li
       className={`memory-row${isNew ? ' new' : ''}`}
@@ -55,21 +59,27 @@ function EventRow({ event, isNew, onLook }: { event: MemoryEvent; isNew: boolean
             is a function and not a lookup. */}
         {memoryEventLabel(event)}
       </span>
-      <span className="memory-meta">
-        <span data-testid={`memory-type-${event.type}`}>{event.type}</span>
-        {' ・ '}
-        <span data-testid={`memory-where-${event.type}`}>{event.location}</span>
-        {' ・ '}
-        <span data-testid={`memory-who-${event.type}`}>{event.actors.join(', ')}</span>
-        {' ・ '}
-        <span data-testid={`memory-weight-${event.type}`}>{event.importance}</span>
-      </span>
+      {meta.length > 0 && (
+        <span className="memory-meta" data-testid={`memory-meta-${event.type}`}>
+          {meta.map((part, i) => (
+            <span key={part.kind}>
+              {i > 0 && ' ・ '}
+              <span data-testid={`memory-${part.kind}-${event.type}`}>{part.text}</span>
+            </span>
+          ))}
+        </span>
+      )}
     </li>
   );
 }
 
 export function WorldMemoryScreen({ world, onBack }: { world: World; onBack: () => void }) {
   const events = world.getKnownEvents();
+  // The player by the name they gave; Gald by what they know him as (the archive's: 「盗賊」 until found again).
+  const names = {
+    PLAYER: world.getHeroName(),
+    GALD: world.getLifeArchive().find((e) => e.characterId === GALD.id)?.displayName ?? GALD.unknownName,
+  };
   return (
     <Place area="ALDEN" title="世界の記憶">
       <div className="memory-screen" data-testid="world-memory-screen">
@@ -86,6 +96,7 @@ export function WorldMemoryScreen({ world, onBack }: { world: World; onBack: () 
               <EventRow
                 key={event.id}
                 event={event}
+                names={names}
                 isNew={!world.isRead(memoryMark(event.id))}
                 onLook={() => void world.markRead([memoryMark(event.id)]).catch(() => {})}
               />

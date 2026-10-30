@@ -58,5 +58,6 @@ export function skillCutIn(skill: { id: string; name: string } | undefined | nul
     word: look.word,
     kicker: look.kicker,
     name: skill.name,
+    voice: `battle.${skill.id}`,
   };
 }

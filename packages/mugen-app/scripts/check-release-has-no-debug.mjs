@@ -48,6 +48,9 @@ const MARKERS = [
   'walk-debug-rainbow',
   // The shared parts' preview (src/dev/KitPreview.tsx).
   'kit-preview',
+  // The stand-in voice (src/dev/voiceDummy.ts), `?voice=dummy`.
+  'voice-dummy',
+  'lendDummyVoice',
 ];
 
 /** Every source file under a folder. */
@@ -87,6 +90,8 @@ try {
   for (const file of readdirSync(assets)) {
     const name = onlyForDebug.find((n) => file.startsWith(`${n}-`) || file.startsWith(`${n}.`));
     if (name) found.push(`${file}: デバッグ用の道具だけが使う画像`);
+    // The stand-in voice (src/dev/voice-dummy.mp3) is never heard in a release.
+    if (file.startsWith('voice-dummy')) found.push(`${file}: デバッグ用のダミー音声`);
   }
   if (found.length > 0) {
     console.error('リリース用ビルドにデバッグ用の道具が入っています:\n  ' + found.join('\n  '));

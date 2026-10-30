@@ -237,6 +237,24 @@
   padding: 4px 10px 6px;
 }
 
+/* ── The shop's side (アルデン道具屋): the same panel plate as the bakery's and the tavern's words (2026-10-30
+   タスクE: 紺の不透明パネルに統一) — a plate of its own beside her, out over the screen's padding as the side
+   was but held 6px in from its edges so the frame is whole, rather than a shade fading in over the room. Its ends
+   the narrow ones (as the talk plates' on a small screen), so the goods keep the width they had. */
+.shop-side.paper-panel {
+  --cr-plate-edge: 9px 12px;
+  border: solid transparent;
+  border-width: var(--cr-plate-edge);
+  border-radius: 0;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--cr-plate-edge) stretch;
+  background: none;
+  box-shadow: none;
+  margin-top: calc(6px - max(16px, env(safe-area-inset-top)));
+  margin-right: calc(6px - max(16px, env(safe-area-inset-right)));
+  margin-bottom: 6px;
+  padding: 2px 4px 4px;
+}
+
 /* ── CrystalTab: 買う／売る, whom to speak to at the bakery. The button plate; the one chosen lit, the
    others held back. */
 .shop-tab,

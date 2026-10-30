@@ -117,9 +117,13 @@ test('a decision is remembered, with the fields a record needs', async ({ page }
   // The sentence is content's, not this screen's.
   await expect(page.getByTestId('memory-label-PLAYER_SPARED_GALD')).toHaveText('森の盗賊を見逃した');
   await expect(page.getByTestId('memory-when-PLAYER_SPARED_GALD')).toHaveText('1年目 1日目');
-  await expect(page.getByTestId('memory-where-PLAYER_SPARED_GALD')).toHaveText('GREENWOOD_FOREST');
-  await expect(page.getByTestId('memory-who-PLAYER_SPARED_GALD')).toHaveText('PLAYER, GALD');
-  await expect(page.getByTestId('memory-weight-PLAYER_SPARED_GALD')).toHaveText('MAJOR');
+  // Where, who and how much — in the player's words (タスクB 2026-10-30): never the game's own ids, and he is
+  // still the 盗賊 they fought (his name is learned later).
+  await expect(page.getByTestId('memory-where-PLAYER_SPARED_GALD')).toHaveText('グリーンウッドの森');
+  await expect(page.getByTestId('memory-who-PLAYER_SPARED_GALD')).toHaveText('主人公・盗賊');
+  await expect(page.getByTestId('memory-weight-PLAYER_SPARED_GALD')).toHaveText('大きな出来事');
+  await expect(page.getByTestId('memory-type-PLAYER_SPARED_GALD')).toHaveCount(0);
+  expect(await page.getByTestId('world-memory-screen').innerText()).not.toMatch(/[A-Z]{2,}_[A-Z_]+|\bPLAYER\b|\bGALD\b|\bMAJOR\b/);
 });
 
 test('the archive holds one chapter and admits there is more', async ({ page }) => {

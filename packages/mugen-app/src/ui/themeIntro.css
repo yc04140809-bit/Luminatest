@@ -1,0 +1,76 @@
+/* 「また、ここで。」 before the title (themeIntro.tsx): black, the name, the song's title, and SKIP. */
+.screen.theme-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #000;
+  color: #f3ead2;
+  user-select: none;
+}
+.screen.theme-intro[data-phase='TAP'] { cursor: pointer; }
+.ti-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: ti-in 1600ms ease-out both;
+}
+.ti-logo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(30px, 7vw, 56px);
+  letter-spacing: 0.22em;
+  padding-left: 0.22em;
+  background: linear-gradient(180deg, #fff6dc 0%, #e6c77a 55%, #a98232 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgba(230, 190, 110, 0.35));
+}
+.ti-song {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.6vw, 19px);
+  letter-spacing: 0.18em;
+  color: #e9dfc4;
+}
+.ti-tap {
+  margin: 18px 0 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  color: rgba(233, 223, 196, 0.8);
+  animation: ti-breathe 2200ms ease-in-out infinite;
+}
+.ti-skip {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  min-width: 72px;
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid rgba(233, 223, 196, 0.45);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e9dfc4;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+}
+@keyframes ti-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ti-breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ti-words, .ti-tap { animation: none; }
+}

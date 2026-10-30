@@ -1,0 +1,17 @@
+/* Her face on a won fight's result (ResultFace.tsx): the bust's own shape (assets/kaosFaces.ts, the part
+   above its sample box), framed as her face beside a line is — beside the numbers, never over them. */
+.result-face {
+  position: relative;
+  flex: none;
+  aspect-ratio: 1122 / 1040;
+  overflow: hidden;
+  border: 1px solid rgba(224, 184, 74, 0.6);
+  border-radius: 6px;
+  background: rgba(10, 14, 34, 0.6);
+}
+.result-face.large { width: clamp(96px, 18vw, 150px); }
+.result-face.small { width: 52px; border-radius: 4px; }
+.result-face img { position: absolute; max-width: none; }
+.result-face img.whole { inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* A fight of one's result: she stands to the left of its numbers. */
+.screen.result:has(> .result-face) { flex-direction: row; align-items: center; justify-content: center; gap: 14px; }

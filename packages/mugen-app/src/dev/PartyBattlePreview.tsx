@@ -34,7 +34,7 @@ import { audioManager } from '../platform/audio';
  *   &collapse=1                    ケイオス's finisher 《双極臨界》 ready from her first turn (in the game: after three)
  *   &enemies=2                     two creatures: イワホロ and コケマル (複数敵, 2026-10-12)
  *   &enemies=3                     three: イワホロ, コケマル and ヒョウレイ
- *   &weak=1                        (with &enemies) the creatures start at an eighth of their health
+ *   &weak=1                        the creature(s) start at an eighth of their health
  *
  * THE SEVERAL CREATURES' NUMBERS are the forest's own (their species), their
  * footing twice their poise and their speed set to fall between the party's —
@@ -56,9 +56,11 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
         : which === 'valsheel2'
           ? { spec: VALSHEEL_FORM2_PROVISIONAL, art: 'valsheel_form2' }
           : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
-  const enemy = footing > 0 ? { ...foe.spec, breakMax: Math.floor(footing) } : foe.spec;
   const count = Number(params.get('enemies'));
   const weak = params.get('weak') === '1';
+  // &weak=1 with one creature (2026-10-30 タスクG): it too at an eighth, to see a boss's result quickly.
+  const one = weak ? { ...foe.spec, hp: Math.ceil(foe.spec.hp / 8) } : foe.spec;
+  const enemy = footing > 0 ? { ...one, breakMax: Math.floor(footing) } : one;
   const several: PartyEnemyInput[] | null =
     count >= 2
       ? (

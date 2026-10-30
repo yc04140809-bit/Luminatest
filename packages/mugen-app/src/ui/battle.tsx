@@ -45,6 +45,8 @@ import { arcanaReading } from './battle/arcanaDepth';
 import { playSfx } from '../platform/audio';
 import { bossCutInFor } from './battle/cutin/bossCutIn';
 import { skillCutIn } from './battle/cutin/skillCutIn';
+import type { resultFaceFor } from './battle/resultFace';
+import { ResultFace } from './battle/ResultFace';
 import type { CutInSpec } from './battle/cutin/CutIn';
 import { skillBeatsSpell } from './battle/autoSkill';
 
@@ -420,13 +422,22 @@ export function BattleScreen({
 
 export function ResultScreen({
   reward,
+  face = null,
   onDone,
 }: {
   reward: AppliedReward;
+  /** Her face beside the numbers (タスクG, battle/resultFace.ts) — null where she was not in the fight. */
+  face?: ReturnType<typeof resultFaceFor>;
   onDone: () => void;
 }) {
+  // By their names only: a thing with none is not written as its id (タスクB 2026-10-30).
+  const items = reward.items.flatMap((i) => {
+    const name = itemDef(i.itemId)?.name;
+    return name ? [`${name} ×${i.quantity}`] : [];
+  });
   return (
     <div className="screen result paper">
+      {face && <ResultFace face={face} />}
       <div className="paper-sheet result-sheet">
         <h1 className="place">BATTLE RESULT</h1>
         <p className="row" data-testid="result-exp">
@@ -436,9 +447,7 @@ export function ResultScreen({
           LUMI +{reward.lumi}
         </p>
         <p className="row" data-testid="result-items">
-          {reward.items.length === 0
-            ? 'ITEM なし'
-            : reward.items.map((i) => `${itemDef(i.itemId)?.name ?? i.itemId} ×${i.quantity}`).join(' / ')}
+          {items.length === 0 ? 'ITEM なし' : items.join(' / ')}
         </p>
         {reward.levels.length > 0 && (
           <p className="row level" data-testid="result-levels">

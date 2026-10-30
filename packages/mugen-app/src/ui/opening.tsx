@@ -10,6 +10,7 @@ import {
 } from '@mugen/content/story/openingComic';
 import { openingArt, preloadOpeningArt } from '../assets/openingArt';
 import { playOpeningSound } from './openingSound';
+import { audioManager, playVoice } from '../platform/audio';
 import { usePicture } from './scene';
 import './opening.css';
 
@@ -60,6 +61,9 @@ export function OpeningScreen({ onMusic, onDone }: { onMusic: (music: OpeningMus
   useEffect(() => {
     if (step.music) onMusic(step.music);
     if (step.sound) playOpeningSound(step.sound);
+    // Her line on this page, if it has one (platform/voice.ts `op.<scene>`); the last page's stops with the page.
+    audioManager.stopVoice();
+    playVoice(`op.${step.scene}`);
     preloadOpeningArt(OPENING_STEPS.slice(at + 1, at + 4).map((s) => s.image));
     setChoice('ASK');
     if (auto) {
@@ -75,6 +79,13 @@ export function OpeningScreen({ onMusic, onDone }: { onMusic: (music: OpeningMus
   }, [at]);
 
   // The straight face, for a moment, then 「……なんてね♪」.
+  // 「……なんてね♪」, said as it is shown (`op.<scene>.SMILE`).
+  useEffect(() => {
+    if (choice === 'SMILE') playVoice(`op.${step.scene}.SMILE`);
+  }, [choice]);
+  // Out of the opening, nothing of it is still being said.
+  useEffect(() => () => audioManager.stopVoice(), []);
+
   useEffect(() => {
     if (choice !== 'STRAIGHT') return;
     const t = window.setTimeout(() => setChoice('SMILE'), OPENING_STRAIGHT_FACE_MS);

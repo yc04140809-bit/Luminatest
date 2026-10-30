@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import type { BattleSpeed } from '@mugen/game/battle/battleSpeed';
 import { cutInMs, type CutInPace, type CutInTier } from './cutInTiming';
+import { playVoice } from '../../../platform/audio';
 import './cutin.css';
 
 /** Whose colours and layout — v18's four cut-ins, グレイヴ's own, and a boss's great move. */
@@ -48,6 +49,8 @@ export interface CutInSpec {
   sub?: string;
   /** A party finisher's quicker cut-in: 'brisk' its first in a fight, 'brief' after (cutInTiming CUT_IN_PACE_MS). */
   pace?: CutInPace;
+  /** The shout as it comes in, by its line id (platform/voice.ts `battle.<id>`) — silent while it has no file. */
+  voice?: string;
 }
 
 /**
@@ -116,6 +119,13 @@ export function CutIn({ spec, ms, onDone }: { spec: CutInSpec; ms: number; onDon
     const t = window.setTimeout(() => done.current(), ms);
     return () => window.clearTimeout(t);
   }, [ms]);
+  // The shout, once, as it comes in (once even where an effect is run twice); it carries on into the move after.
+  const shouted = useRef(false);
+  useEffect(() => {
+    if (shouted.current) return;
+    shouted.current = true;
+    playVoice(spec.voice);
+  }, []);
 
   return (
     <div

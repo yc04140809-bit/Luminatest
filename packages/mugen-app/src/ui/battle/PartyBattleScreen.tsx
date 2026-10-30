@@ -52,6 +52,8 @@ import { memoryRows } from './battleHud';
 import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
+import { resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
+import { ResultFace } from './ResultFace';
 import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
@@ -1090,6 +1092,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   };
   const last = state.last;
   const lastKey = lastKeyOf(state);
+  // Won: her face beside 「勝利！」 (タスクG, resultFace.ts) — only where she fought; a party finisher's last
+  // blow (《双極臨界》, 《彼岸花》), else a boss, else an ordinary win.
+  const wonFace =
+    state.outcome === 'VICTORY'
+      ? resultFaceFor(
+          resultPartyOf(state.members.map((m) => m.id)),
+          resultHowOf({
+            byFinisher: !!(last && members.find((m) => m.id === last.actor)?.skills?.find((k) => k.name === last.name)?.finisher),
+            boss: state.enemies.some((e) => e.boss),
+          }),
+        )
+      : null;
   /** What the beat needs to be played: what was used, how big the one struck is, where they stand. */
   function beatContext(beat: PartyBeat, measure: boolean): BeatContext {
     const doer = isEnemyId(beat.actor) ? undefined : memberById(state, beat.actor);
@@ -1922,6 +1936,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       {/* BOTTOM RIGHT — the command cross; a list opens beside it. */}
       {state.outcome !== 'ONGOING' && resultShown ? (
         <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
+          {wonFace && <ResultFace face={wonFace} size="small" />}
           <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
           <button
             className="pb-list-btn primary"

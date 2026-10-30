@@ -6,6 +6,7 @@ import { dailyFaceFor } from "../assets/dailyFaces";
 import type { FaceBox } from "../assets/kaosFaces";
 import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
+import { audioManager, playVoice } from "../platform/audio";
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
@@ -37,6 +38,13 @@ export function DailyAside({
       gone = true;
     };
   }, [want?.key]);
+  // The line said as it is shown (platform/voice.ts `daily.<scene>.<line no.>`, from 1) — the last one cut off as
+  // the next comes or the box closes. Silent where it has no file.
+  useEffect(() => {
+    audioManager.stopVoice();
+    if (!done) playVoice(`daily.${scene.id}.${Math.min(at, scene.lines.length - 1) + 1}`);
+  }, [scene.id, at, done]);
+  useEffect(() => () => audioManager.stopVoice(), []);
   if (done) return null;
   const face = want && shown?.key === want.key ? shown : null;
   const last = at >= scene.lines.length - 1;

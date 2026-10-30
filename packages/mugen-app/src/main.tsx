@@ -34,6 +34,12 @@ for (const [name, value] of Object.entries({ ...kitRootVars(UI_SKIN), ...decorRo
 const root = createRoot(document.getElementById('root')!);
 const params = new URLSearchParams(window.location.search);
 
+// DEBUG BUILDS ONLY: `?voice=dummy` lends a stand-in voice for ケイオス's 《双極臨界》 shout
+// (src/dev/voiceDummy.ts), to hear the voice's way through before anything is recorded.
+if ((import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') && params.get('voice') === 'dummy') {
+  void import('./dev/voiceDummy').then(({ lendDummyVoice }) => lendDummyVoice());
+}
+
 // DEBUG BUILDS ONLY: `?preview=battle` shows the battle screen on its
 // own (src/dev/BattlePreview.tsx) — on the dev server, and in the debug
 // APK (`npm run build:debug`). Both halves of the check are compile

@@ -17,5 +17,11 @@ export default defineConfig({
     viewport: { width: 844, height: 390 },
     reducedMotion: 'reduce',
     launchOptions: { executablePath: '/opt/pw-browsers/chromium' },
+    // Every test starts at the title, as before 「また、ここで。」 was put in front of it (2026-10-30 タスクC,
+    // ui/themeIntro.tsx `themeIntroSkipped`, dev server only). Its own tests (e2e/themeIntro.spec.ts) clear this.
+    storageState: {
+      cookies: [{ name: 'mugen_dev_theme_intro', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }],
+      origins: [],
+    },
   },
 });

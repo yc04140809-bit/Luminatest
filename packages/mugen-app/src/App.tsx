@@ -48,6 +48,8 @@ import {
 } from '@mugen/content/audio/battleBgm';
 import { battleBgmChoice, hasBattleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { DebugEntry } from './dev/DebugEntry';
+import { ThemeIntro, themeIntroSkipped } from './ui/themeIntro';
+import { resultFaceFor } from './ui/battle/resultFace';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -196,6 +198,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const [kaosArrived, setKaosArrived] = useState(false);
   const [namingBusy, setNamingBusy] = useState(false);
+  /**
+   * 「また、ここで。」 BEFORE THE TITLE (2026-10-30 タスクC, ui/themeIntro.tsx): every launch, until the song
+   * ends or is skipped. Not saved. While it is up the title's own piece is not asked for (below), so the two
+   * never sound together. (The dev server's tests pass it by a cookie — themeIntroSkipped — DEV only.)
+   */
+  const [themeIntro, setThemeIntro] = useState(() => !themeIntroSkipped());
   /**
    * 触る漫画形式のオープニング (2026-10-16): the music let go at the power off
    * (until the funny face). The rest of what it asks — turned down for the
@@ -550,6 +558,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * the bakery in Alden, which null already answers correctly.
    */
   const playingBgm = useSceneBgm({
+    // 「また、ここで。」 is THEME_CHOICE's while it is up (ui/themeIntro.tsx) — silent here, the song its own.
     // THE APP HAS NO THEME-CHOICE SCREEN. The flow starts on
     // THEME_CHOICE and the App draws the title for it, so to the player
     // it IS the title — and the map says THEME_CHOICE is silent, which
@@ -558,7 +567,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // must not reintroduce it by inheriting a screen it does not show.
     screen:
       state.screen === 'THEME_CHOICE'
-        ? 'TITLE'
+        ? themeIntro
+          ? 'THEME_CHOICE'
+          : 'TITLE'
         : tavern || bakery
           ? 'TALK_SPOT'
           : // THE RUINS HAVE NO PIECE OF THEIR OWN YET: walked, they play the
@@ -762,6 +773,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   switch (state.screen) {
     case 'THEME_CHOICE':
     case 'TITLE':
+      if (state.screen === 'THEME_CHOICE' && themeIntro) return <ThemeIntro onDone={() => setThemeIntro(false)} />;
       return (
         <>
           {/* Debug builds only — compile time, see src/dev/DebugEntry. */}
@@ -1573,6 +1585,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         />
         <ResultScreen
           reward={winnings ?? NOTHING_APPLIED}
+          // Her face, if she fought beside him (her magic woken): the forest's ordinary fights, an ordinary win.
+          face={resultFaceFor(kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) ? 'DUO' : 'NO_KAOS', 'NORMAL')}
           onDone={() => {
             if (flow.getState().screen !== 'BATTLE_RESULT') return;
             setWinnings(null);

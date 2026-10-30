@@ -39,7 +39,10 @@
 | `RESULT_BOSS` | （未着） | — | ボス戦の報酬画面用の枠。今はボス戦に報酬画面が無く、曲が届くまでは `RESULT_NORMAL` を借りる |
 
 テーマ曲をフルで流す「聴く」は BGM ではなく別枠（`MUSIC_ASSETS.OPENING_THEME`
-＝ `opening.mp3`、1回だけ再生）。Artifact版のタイトル前の画面だけにあります。
+＝ `opening.mp3`、1回だけ再生）。Artifact版のタイトル前の画面と、App版のタイトル前の画面
+（2026-10-30 タスクC：`ui/themeIntro.tsx`。起動のたびに黒地＋ロゴ＋『また、ここで。』＋SKIP、
+ブラウザ版は「タップで開始」から。曲の終わりか SKIP でタイトルへ進み、そこで初めて `TITLE_MAIN`。
+再生中はシーンの BGM を求めないので、2曲が重なることはない。ループなし）にあります。
 
 無音の画面：`THEME_CHOICE`（Artifact版のタイトル前の画面）、`ENDING`、開発用の画面。
 

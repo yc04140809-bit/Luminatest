@@ -55,5 +55,6 @@ export function spellCutIn(def: MagicDef): CutInSpec | null {
     kicker: `${look.word} · ${def.element} ${def.type}`,
     name: def.name,
     sub: def.line,
+    voice: `battle.${def.id}`,
   };
 }

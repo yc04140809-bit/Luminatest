@@ -33,6 +33,8 @@ import {
 import { SFX_FILES } from '@mugen/assets/sfx';
 // The App's own pieces (the winnings, セキリュウガ, フウミミ), 2026-10-11.
 import { APP_BGM_ASSETS, APP_BGM_FALLBACK } from '@mugen/assets/appMusic';
+// Their voices: a line's id to its file (2026-10-30 タスクD).
+import { voiceUrl } from './voice';
 
 /** A piece's file: the App's own first, then the shared table, then the piece it borrows. */
 function bgmSrc(id: BgmId): string | null {
@@ -132,12 +134,12 @@ export class AudioManager {
   /** MASTER, as last set. Kept only so the buses can be recomputed. */
   private masterVolume = 1;
   /**
-   * Reserved, and read by nothing: no line is spoken yet.
-   *
-   * Held so that the day a voice track exists, the number it plays at
-   * is already here and already the player's.
+   * The voice bus (2026-10-30 タスクD): what a spoken line plays at — its own, neither
+   * the music's nor the sounds'. MASTER folded in, as the others.
    */
   private voiceVolume = 0.8;
+  /** The line being spoken, if one is: a new one takes its place (one voice at a time). */
+  private voice: HTMLAudioElement | null = null;
   /** When each sound last played, for the retrigger guard. */
   private sfxLastAt = new Map<SfxId, number>();
   /** Fetched and decoded on the first touch; see `primeSfx`. */
@@ -185,6 +187,7 @@ export class AudioManager {
     this.bgmVolume = bgmVolume;
     this.sfxVolume = clampVolume(this.masterVolume * sfxVolume);
     this.voiceVolume = clampVolume(this.masterVolume * voiceVolume);
+    if (this.voice) this.voice.volume = this.voiceVolume;
     // Not while a crossfade owns it: its volume is being driven on
     // purpose, and the fade sets the final level when it lands.
     if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(bgmVolume);
@@ -819,6 +822,48 @@ export class AudioManager {
   }
 
   /**
+   * A LINE, SPOKEN — by its id (platform/voice.ts: `battle.soukyoku_rinkai`, `op.SCENE11.SMILE`,
+   * `daily.LINA_BURNT_BREAD.4`). One at a time: a new line stops the one before. An id with no
+   * file, a page not yet touched, the voice turned down, a browser that refuses — each is silence,
+   * and none is an error.
+   */
+  playVoice(id: string | null | undefined): void {
+    const src = voiceUrl(id);
+    if (!src || !this.unlocked || this.voiceVolume <= 0) return;
+    this.stopVoice();
+    try {
+      const audio = new Audio(src);
+      audio.volume = this.voiceVolume;
+      audio.addEventListener('ended', () => {
+        if (this.voice === audio) this.voice = null;
+      });
+      this.voice = audio;
+      void audio.play().catch(() => {
+        if (this.voice === audio) this.voice = null;
+      });
+    } catch {
+      this.voice = null;
+    }
+  }
+
+  /** The line being spoken, cut off (its scene left, the next line come). */
+  stopVoice(): void {
+    const audio = this.voice;
+    this.voice = null;
+    if (!audio) return;
+    try {
+      audio.pause();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** The line being spoken, if any — for a test and the debug panel. */
+  speaking(): string | null {
+    return this.voice && !this.voice.paused ? this.voice.currentSrc || this.voice.src : null;
+  }
+
+  /**
    * FETCH AND DECODE THE FIGHT'S NOISES WHILE NOTHING IS HAPPENING.
    *
    * Called from `unlock`, which is the player's first touch: the game
@@ -873,4 +918,9 @@ export const audioManager = new AudioManager();
  */
 export function playSfx(id: SfxId, options?: SfxOptions): void {
   audioManager.playSfx(id, options);
+}
+
+/** One line, by its id (platform/voice.ts) — silent when it has no file. */
+export function playVoice(id: string | null | undefined): void {
+  audioManager.playVoice(id);
 }
