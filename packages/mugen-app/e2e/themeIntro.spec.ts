@@ -44,6 +44,10 @@ test('every launch begins on black: the name, 『また、ここで。』, SKIP 
   await page.goto('/');
   const intro = page.getByTestId('theme-intro');
   await expect(intro).toBeVisible();
+  // The drawn name (the author's cut-out of the title's lettering), whole and loaded; its letters for a reader.
+  const logo = page.getByTestId('theme-intro-logo');
+  await expect(logo).toBeVisible();
+  await expect.poll(() => logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(1600);
   await expect(intro.locator('.ti-logo')).toHaveText('MUGEN ZERO');
   await expect(page.getByTestId('theme-intro-song')).toHaveText('『また、ここで。』');
   await expect(page.getByTestId('theme-intro-skip')).toBeVisible();

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { audioManager } from '../platform/audio';
 import { isNativeShell } from '../platform/androidBack';
+// The name as drawn (作者 2026-10-30: the title picture's lettering, cut out on black — mugen-zero-logo-blackplate).
+import logo from '@mugen/assets/files/backgrounds/mugen-zero-logo-blackplate.webp';
 import './themeIntro.css';
 
 /**
@@ -57,6 +59,8 @@ export function ThemeIntro({ onDone }: { onDone: () => void }) {
       role="presentation"
     >
       <div className="ti-words">
+        <img className="ti-logo-art" src={logo} alt="" aria-hidden="true" data-testid="theme-intro-logo" />
+        {/* The name in letters, for whoever reads the page without the picture (out of sight). */}
         <h1 className="ti-logo">MUGEN ZERO</h1>
         <p className="ti-song" data-testid="theme-intro-song">
           『また、ここで。』
