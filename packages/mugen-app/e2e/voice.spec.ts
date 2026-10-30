@@ -1,78 +1,170 @@
 import { test, expect, type Page } from '@playwright/test';
+import { fightUntil } from './battle';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
- * THEIR VOICES (2026-10-30 タスクD, src/platform/voice.ts): a line is heard by its id when its file is there —
- * here the debug build's stand-in (`?voice=dummy`, src/dev/voiceDummy.ts) as ケイオス's 《双極臨界》 shout — and
- * a line with no file is silence and nothing else: no error, nothing waiting on it, the fight going on.
+ * THEIR VOICES (2026-10-30 タスクD; ケイオス 21本・主人公 9本, src/platform/voice.ts): each line heard where it
+ * belongs, in its order — and a line with no file is silence and nothing else: no error, the fight going on.
  *
- * Every `play()` of a media element is written down from before the page loads (what, and when), and every
+ * Every `play()` of a voice is written down from before the page loads (which file, how loud, when), and every
  * error the page throws.
  */
 async function listen(page: Page) {
   await page.addInitScript(() => {
-    const heard: { src: string; volume: number; at: number }[] = [];
+    const heard: { file: string; volume: number; at: number }[] = [];
     (window as unknown as { __heard: typeof heard }).__heard = heard;
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
-      if (this instanceof HTMLAudioElement) heard.push({ src: this.src, volume: this.volume, at: performance.now() });
+      const file = (this.src.split('/').pop() ?? '').replace(/-[A-Za-z0-9_]{6,}(?=\.mp3)/, '');
+      if (this instanceof HTMLAudioElement && /^(v_|voice-dummy)/.test(file)) heard.push({ file, volume: this.volume, at: performance.now() });
       return play.call(this);
     };
   });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  return {
-    errors,
-    voices: () =>
-      page.evaluate(() =>
-        (window as unknown as { __heard: { src: string; volume: number }[] }).__heard.filter((h) => /voice-dummy|kaos_|hero_/.test(h.src)),
-      ),
-  };
+  const heard = () => page.evaluate(() => (window as unknown as { __heard: { file: string; volume: number; at: number }[] }).__heard.slice());
+  return { errors, heard, files: async () => (await heard()).map((h) => h.file) };
 }
 
-async function toHerTurn(page: Page) {
+async function toTurnOf(page: Page, who: string) {
   for (let i = 0; i < 8; i++) {
     await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
-    if ((await page.getByTestId('pb-screen').getAttribute('data-actor')) === 'kaos') return;
+    if ((await page.getByTestId('pb-screen').getAttribute('data-actor')) === who) return;
     await page.getByTestId('pb-cmd-defend').click();
   }
-  throw new Error("never kaos's turn");
+  throw new Error(`never ${who}'s turn`);
 }
 
-async function herFinisher(page: Page) {
+async function use(page: Page, skill: string) {
   await page.getByTestId('pb-cmd-skills').click();
-  await page.getByTestId('pb-cmd-skill-soukyoku_rinkai').click();
+  await page.getByTestId(`pb-cmd-skill-${skill}`).click();
   const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
   if (await pick.isVisible().catch(() => false)) await pick.click();
 }
 
-test('ケイオス’s 《双極臨界》 with a voice there: heard once, as her cut-in comes in, at the voice volume', async ({ page }) => {
+test('ケイオス’s 《双極臨界》: 「双極臨界――吸いなさい、全部」 as her cut-in comes in, 「……界核崩壊」 out of the stillness — at the voice volume', async ({ page }) => {
   test.setTimeout(60_000);
   const ear = await listen(page);
-  await page.goto('/?preview=party&collapse=1&voice=dummy');
-  await toHerTurn(page);
-  expect(await ear.voices()).toEqual([]);
-  await herFinisher(page);
+  await page.goto('/?preview=party&collapse=1&enemies=3');
+  await toTurnOf(page, 'kaos');
+  const before = (await ear.heard()).length;
+  await use(page, 'soukyoku_rinkai');
   await expect(page.getByTestId('cut-in')).toBeVisible();
-  await expect.poll(async () => (await ear.voices()).length, { timeout: 3_000 }).toBe(1);
-  const [said] = await ear.voices();
-  expect(said.src).toContain('voice-dummy');
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /finisher/.test(f)), { timeout: 15_000 }).toEqual([
+    'v_chaos_finisher01.mp3',
+    'v_chaos_finisher02.mp3',
+  ]);
+  const said = (await ear.heard()).slice(before).filter((h) => /finisher/.test(h.file));
+  // The second after the pull and its stillness — seconds after the first, never on top of it.
+  expect(said[1].at - said[0].at).toBeGreaterThan(3000);
   // The voice's own level (platform/audio.ts: 0.8 until a setting sets it), not the music's 0.35.
-  expect(said.volume).toBeCloseTo(0.8, 2);
-  // The move goes on and ends as ever, and nothing is said twice.
+  for (const h of said) expect(h.volume).toBeCloseTo(0.8, 2);
   await expect(page.getByTestId('pb-collapse')).toHaveCount(0, { timeout: 20_000 });
-  expect(await ear.voices()).toHaveLength(1);
   expect(ear.errors).toEqual([]);
 });
 
-test('with no voice delivered: the same finisher is silent — no voice asked for, no error, the fight goes on', async ({ page }) => {
+test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「散れ」 as the lilies open; a won fight: 「……終わったか」 then 「ふふっ、うちの勝ちだね」', async ({ page }) => {
   test.setTimeout(60_000);
   const ear = await listen(page);
-  await page.goto('/?preview=party&collapse=1');
-  await toHerTurn(page);
-  await herFinisher(page);
+  await page.goto('/?preview=party&higanbana=1&enemies=2&weak=1');
+  await toTurnOf(page, 'hero');
+  const before = (await ear.heard()).length;
+  await use(page, 'higanbana');
+  await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 10_000 });
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /finisher/.test(f))).toEqual(['v_hero_finisher01.mp3', 'v_hero_finisher02.mp3']);
+  await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 30_000 });
+  await expect.poll(async () => (await ear.files()).filter((f) => /win/.test(f)), { timeout: 8_000 }).toEqual(['v_hero_win01.mp3', 'v_chaos_win01.mp3']);
+  expect(ear.errors).toEqual([]);
+});
+
+test('a plain blow says its take, in turn — hers 「くらえっ」 then 「そこっ！」; 星癒の羽 says 「セイユノハネ――癒してあげる」', async ({ page }) => {
+  test.setTimeout(90_000);
+  const ear = await listen(page);
+  await page.goto('/?preview=party&hurt=1');
+  const hers: string[] = [];
+  for (let n = 0; n < 2; n++) {
+    await toTurnOf(page, 'kaos');
+    const before = (await ear.heard()).length;
+    await page.getByTestId('pb-cmd-attack').click();
+    await expect.poll(async () => (await ear.files()).slice(before).find((f) => /v_chaos_atk/.test(f)) ?? null).not.toBeNull();
+    hers.push((await ear.files()).slice(before).find((f) => /v_chaos_atk/.test(f))!);
+  }
+  expect(new Set(hers).size).toBe(2);
+  await toTurnOf(page, 'kaos');
+  const before = (await ear.heard()).length;
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-star_feather').click();
+  const ally = page.getByTestId('pb-target-hero');
+  if (await ally.isVisible().catch(() => false)) await ally.click();
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_chaos_heal01.mp3');
+  expect(ear.errors).toEqual([]);
+});
+
+test('the opening: her first page says its three in order — 「……あ！」 「起きた？」 「遅いぞ〜？」', async ({ page }) => {
+  test.setTimeout(60_000);
+  const ear = await listen(page);
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await expect.poll(() => ear.files(), { timeout: 15_000 }).toEqual(['v_op_chaos01.mp3', 'v_op_chaos02.mp3', 'v_op_chaos03.mp3']);
+  expect(ear.errors).toEqual([]);
+});
+
+test('a line with no file (主人公’s 《瞬断》, not yet recorded): silence, no error, the fight goes on', async ({ page }) => {
+  test.setTimeout(60_000);
+  const ear = await listen(page);
+  await page.goto('/?preview=party');
+  await toTurnOf(page, 'hero');
+  const before = (await ear.heard()).length;
+  await use(page, 'shundan');
   await expect(page.getByTestId('cut-in')).toBeVisible();
-  await expect(page.getByTestId('pb-collapse')).toHaveCount(0, { timeout: 20_000 });
   await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
-  expect(await ear.voices()).toEqual([]);
+  expect((await ear.files()).slice(before).filter((f) => /hero_battle_shundan|shundan/.test(f))).toEqual([]);
+  expect(ear.errors).toEqual([]);
+});
+
+test('DEBUG ?voice=dummy: the stand-in heard in place of her shout', async ({ page }) => {
+  test.setTimeout(60_000);
+  const ear = await listen(page);
+  await page.goto('/?preview=party&collapse=1&voice=dummy');
+  await toTurnOf(page, 'kaos');
+  const before = (await ear.heard()).length;
+  await use(page, 'soukyoku_rinkai');
+  await expect.poll(async () => (await ear.files()).slice(before)[0] ?? null, { timeout: 5_000 }).toBe('voice-dummy.mp3');
+});
+
+test('ガルド (still 「盗賊」 on screen): 「へっ、やるってのか」 as it opens, then 主人公 「……行くか」; his blows, his hurt, his pinch — in his own voice beside theirs', async ({ page }) => {
+  test.setTimeout(240_000);
+  const ear = await listen(page);
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  const before = (await ear.heard()).length;
+  await page.getByTestId('gald-button').click();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
+    await page.getByTestId('encounter-next').click();
+  }
+  await expect.poll(async () => (await ear.files()).slice(before).slice(0, 2), { timeout: 10_000 }).toEqual(['v_gard_start01.mp3', 'v_hero_start01.mp3']);
+  // The name on screen is what the player knows him as.
+  await expect(page.getByTestId('battle-screen')).toContainText('盗賊');
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), { maxTurns: 200 });
+  const said = (await ear.files()).slice(before);
+  expect(said).toContain('v_gard_atk01.mp3');
+  expect(said).toContain('v_gard_dmg01.mp3');
+  expect(said).toContain('v_gard_pinch01.mp3');
+  expect(said.filter((f) => f === 'v_gard_pinch01.mp3')).toHaveLength(1);
+  expect(said).toContain('v_hero_atk01.mp3');
   expect(ear.errors).toEqual([]);
 });

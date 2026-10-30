@@ -31,6 +31,7 @@ import { latestOn, motionSlot, type Blow } from './blows';
 import { cutOf } from './multiHit';
 import { HitFx } from './HitFx';
 import { useBattleSounds } from './battleSounds';
+import { useBattleVoices } from './battleVoices';
 import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
@@ -324,6 +325,19 @@ export function BattleStage({
     speed,
     skillSwing,
     frost,
+  });
+  // What they say (battleVoices.ts): his word as it opens (and hers, if she is in it), his swing, a blow on him.
+  // And the one they fight, where it has lines (ガルド).
+  useBattleVoices({
+    beat,
+    blows,
+    hp: battle.playerHp,
+    maxHp: battle.playerMaxHp,
+    kaosIn: !!battle.magicUnlocked,
+    skillSwing,
+    foe: opponent.artId,
+    foeHp: battle.enemyHp,
+    foeMaxHp: battle.enemyMaxHp,
   });
   const enemyShown = person
     ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')

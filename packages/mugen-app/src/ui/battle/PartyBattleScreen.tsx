@@ -39,7 +39,7 @@ import type { BattleBackgroundKey } from '@mugen/assets/keys';
 import type { ArtBox } from '@mugen/core/art/artStates';
 import { battleEnemyArt, battlePartyArt, type BattlePartyId } from './battleArt';
 import { battleBackgroundArt } from '../../assets/battleBackground';
-import { audioManager, playSfx } from '../../platform/audio';
+import { audioManager, playSfx, playVoice } from '../../platform/audio';
 import { hitStop, screenShake, shakeAllowed } from '../fx/screenShake';
 import { CAMERA_COMBOS, camera, cameraSequence } from '../fx/camera';
 import { COLLAPSE_VIDEO, beatFx, counterFx, type BeatContext, type BeatFx } from './partyFx';
@@ -54,6 +54,7 @@ import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
 import { resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
 import { ResultOver } from './ResultFace';
+import { partyBeatVoice, startVoices, winVoices } from './battleVoices';
 import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
@@ -531,6 +532,23 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
    * from the blow, and the hold paused it — the number came after 「BREAK!!」, under the glass).
    */
   const [landed, setLanded] = useState(-1);
+  // WHAT THEY SAY (battleVoices.ts): his word and hers as it opens; then each beat's — a blow, 星癒の羽, a blow taken.
+  const voicedFrom = useRef(state);
+  const pinched = useRef(new Set<string>());
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    playVoice(startVoices(members.some((m) => m.id === 'kaos')));
+  }, []);
+  useEffect(() => {
+    const said = partyBeatVoice(voicedFrom.current, state, pinched.current);
+    voicedFrom.current = state;
+    if (!said) return;
+    if (said.pinch) pinched.current.add(said.pinch);
+    playVoice(said.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastKeyOf(state)]);
   /** The creatures seen to fall: one beaten is drawn down only once the blow that beat it has landed. */
   const [fallen, setFallen] = useState<ReadonlySet<string>>(() => new Set());
   /** 「勝利！」／「敗北……」 shown — a while after the fight was decided (RESULT_AFTER_MS). */
@@ -716,6 +734,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           ms: Math.round(p.bloom.ms * speed),
         };
         later(from, () => setBloom(bloom));
+        // His second line as the lilies open, out of the last cut's stillness: 「散れ」.
+        later(from + bloom.at, () => playVoice('battle.higanbana.release'));
         // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
         later(from + bloom.at + bloomGoneMs(bloom.ms, higanbanaBloom(bloom.spots).petals), () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
@@ -922,6 +942,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         });
         after(release, () => {
           hushed = false;
+          // Her second line, out of the stillness: 「……界核崩壊」.
+          playVoice('battle.soukyoku_rinkai.release');
           audioManager.duckBgmTo(1, 500);
           drags.forEach((a) => a.cancel());
         });
@@ -1955,7 +1977,15 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         state.outcome === 'VICTORY' ? (
           // Won: the result over the fight, as a fight of one's is (作者 2026-10-30 v2) — the field blurred
           // behind, her bust on the left where she fought, 「勝利！」 and つぎへ in the small panel.
-          <ResultOver face={wonFace} heroName={members.find((m) => m.id === 'hero')?.name ?? ''} testId="pb-result-over">
+          <ResultOver
+            face={wonFace}
+            heroName={members.find((m) => m.id === 'hero')?.name ?? ''}
+            testId="pb-result-over"
+            say={winVoices({
+              hero: state.members.some((m) => m.id === 'hero' && !m.down),
+              kaos: state.members.some((m) => m.id === 'kaos' && !m.down),
+            })}
+          >
             {resultBox}
           </ResultOver>
         ) : (

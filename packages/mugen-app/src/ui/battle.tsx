@@ -47,6 +47,7 @@ import { bossCutInFor } from './battle/cutin/bossCutIn';
 import { skillCutIn } from './battle/cutin/skillCutIn';
 import type { resultFaceFor } from './battle/resultFace';
 import { ResultOver } from './battle/ResultFace';
+import { winVoices } from './battle/battleVoices';
 import type { CutInSpec } from './battle/cutin/CutIn';
 import { skillBeatsSpell } from './battle/autoSkill';
 
@@ -440,7 +441,7 @@ export function ResultScreen({
   });
   // Over the fight that was fought (作者 2026-10-30 v2): App leaves it standing behind this.
   return (
-    <ResultOver face={face} heroName={heroName} testId="result-screen">
+    <ResultOver face={face} heroName={heroName} testId="result-screen" say={winVoices({ hero: true, kaos: !!face })}>
       <div className="paper result-paper">
         <div className="paper-sheet result-sheet">
           <h1 className="place">BATTLE RESULT</h1>

@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { playVoice } from '../../platform/audio';
 import { kaosFacePicture, type FaceBox } from '../../assets/kaosFaces';
 import type { resultFaceFor } from './resultFace';
 import './resultFace.css';
@@ -17,13 +18,23 @@ export function ResultOver({
   face,
   heroName,
   testId,
+  say = [],
   children,
 }: {
   face: Face | null;
   heroName: string;
   testId: string;
+  /** What is said as it is shown (battleVoices winVoices), once. */
+  say?: readonly string[];
   children: ReactNode;
 }) {
+  const said = useRef(false);
+  useEffect(() => {
+    if (said.current) return;
+    said.current = true;
+    // After whatever is still being said (a finisher's last line), never over it.
+    playVoice(say, { wait: true });
+  }, []);
   return (
     <div className={`result-over${face ? ' with-kaos' : ''}`} data-testid={testId}>
       <span className="ro-veil" aria-hidden="true" />

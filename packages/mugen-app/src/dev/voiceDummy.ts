@@ -7,5 +7,5 @@ import dummy from './voice-dummy.mp3';
 import { lendVoiceFiles, VOICE_LINES } from '../platform/voice';
 
 export function lendDummyVoice(): void {
-  lendVoiceFiles({ [VOICE_LINES['battle.soukyoku_rinkai'].file]: dummy });
+  lendVoiceFiles({ [VOICE_LINES['battle.soukyoku_rinkai'].files[0]]: dummy });
 }

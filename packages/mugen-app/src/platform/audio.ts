@@ -34,7 +34,7 @@ import { SFX_FILES } from '@mugen/assets/sfx';
 // The App's own pieces (the winnings, セキリュウガ, フウミミ), 2026-10-11.
 import { APP_BGM_ASSETS, APP_BGM_FALLBACK } from '@mugen/assets/appMusic';
 // Their voices: a line's id to its file (2026-10-30 タスクD).
-import { voiceUrl } from './voice';
+import { voicePlan, voiceSpeakerOf } from './voice';
 
 /** A piece's file: the App's own first, then the shared table, then the piece it borrows. */
 function bgmSrc(id: BgmId): string | null {
@@ -66,6 +66,10 @@ export interface SfxOptions {
  * inside a handler.
  */
 export const OPENING_FADE_MS = 500;
+/** Between two lines said one after the other (a page's three, his word then hers). */
+export const VOICE_GAP_MS = 180;
+/** Whose mouth a line is said by: the party's side, or the one they fight. */
+export type VoiceMouth = 'party' | 'foe';
 /** How often the fade steps. Smooth enough at this length. */
 const OPENING_FADE_STEP_MS = 40;
 
@@ -138,8 +142,16 @@ export class AudioManager {
    * the music's nor the sounds'. MASTER folded in, as the others.
    */
   private voiceVolume = 0.8;
-  /** The line being spoken, if one is: a new one takes its place (one voice at a time). */
-  private voice: HTMLAudioElement | null = null;
+  /**
+   * Who is speaking, one mouth each side (2026-10-30 第3便): the party's (主人公, ケイオス — one at a time between
+   * them) and the one they fight (ガルド). A foe's 「おらっ！」 and his 「くっ……」 are two people and are heard
+   * together; two lines of the same side never are. For each: the line being spoken, which run of lines it is
+   * (a new run, or a stop, ends the one before and what was to follow), and what is still to follow in it.
+   */
+  private voices: Record<VoiceMouth, { audio: HTMLAudioElement | null; chain: number; queue: string[] }> = {
+    party: { audio: null, chain: 0, queue: [] },
+    foe: { audio: null, chain: 0, queue: [] },
+  };
   /** When each sound last played, for the retrigger guard. */
   private sfxLastAt = new Map<SfxId, number>();
   /** Fetched and decoded on the first touch; see `primeSfx`. */
@@ -187,7 +199,7 @@ export class AudioManager {
     this.bgmVolume = bgmVolume;
     this.sfxVolume = clampVolume(this.masterVolume * sfxVolume);
     this.voiceVolume = clampVolume(this.masterVolume * voiceVolume);
-    if (this.voice) this.voice.volume = this.voiceVolume;
+    for (const m of Object.values(this.voices)) if (m.audio) m.audio.volume = this.voiceVolume;
     // Not while a crossfade owns it: its volume is being driven on
     // purpose, and the fade sets the final level when it lands.
     if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(bgmVolume);
@@ -822,45 +834,78 @@ export class AudioManager {
   }
 
   /**
-   * A LINE, SPOKEN — by its id (platform/voice.ts: `battle.soukyoku_rinkai`, `op.SCENE11.SMILE`,
-   * `daily.LINA_BURNT_BREAD.4`). One at a time: a new line stops the one before. An id with no
-   * file, a page not yet touched, the voice turned down, a browser that refuses — each is silence,
-   * and none is an error.
+   * A LINE, SPOKEN — by its id (platform/voice.ts: `battle.soukyoku_rinkai`, `op.op_01_intro_comic`,
+   * `battle.hero.start`), or several, one after the other (`['battle.hero.start', 'battle.kaos.start']`: his word,
+   * then hers). A page of three lines says them in turn; a line of two takes says the next. One voice at a time:
+   * a new line stops the one before (and what was still to follow it). An id with no file, a page not yet
+   * touched, the voice turned down, a browser that refuses — each is silence, and none is an error.
    */
-  playVoice(id: string | null | undefined): void {
-    const src = voiceUrl(id);
-    if (!src || !this.unlocked || this.voiceVolume <= 0) return;
-    this.stopVoice();
-    try {
-      const audio = new Audio(src);
-      audio.volume = this.voiceVolume;
-      audio.addEventListener('ended', () => {
-        if (this.voice === audio) this.voice = null;
-      });
-      this.voice = audio;
-      void audio.play().catch(() => {
-        if (this.voice === audio) this.voice = null;
-      });
-    } catch {
-      this.voice = null;
+  playVoice(
+    id: string | readonly (string | null | undefined)[] | null | undefined,
+    { wait = false, mouth = 'party' }: { wait?: boolean; mouth?: VoiceMouth } = {},
+  ): void {
+    const ids = Array.isArray(id) ? id : [id];
+    const urls = ids.flatMap((one) => voicePlan(one));
+    if (urls.length === 0 || !this.unlocked || this.voiceVolume <= 0) return;
+    const m = this.voices[mouth];
+    // A line of the party's own while the foe's mouth is saying one of theirs (the opening exchange — 「……行くか」
+    // after his taunt): theirs now, and the rest of the exchange let go — never one of them twice at once.
+    if (mouth === 'party') {
+      const other = this.voices.foe.audio;
+      const who = other && !other.paused ? voiceSpeakerOf(other.src) : null;
+      if (who === 'HERO' || who === 'KAOS') this.stopVoice('foe');
+    }
+    // `wait`: after what is being said (a won fight's words wait for the finisher's last line), not over it.
+    if (wait && m.audio && !m.audio.paused) {
+      m.queue.push(...urls);
+      return;
+    }
+    this.stopVoice(mouth);
+    const chain = ++m.chain;
+    const queue = [...urls];
+    m.queue = queue;
+    const say = (n: number) => {
+      if (chain !== m.chain || n >= queue.length) return;
+      try {
+        const audio = new Audio(queue[n]);
+        audio.volume = this.voiceVolume;
+        audio.addEventListener('ended', () => {
+          if (m.audio !== audio) return;
+          m.audio = null;
+          // The next of them, after a breath.
+          setTimeout(() => say(n + 1), VOICE_GAP_MS);
+        });
+        m.audio = audio;
+        void audio.play().catch(() => {
+          if (m.audio === audio) m.audio = null;
+        });
+      } catch {
+        m.audio = null;
+      }
+    };
+    say(0);
+  }
+
+  /** What one side is saying, cut off (its scene left, the next line come) — and any still to follow it. Both, unasked. */
+  stopVoice(mouth?: VoiceMouth): void {
+    for (const which of mouth ? [mouth] : (Object.keys(this.voices) as VoiceMouth[])) {
+      const m = this.voices[which];
+      m.chain++;
+      const audio = m.audio;
+      m.audio = null;
+      if (!audio) continue;
+      try {
+        audio.pause();
+      } catch {
+        /* ignore */
+      }
     }
   }
 
-  /** The line being spoken, cut off (its scene left, the next line come). */
-  stopVoice(): void {
-    const audio = this.voice;
-    this.voice = null;
-    if (!audio) return;
-    try {
-      audio.pause();
-    } catch {
-      /* ignore */
-    }
-  }
-
-  /** The line being spoken, if any — for a test and the debug panel. */
-  speaking(): string | null {
-    return this.voice && !this.voice.paused ? this.voice.currentSrc || this.voice.src : null;
+  /** The line being spoken on a side (the party's, unasked), if any — for a test and the debug panel. */
+  speaking(mouth: VoiceMouth = 'party'): string | null {
+    const audio = this.voices[mouth].audio;
+    return audio && !audio.paused ? audio.currentSrc || audio.src : null;
   }
 
   /**
@@ -920,7 +965,10 @@ export function playSfx(id: SfxId, options?: SfxOptions): void {
   audioManager.playSfx(id, options);
 }
 
-/** One line, by its id (platform/voice.ts) — silent when it has no file. */
-export function playVoice(id: string | null | undefined): void {
-  audioManager.playVoice(id);
+/** One line, by its id (platform/voice.ts), or several one after another — silent where there is no file. */
+export function playVoice(
+  id: string | readonly (string | null | undefined)[] | null | undefined,
+  options?: { wait?: boolean; mouth?: VoiceMouth },
+): void {
+  audioManager.playVoice(id, options);
 }
