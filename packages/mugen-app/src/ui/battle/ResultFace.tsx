@@ -1,51 +1,77 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { kaosFacePicture, type FaceBox } from '../../assets/kaosFaces';
-import { resultFaceFile, type resultFaceFor } from './resultFace';
+import type { resultFaceFor } from './resultFace';
 import './resultFace.css';
 
 type Face = NonNullable<ReturnType<typeof resultFaceFor>>;
 
 /**
- * Her face on a won fight's result (resultFace.ts): the delivered picture, whole, where there is one; until
- * then her own face standing in, its bust cut as her face beside a line is (ui/daily.tsx). Beside the
- * numbers, never over them. `size` 'small' on the three's 「勝利！」.
+ * A WON FIGHT'S RESULT, OVER THE FIGHT ITSELF (作者 2026-10-30 v2, result-screen-mock-v2).
+ *
+ * The scene that was fought stays behind, blurred and dimmed (a veil over it — the fight's own screen, not a
+ * picture of it); on the left her bust, large and unframed, turned to the player now that it is over (one of the
+ * village talk's faces, resultFace.ts); on the right the result's own small panel (`children`); and under the two
+ * of them, in one band, her line and his answer. Where she did not fight: the veil and the panel only.
  */
-export function ResultFace({ face, size = 'large' }: { face: Face; size?: 'large' | 'small' }) {
-  const file = resultFaceFile(face.file);
-  const [stand, setStand] = useState<{ src: string; box: FaceBox } | null>(null);
+export function ResultOver({
+  face,
+  heroName,
+  testId,
+  children,
+}: {
+  face: Face | null;
+  heroName: string;
+  testId: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`result-over${face ? ' with-kaos' : ''}`} data-testid={testId}>
+      <span className="ro-veil" aria-hidden="true" />
+      {face && <ResultBust face={face} />}
+      <div className="ro-panel">{children}</div>
+      {face && (
+        <p className="ro-line" data-testid="result-line">
+          <span className="ro-who">ケイオス</span>「{face.line.kaos}」
+          <span className="ro-who hero">{heroName}</span>「{face.line.hero}」
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Her bust: the face's picture, only the part above its sample box, no frame — fading out at its foot. */
+function ResultBust({ face }: { face: Face }) {
+  const [shown, setShown] = useState<{ src: string; box: FaceBox } | null>(null);
   useEffect(() => {
-    if (file) return;
     let gone = false;
-    void kaosFacePicture(face.stand).then((p) => !gone && setStand(p));
+    void kaosFacePicture(face.face).then((p) => !gone && setShown(p));
     return () => {
       gone = true;
     };
-  }, [file, face.stand]);
+  }, [face.face]);
+  const box = shown?.box;
   return (
     <div
-      className={`result-face ${size}`}
+      className="ro-bust"
       data-testid="result-face"
       data-party={face.party}
       data-how={face.how}
-      data-file={face.file}
-      data-drawn={file ? 'delivered' : stand ? `stand-${face.stand}` : 'none'}
+      data-face={face.face}
+      data-drawn={shown ? 'yes' : 'no'}
+      style={box ? { aspectRatio: `${box.width} / ${box.height}` } : undefined}
       aria-hidden="true"
     >
-      {file ? (
-        <img className="whole" src={file} alt="" />
-      ) : (
-        stand && (
-          <img
-            src={stand.src}
-            alt=""
-            style={{
-              width: `${(stand.box.fileW / stand.box.width) * 100}%`,
-              height: `${(stand.box.fileH / stand.box.height) * 100}%`,
-              left: `${(-stand.box.x / stand.box.width) * 100}%`,
-              top: `${(-stand.box.y / stand.box.height) * 100}%`,
-            }}
-          />
-        )
+      {shown && box && (
+        <img
+          src={shown.src}
+          alt=""
+          style={{
+            width: `${(box.fileW / box.width) * 100}%`,
+            height: `${(box.fileH / box.height) * 100}%`,
+            left: `${(-box.x / box.width) * 100}%`,
+            top: `${(-box.y / box.height) * 100}%`,
+          }}
+        />
       )}
     </div>
   );

@@ -53,7 +53,7 @@ import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
 import { resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
-import { ResultFace } from './ResultFace';
+import { ResultOver } from './ResultFace';
 import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
@@ -1104,6 +1104,23 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           }),
         )
       : null;
+  // 「勝利！」／「敗北……」 and つぎへ: the panel of the result.
+  const resultBox = (
+    <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
+      <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
+      <button
+        className="pb-list-btn primary"
+        data-testid="pb-result-next"
+        onClick={() => {
+          if (ended.current) return;
+          ended.current = true;
+          onEnd({ outcome: state.outcome as 'VICTORY' | 'DEFEAT', members: state.members });
+        }}
+      >
+        つぎへ
+      </button>
+    </div>
+  );
   /** What the beat needs to be played: what was used, how big the one struck is, where they stand. */
   function beatContext(beat: PartyBeat, measure: boolean): BeatContext {
     const doer = isEnemyId(beat.actor) ? undefined : memberById(state, beat.actor);
@@ -1935,21 +1952,15 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
 
       {/* BOTTOM RIGHT — the command cross; a list opens beside it. */}
       {state.outcome !== 'ONGOING' && resultShown ? (
-        <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
-          {wonFace && <ResultFace face={wonFace} size="small" />}
-          <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
-          <button
-            className="pb-list-btn primary"
-            data-testid="pb-result-next"
-            onClick={() => {
-              if (ended.current) return;
-              ended.current = true;
-              onEnd({ outcome: state.outcome as 'VICTORY' | 'DEFEAT', members: state.members });
-            }}
-          >
-            つぎへ
-          </button>
-        </div>
+        state.outcome === 'VICTORY' ? (
+          // Won: the result over the fight, as a fight of one's is (作者 2026-10-30 v2) — the field blurred
+          // behind, her bust on the left where she fought, 「勝利！」 and つぎへ in the small panel.
+          <ResultOver face={wonFace} heroName={members.find((m) => m.id === 'hero')?.name ?? ''} testId="pb-result-over">
+            {resultBox}
+          </ResultOver>
+        ) : (
+          resultBox
+        )
       ) : (
         <div className="pb-commands" data-testid="pb-commands" data-locked={playerInput ? 'no' : 'yes'}>
           <div className="pb-cross">

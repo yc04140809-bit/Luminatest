@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { RESULT_FACES, resultFaceFile, resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
+import { kaosFaceDrawn } from '../../assets/kaosFaces';
+import { RESULT_FACES, resultFaceFor, resultHowOf, resultPartyOf } from './resultFace';
 
-describe('ケイオス on a result (タスクG)', () => {
+describe('ケイオス on a result (タスクG, 作り替え v2)', () => {
   it('only where she fought: two, three, or nothing', () => {
     expect(resultPartyOf(['hero', 'kaos'])).toBe('DUO');
     expect(resultPartyOf(['grave', 'hero', 'kaos'])).toBe('TRIO');
@@ -16,19 +17,20 @@ describe('ケイオス on a result (タスクG)', () => {
     expect(resultHowOf({ byFinisher: false, boss: false })).toBe('NORMAL');
   });
 
-  it('every party and way has its own file, and a face of hers standing in until it is delivered', () => {
-    const files = Object.values(RESULT_FACES).flatMap((ways) => Object.values(ways).map((w) => w.file));
-    expect(new Set(files).size).toBe(6);
-    for (const [party, ways] of Object.entries(RESULT_FACES))
-      for (const [how, art] of Object.entries(ways)) {
-        expect(art.file).toBe(`kaos-result-${party.toLowerCase()}-${how.toLowerCase()}.png`);
-        expect(['SMILE', 'DOYA']).toContain(art.stand);
+  it('her faces are the village talk’s own (none drawn for this): smile, the soft smile, pleased with herself', () => {
+    for (const ways of Object.values(RESULT_FACES)) {
+      expect(ways.NORMAL.face).toBe('SMILE');
+      expect(ways.BOSS.face).toBe('NORMAL');
+      expect(ways.FINISHER.face).toBe('DOYA');
+      for (const way of Object.values(ways)) {
+        // Each one delivered as itself, not borrowed along its chain.
+        expect(kaosFaceDrawn(way.face)).toBe(way.face);
+        expect(way.line.kaos.length).toBeGreaterThan(0);
+        expect(way.line.hero.length).toBeGreaterThan(0);
+        // His name is the player's: never written into the line.
+        expect(way.line.hero + way.line.kaos).not.toMatch(/ノア/);
       }
-    expect(resultFaceFor('TRIO', 'BOSS')).toEqual({ file: 'kaos-result-trio-boss.png', stand: 'DOYA', party: 'TRIO', how: 'BOSS' });
-  });
-
-  it('a delivered picture is found by its name; none yet is none', () => {
-    expect(resultFaceFile('kaos-result-duo-normal.png', {})).toBeNull();
-    expect(resultFaceFile('kaos-result-duo-normal.png', { '/x/result/kaos-result-duo-normal.png': 'url' })).toBe('url');
+    }
+    expect(resultFaceFor('TRIO', 'BOSS')).toMatchObject({ face: 'NORMAL', party: 'TRIO', how: 'BOSS' });
   });
 });

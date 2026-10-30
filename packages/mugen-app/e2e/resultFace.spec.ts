@@ -27,37 +27,52 @@ async function blowsUntilWon(page: Page) {
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 20_000 });
 }
 
-/** Her face beside 「勝利！」: small, its own place, the words and the button clear of it. */
-async function faceBesideTheWin(page: Page, how: string) {
-  const face = page.getByTestId('pb-result').getByTestId('result-face');
-  await expect(face).toHaveAttribute('data-party', 'TRIO');
-  await expect(face).toHaveAttribute('data-how', how);
-  await expect(face).toHaveAttribute('data-file', `kaos-result-trio-${how.toLowerCase()}.png`);
-  await expect(face).toHaveAttribute('data-drawn', /^stand-/);
-  const box = (await face.boundingBox())!;
-  expect(box.width).toBeLessThanOrEqual(60);
-  for (const id of ['pb-result-next']) {
-    const other = (await page.getByTestId(id).boundingBox())!;
-    expect(box.x + box.width <= other.x || other.x + other.width <= box.x, id).toBe(true);
-  }
-  const word = (await page.getByTestId('pb-result').locator('b').boundingBox())!;
-  expect(box.x + box.width).toBeLessThanOrEqual(word.x + 1);
+/**
+ * The three's win, laid over the fight (作者 2026-10-30 v2): the field behind, blurred; her bust on the left,
+ * large and unframed, clear of the panel; 「勝利！」 and つぎへ in the small panel on the right; her line and his
+ * answer in one band under them.
+ */
+async function wonOverTheField(page: Page, how: string, face: string) {
+  const over = page.getByTestId('pb-result-over');
+  await expect(over).toBeVisible();
+  expect(await over.locator('.ro-veil').evaluate((el) => getComputedStyle(el).backdropFilter)).toContain('blur');
+  // The field is still there behind it — the fight itself, not a picture of it.
+  await expect(page.getByTestId('pb-screen')).toBeVisible();
+  const bust = over.getByTestId('result-face');
+  await expect(bust).toHaveAttribute('data-party', 'TRIO');
+  await expect(bust).toHaveAttribute('data-how', how);
+  await expect(bust).toHaveAttribute('data-face', face);
+  await expect(bust).toHaveAttribute('data-drawn', 'yes');
+  const view = page.viewportSize()!;
+  const b = (await bust.boundingBox())!;
+  const panel = (await over.getByTestId('pb-result').boundingBox())!;
+  const line = (await over.getByTestId('result-line').boundingBox())!;
+  // Large: most of the height, in the left half; the panel to the right of it, never over it.
+  expect(b.height).toBeGreaterThan(view.height * 0.7);
+  expect(b.x + b.width).toBeLessThanOrEqual(view.width / 2 + 1);
+  expect(b.x + b.width).toBeLessThanOrEqual(panel.x);
+  // The panel small (half the old plate or less); the band under the bust and the panel, one line.
+  expect(panel.width).toBeLessThanOrEqual(260);
+  expect(line.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+  expect(line.y).toBeGreaterThanOrEqual(panel.y + panel.height);
+  expect(line.height).toBeLessThanOrEqual(40);
+  await expect(over.getByTestId('result-line')).toContainText('ケイオス');
+  await expect(over.getByTestId('result-line')).toContainText('主人公');
+  await expect(over.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY');
 }
 
 test('the three, an ordinary win: her ordinary face (smiling) beside 「勝利！」', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/?preview=party&enemies=2&weak=1');
   await blowsUntilWon(page);
-  await faceBesideTheWin(page, 'NORMAL');
-  await expect(page.getByTestId('result-face')).toHaveAttribute('data-drawn', 'stand-SMILE');
+  await wonOverTheField(page, 'NORMAL', 'SMILE');
 });
 
 test('the three, a boss beaten (セキリュウガ): the boss face', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/?preview=party&enemy=sekiryuga&weak=1');
   await blowsUntilWon(page);
-  await faceBesideTheWin(page, 'BOSS');
-  await expect(page.getByTestId('result-face')).toHaveAttribute('data-drawn', 'stand-DOYA');
+  await wonOverTheField(page, 'BOSS', 'NORMAL');
 });
 
 test('the three, the last blow her 《双極臨界》: the finisher face', async ({ page }) => {
@@ -73,7 +88,7 @@ test('the three, the last blow her 《双極臨界》: the finisher face', async
   const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
   if (await pick.isVisible().catch(() => false)) await pick.click();
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 30_000 });
-  await faceBesideTheWin(page, 'FINISHER');
+  await wonOverTheField(page, 'FINISHER', 'DOYA');
 });
 
 test('a fight of one in the forest: nothing of her before she wakes; after, her face beside the numbers (ケイオス×主人公)', async ({ page }) => {
@@ -93,6 +108,7 @@ test('a fight of one in the forest: nothing of her before she wakes; after, her 
   await page.getByTestId('encounter-button').click();
   await fightUntil(page, () => page.getByTestId('result-exp').isVisible().catch(() => false));
   await expect(page.getByTestId('result-face')).toHaveCount(0);
+  await expect(page.getByTestId('result-line')).toHaveCount(0);
   await page.getByTestId('result-done').click();
   // Gald, and the four answers: she wakes in that fight.
   await page.getByTestId('gald-button').click();
@@ -120,11 +136,15 @@ test('a fight of one in the forest: nothing of her before she wakes; after, her 
   const face = page.getByTestId('result-face');
   await expect(face).toHaveAttribute('data-party', 'DUO');
   await expect(face).toHaveAttribute('data-how', 'NORMAL');
-  await expect(face).toHaveAttribute('data-drawn', 'stand-SMILE');
-  // Beside the numbers, not over them.
+  await expect(face).toHaveAttribute('data-face', 'SMILE');
+  await expect(face).toHaveAttribute('data-drawn', 'yes');
+  // Over the fight itself (作者 2026-10-30 v2): it stays behind, blurred; her bust left, the small panel right.
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
   const at = (await face.boundingBox())!;
   const sheet = (await page.locator('.result-sheet').boundingBox())!;
   expect(at.x + at.width).toBeLessThanOrEqual(sheet.x + 1);
+  expect(sheet.width).toBeLessThanOrEqual(320);
+  await expect(page.getByTestId('result-line')).toContainText('主人公');
   await page.getByTestId('result-done').click();
 });
 
@@ -143,5 +163,5 @@ test('the three, the last blow his 《彼岸花》 (at every creature standing):
   const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
   if (await pick.isVisible().catch(() => false)) await pick.click();
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 30_000 });
-  await faceBesideTheWin(page, 'FINISHER');
+  await wonOverTheField(page, 'FINISHER', 'DOYA');
 });

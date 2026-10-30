@@ -1371,6 +1371,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       }
       return <GaldEncounterScreen onBattle={() => flow.goTo('BATTLE')} />;
     case 'BATTLE':
+    // THE RESULT OVER THE FIGHT (作者 2026-10-30 v2): a forest fight won stays standing — the same screen, not
+    // drawn again — and its result is laid over it, the fight blurred behind (ui/battle ResultScreen).
+    case 'BATTLE_RESULT':
       if (battleKind.current === 'FUUMIMI') {
         // Beaten: why it fought, and the four answers — then back into the forest.
         if (creatureMet) {
@@ -1463,6 +1466,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       const gald = battleKind.current === 'GALD';
       const creature = ENEMY_SPECIES[wildSpecies.current];
       return (
+        <>
         <BattleScreen
           // One screen, Gald's fight and the forest's, and the numbers are
           // the only difference between them. Every spec is content.
@@ -1507,6 +1511,28 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             void world.restoreParty().finally(() => flow.goTo('HOME'));
           }}
         />
+        {state.screen === 'BATTLE_RESULT' && (
+          <>
+            <WhenShown
+              run={() => {
+                resultCelebrate.current?.();
+                resultCelebrate.current = null;
+              }}
+            />
+            <ResultScreen
+              reward={winnings ?? NOTHING_APPLIED}
+              // Her bust and line, if she fought beside him (her magic woken): the forest's ordinary fights, an ordinary win.
+              face={resultFaceFor(kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) ? 'DUO' : 'NO_KAOS', 'NORMAL')}
+              heroName={world.getHeroName()}
+              onDone={() => {
+                if (flow.getState().screen !== 'BATTLE_RESULT') return;
+                setWinnings(null);
+                flow.goTo('GREENWOOD');
+              }}
+            />
+          </>
+        )}
+        </>
       );
     case 'LIFE_CHOICE':
       return (
@@ -1570,27 +1596,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               .markExperienceSeen(GALD_FUTURE_VISION_ID)
               .catch((e) => console.error('Could not remember the vision', e))
               .finally(() => flow.goTo('HOME'));
-          }}
-        />
-        </>
-      );
-    case 'BATTLE_RESULT':
-      return (
-        <>
-        <WhenShown
-          run={() => {
-            resultCelebrate.current?.();
-            resultCelebrate.current = null;
-          }}
-        />
-        <ResultScreen
-          reward={winnings ?? NOTHING_APPLIED}
-          // Her face, if she fought beside him (her magic woken): the forest's ordinary fights, an ordinary win.
-          face={resultFaceFor(kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) ? 'DUO' : 'NO_KAOS', 'NORMAL')}
-          onDone={() => {
-            if (flow.getState().screen !== 'BATTLE_RESULT') return;
-            setWinnings(null);
-            flow.goTo('GREENWOOD');
           }}
         />
         </>

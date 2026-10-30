@@ -46,7 +46,7 @@ import { playSfx } from '../platform/audio';
 import { bossCutInFor } from './battle/cutin/bossCutIn';
 import { skillCutIn } from './battle/cutin/skillCutIn';
 import type { resultFaceFor } from './battle/resultFace';
-import { ResultFace } from './battle/ResultFace';
+import { ResultOver } from './battle/ResultFace';
 import type { CutInSpec } from './battle/cutin/CutIn';
 import { skillBeatsSpell } from './battle/autoSkill';
 
@@ -423,11 +423,14 @@ export function BattleScreen({
 export function ResultScreen({
   reward,
   face = null,
+  heroName,
   onDone,
 }: {
   reward: AppliedReward;
-  /** Her face beside the numbers (タスクG, battle/resultFace.ts) — null where she was not in the fight. */
+  /** Her bust and line (タスクG, battle/resultFace.ts) — null where she was not in the fight. */
   face?: ReturnType<typeof resultFaceFor>;
+  /** His name, for his answer under her line. */
+  heroName: string;
   onDone: () => void;
 }) {
   // By their names only: a thing with none is not written as its id (タスクB 2026-10-30).
@@ -435,29 +438,36 @@ export function ResultScreen({
     const name = itemDef(i.itemId)?.name;
     return name ? [`${name} ×${i.quantity}`] : [];
   });
+  // Over the fight that was fought (作者 2026-10-30 v2): App leaves it standing behind this.
   return (
-    <div className="screen result paper">
-      {face && <ResultFace face={face} />}
-      <div className="paper-sheet result-sheet">
-        <h1 className="place">BATTLE RESULT</h1>
-        <p className="row" data-testid="result-exp">
-          EXP +{reward.exp}
-        </p>
-        <p className="row" data-testid="result-lumi">
-          LUMI +{reward.lumi}
-        </p>
-        <p className="row" data-testid="result-items">
-          {items.length === 0 ? 'ITEM なし' : items.join(' / ')}
-        </p>
-        {reward.levels.length > 0 && (
-          <p className="row level" data-testid="result-levels">
-            {reward.levels.map((l) => `${l.label} Lv.${l.from} → Lv.${l.to}`).join(' / ')}
+    <ResultOver face={face} heroName={heroName} testId="result-screen">
+      <div className="paper result-paper">
+        <div className="paper-sheet result-sheet">
+          <h1 className="place">BATTLE RESULT</h1>
+          <p className="row" data-testid="result-exp">
+            EXP +{reward.exp}
           </p>
-        )}
-        <button className="btn primary" data-testid="result-done" onClick={onDone}>
-          もどる
-        </button>
+          <p className="row" data-testid="result-lumi">
+            LUMI +{reward.lumi}
+          </p>
+          <p className="row" data-testid="result-items">
+            {items.length === 0 ? 'ITEM なし' : items.join(' / ')}
+          </p>
+          {reward.levels.length > 0 && (
+            <p className="row level" data-testid="result-levels">
+              {reward.levels.map((l, i) => (
+                <span key={l.label} className="result-level">
+                  {i > 0 && <span className="result-level-sep"> / </span>}
+                  {`${l.label} Lv.${l.from} → Lv.${l.to}`}
+                </span>
+              ))}
+            </p>
+          )}
+          <button className="btn primary" data-testid="result-done" onClick={onDone}>
+            もどる
+          </button>
+        </div>
       </div>
-    </div>
+    </ResultOver>
   );
 }
