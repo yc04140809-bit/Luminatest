@@ -5,6 +5,8 @@
 // its place where it cannot (less motion, a WebView that will not play it). Converted from the
 // author's MP4s (720×960, 24fps) to WebM (VP9) without other change: the same frames, half the size,
 // and a video every Chromium plays (the test browser has no H.264).
+// ケイオス's since 2026-10-30 (F-1): the author's corrected bust (her hairpin moved to her own right; eyes,
+// wings and all else as drawn), 990×1140 3 seconds, made 720×830 the same way — so her `face` was measured again.
 //
 // `face` is where the face is in the frame (a share of its width and height), measured on the frames:
 // the window sets that point at its middle — the middle of the screen (作者: グレイヴの顔が右端に寄って
@@ -32,4 +34,4 @@ export const HERO_FIGURE: CutInFigure = { art: heroStill, motion: { video: heroV
 /** グレイヴ: the greatsword's hilt at his side, looking left. */
 export const GRAVE_FIGURE: CutInFigure = { art: graveStill, motion: { video: graveVideo, face: { x: 0.49, y: 0.52 } } };
 /** ケイオス: her hand out, her white wing behind — gold right eye, blue left, as drawn. */
-export const KAOS_FIGURE: CutInFigure = { art: kaosStill, motion: { video: kaosVideo, face: { x: 0.59, y: 0.38 } } };
+export const KAOS_FIGURE: CutInFigure = { art: kaosStill, motion: { video: kaosVideo, face: { x: 0.42, y: 0.31 } } };
