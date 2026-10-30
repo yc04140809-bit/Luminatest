@@ -129,7 +129,9 @@ export interface BeatFx {
     drained: number;
     video: number;
     rate: number;
-    strikes: readonly number[];
+    /** The stillness before the release (everything stops — v2 §19–21). */
+    still: number;
+    /** 界核崩壊: the release — the white flash, the hold, the jolt, and every number, COMBO and its HP at once. */
     burst: number;
     after: number;
   };
@@ -204,27 +206,27 @@ export const HIGANBANA_CUTS = [
 export const HIGANBANA_JOLT = { first: 0.4, last: 1.4 } as const;
 
 /**
- * ケイオス 《双極臨界 → 界核崩壊》 in time (ms, at ×1 — 作者 2026-10-26 正式実装指示書, 魔法陣ブラッシュアップ, then
- * 動画＋PNG統合: 動画は主役、PNGは補助). Her wings open; the white circle opens beside her (`white` after the beat,
- * `enter` to open), alone for `alone`; the black-purple one opens on her other side; both there, turning their
- * own ways — the hush (`hush`: the field darker, the music drawn back, her eyes lit); then their light runs out of
- * them into the bipolar seal forming over the creatures (`drain`), and as they are spent the seal falls into the
- * suction film (`overlap` before they are gone) — the film is the move from there (COLLAPSE_VIDEO); its afterglow
- * `after` once it has released. On screen never under the floors (×2).
+ * ケイオス 《双極臨界 → 界核崩壊》 in time (ms, at ×1 — 作者 2026-10-26 正式実装指示書, 魔法陣ブラッシュアップ,
+ * 動画＋PNG統合, then グレードアップ v2: 吸った → 圧縮した → 止まった → 壊れた → その瞬間にダメージ). Her wings open; the
+ * white circle opens beside her (`white` after the beat, `enter` to open), alone for `alone`; the black-purple one
+ * opens on her other side; both there, turning their own ways — the hush (`hush`: the field darker, the music drawn
+ * back, her eyes lit); then both are pulled out of shape into the bipolar seal over the creatures (`drain`), and as
+ * they are spent the seal falls into the suction film (`overlap` before they are gone) — the film is the move from
+ * there (COLLAPSE_VIDEO), crushed to a point; then everything stops (`still`: the film, the pull, the music, the
+ * camera) — and 界核崩壊, where every number lands at once; its afterglow `after`. On screen never under the floors (×2).
  */
-export const COLLAPSE_FX = { white: 60, enter: 320, alone: 480, hush: 360, drain: 420, overlap: 220, after: 600 } as const;
-export const COLLAPSE_FLOOR_MS = { enter: 230, alone: 280, hush: 260, drain: 280, after: 300 } as const;
+export const COLLAPSE_FX = { white: 60, enter: 320, alone: 520, hush: 360, drain: 420, overlap: 220, still: 150, after: 600 } as const;
+export const COLLAPSE_FLOOR_MS = { enter: 230, alone: 280, hush: 300, drain: 320, still: 90, after: 300 } as const;
 /**
  * THE SUCTION FILM (kaos-collapse-video.webm — the author's 「双極臨界フル通し」 cut and keyed: its first 0.7s, the
  * long stillness and its one all-white frame taken out; the game's own flash stands where that frame was): `pull`
- * ms of it to the release (the suction inward, the crush to a point, a short stillness), then `release` ms (the
- * burst, the cracks, the smoke thinning). The strikes land in the crush (`strikes`, its own ms); the fourth is the
- * release. It plays at `rate` at ×1 (作者 §28: 0.85 / 1.0 / 1.1 — 1.1 keeps the whole from dragging and the
- * suction and stillness still read) and at `rateFast` at ×2 (not 2: the pull would not read).
+ * ms of it to the point (the suction inward, the crush to a point), where it is held through the stillness; then
+ * `release` ms (the burst, the cracks, the smoke thinning). It plays at `rate` at ×1 (1.1 keeps the whole from
+ * dragging and the suction still reads) and at `rateFast` at ×2 (not 2: the pull would not read).
  */
-export const COLLAPSE_VIDEO = { pull: 2400, release: 1070, strikes: [1500, 1760, 2020], rate: 1.1, rateFast: 1.7 } as const;
-/** How hard the camera jolts at its strikes: the first three light, the fourth the hardest of any move. */
-export const COLLAPSE_JOLT = { first: 0.35, last: 1.7 } as const;
+export const COLLAPSE_VIDEO = { pull: 2400, release: 1070, rate: 1.1, rateFast: 1.7 } as const;
+/** How hard the camera jolts at the release (a share of its TRACK punch — v2 §31: KICK MEDIUM〜STRONG, never sickening). */
+export const COLLAPSE_JOLT = { first: 0.35, last: 1.5 } as const;
 /** How much longer the next turn waits when it lowered their magic defense: 「MAGIC DOWN」 read first (on screen, ×2 too). */
 export const COLLAPSE_SAY_MS = 900;
 
@@ -287,10 +289,11 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   // A move of several cuts: there before the first, held through every one of them.
   const several = !!(plan.split || plan.amounts);
   const first = several ? plan.stages?.[0]?.at : undefined;
-  const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
+  // 《双極臨界》's numbers all land at its release (v2 §5): the camera there at the film, its one jolt at the release.
+  const blows = first === undefined ? (plan.trackAt !== undefined ? [plan.impact] : undefined) : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
   // 《彼岸花》, a finisher: the camera follows it hardest — its first two cuts a light jolt each, the third the
   // heavy one (作者 2026-10-26 最終ブラッシュアップ §4–6: シュッ、シュッ、ズバン).
-  // ケイオス's 《双極臨界》 the same, its fourth harder still (COLLAPSE_JOLT) — the camera on her and her circles until the core flies at them.
+  // ケイオス's 《双極臨界》: the camera on her and her circles until the film takes over, its jolt at the release (COLLAPSE_JOLT).
   const how: CameraStrength = plan.amounts ? 'large' : strength;
   const jolt = plan.jolt ?? HIGANBANA_JOLT;
   const weights = plan.amounts && blows ? blows.map((_, i) => (i === blows.length - 1 ? jolt.last : jolt.first)) : undefined;
@@ -603,12 +606,11 @@ function higanbanaFx(
 }
 
 /**
- * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書 §演出): after her cut-in, her wings open — she
- * stays where she is; the gold circle and the purple come together over the creatures into the
- * light-and-dark core; it swells, is pressed small, holds; three strikes (a light hold each, a reel); the
- * fourth, 界核崩壊 — the core bursts, a white flash, the space cracked, crystal shards, the hardest jolt,
- * the longest hold, a heavy sound, a big number; its afterglow; then (if it broke them) BREAK. At all of
- * them: each strike on every one standing; a number at each (`amounts` — the others' from the spread).
+ * ケイオス 《双極臨界 → 界核崩壊》 (作者 2026-10-26 正式実装指示書 §演出, グレードアップ v2): after her cut-in, her wings
+ * open — she stays where she is; her two circles, then both pulled into the seal over the creatures, which falls into
+ * the suction film; crushed to a point; everything still; then 界核崩壊 — and only there does anything land (v2 §4–6,
+ * §33): the white flash, the hold, the jolt, every strike's number on every one struck (`amounts`, the others' from
+ * the spread), COMBO and their HP, all at once; its afterglow; then 魔防DOWN and (if it broke them) BREAK.
  */
 function collapseFx(
   beat: PartyBeat,
@@ -634,18 +636,13 @@ function collapseFx(
   const film = (ms: number) => Math.round(ms / (rate * speed));
   const all = beat.hits ?? [beat.amount];
   const struck = beat.spread ?? [{ target: beat.target, hits: all }];
-  // The strikes that landed (one that brought them all down ends it): in the crush, the fourth at the release.
-  const n = Math.max(...struck.map((x) => x.hits.length));
-  const burst = video + film(v.pull);
-  const strikes = Array.from({ length: n }, (_, i) => (i < 3 ? video + film(v.strikes[i]) : burst));
-  const impact = strikes[n - 1];
-  // Only the fourth is the collapse: brought down before it, the last strike is one more in the crush.
-  const collapsed = n >= 4;
+  // Crushed to a point, then still; the release after it — every strike, however many landed, shown there.
+  const still = atLeast(c.still, f.still);
+  const burst = video + film(v.pull) + still;
   const after = atLeast(c.after, f.after);
-  // The release's hold — the film held with it (the world still a moment); the crush's strikes hold nothing (the
-  // film runs on through them, and what follows stays on its beat).
-  const hitStop = collapsed ? HIT_STOPS.higanbana : 0;
-  // 魔防DOWN said on those it left standing as the afterglow fades — read before anyone moves.
+  // The release's hold — the film held with it (the world stopped a moment more, the numbers landing in it).
+  const hitStop = HIT_STOPS.higanbana;
+  // 魔防DOWN said on those it left standing in the afterglow — read before anyone moves.
   const lowered = !!beat.magicDown || !!beat.spread?.some((x) => x.magicDown);
   // Its BREAK once the afterglow has faded, never over the collapse.
   const breakAt = beat.broke ? burst + after : undefined;
@@ -654,16 +651,15 @@ function collapseFx(
     camera: [{ kind: 'KICK', dir: 'left', strength: 'small' }],
     // Her wings, behind her as she begins (she stays where she is).
     special: [{ type: 'kaos_twin_wings', on: beat.actor, at: 0 }],
-    stages: strikes.slice(0, -1).map((at) => ({ at, hitStop: 0, reel: reel(3) })),
-    impact,
+    impact: burst,
     flash: { kind: 'magic', on: beat.target, colour: 'star' },
     hitStop,
-    sfx: collapsed ? ['battle_finisher_hit', 'battle_boss_hit'] : ['battle_magic_dark'],
-    shake: beat.broke ? undefined : collapsed ? 'large' : 'small',
-    reel: reel(collapsed ? 9 : 5),
-    number: numberTier(beat, ctx, collapsed),
+    sfx: ['battle_finisher_hit', 'battle_boss_hit'],
+    shake: beat.broke ? undefined : 'large',
+    reel: reel(9),
+    number: numberTier(beat, ctx, true),
     amounts: all,
-    collapse: { white, purple, enter, both, core, drained, video, rate, strikes, burst: collapsed ? burst : -1, after },
+    collapse: { white, purple, enter, both, core, drained, video, rate, still, burst, after },
     // The camera stays on her and her circles (the picture of it) until the film takes over — then onto them.
     trackAt: video,
     jolt: COLLAPSE_JOLT,

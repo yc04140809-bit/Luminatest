@@ -21,12 +21,12 @@
  *   kaosFilm        ケイオス: the suction film (WebM, keyed — no black left): the pull, the crush, the stillness, the
  *                   release (作者 2026-10-26「双極臨界フル通し」, cut: its first 0.7s, the long stillness and its
  *                   all-white frame out)
- *   kaosGoldSwirl   ケイオス: gold drawn in with the film (white, black-purple and a little gold — never purple alone)
  *   kaosVoid        ケイオス: purple-black smoke taking the screen's edges while the film plays
  *   kaosResidue     ケイオス: purple-black residue left after the release
- *   kaosPullRing    ケイオス: a ring of warped space closing in on the point while the film pulls
  * (The other pictures the author sent for it — the holy and the purple-black explosions, the purple-gold vortex,
- * the gold black hole — are not used: the film carries the pull and the release itself.)
+ * the gold black hole — are not used: the film carries the pull and the release itself. The warped-space ring and the
+ * gold swirl were taken out in グレードアップ v2: a picture turning read as 「銀河画像の回転」, not a pull — motes,
+ * light and crystal shards drawn into the point do that now, partyBattle.css .pb-cl-dust / .pb-cl-crystal.)
  */
 import graveImpact from '@mugen/assets/files/effects/grave-heavy-impact.webp';
 import heroCrescent from '@mugen/assets/files/effects/hero-redmoon-crescent.webp';
@@ -38,10 +38,8 @@ import kaosGold from '@mugen/assets/files/effects/kaos-circle-gold.webp';
 import kaosViolet from '@mugen/assets/files/effects/kaos-circle-purple.webp';
 import kaosSeal from '@mugen/assets/files/effects/kaos-seal.webp';
 import kaosFilm from '@mugen/assets/files/effects/kaos-collapse-video.webm';
-import kaosGoldSwirl from '@mugen/assets/files/effects/kaos-gold-swirl.webp';
 import kaosVoid from '@mugen/assets/files/effects/kaos-void-frame.webp';
 import kaosResidue from '@mugen/assets/files/effects/kaos-residue.webp';
-import kaosPullRing from '@mugen/assets/files/effects/kaos-pull-ring.webp';
 
 export const SPECIAL_FX_ART = {
   graveImpact,
@@ -54,10 +52,8 @@ export const SPECIAL_FX_ART = {
   kaosViolet,
   kaosSeal,
   kaosFilm,
-  kaosGoldSwirl,
   kaosVoid,
   kaosResidue,
-  kaosPullRing,
 } as const;
 
 export type SpecialFxArtKey = keyof typeof SPECIAL_FX_ART;

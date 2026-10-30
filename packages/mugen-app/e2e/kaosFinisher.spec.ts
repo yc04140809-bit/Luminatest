@@ -46,8 +46,47 @@ async function record(page: Page) {
         c.flashAt = now;
         c.filmAtFlash = film ? film.currentTime : -1;
       }
-      // Held with the blow (paused short of its end — it is 3.47s long).
+      // Held with the blow (paused short of its end — it is 3.47s long); and before it, held at the point (the stillness).
       if (film && c.filmOn !== undefined && film.paused && film.currentTime > 2 && film.currentTime < 3.2) c.filmHeld = true;
+      if (film && c.filmOn !== undefined && c.flashAt === undefined && film.paused && film.currentTime > 2 && c.stillAt === undefined) {
+        c.stillAt = now;
+        c.stillFilm = film.currentTime;
+      }
+      // Results (v2 §4–6, §33): HP, the numbers, COMBO and the line — none before the release.
+      const hp = [...document.querySelectorAll('.pb-foe[data-hp]')].map((e) => e.getAttribute('data-hp')).join(',');
+      if (c.on !== undefined) {
+        c.hp0 ??= hp;
+        if (hp !== c.hp0) c.hpAt ??= now;
+      }
+      if (document.querySelector('[data-testid="pb-float"], [data-testid="pb-float-cut"]')) c.numberAt ??= now;
+      if ((document.querySelector('[data-testid="pb-combo"]')?.textContent ?? '').includes('12')) c.comboAt ??= now;
+      const log = document.querySelector('[data-testid="pb-log"]')?.textContent ?? '';
+      if (c.on !== undefined && log.includes('《双極臨界》') && !log.includes('ダメージ')) c.logUsed ??= now;
+      if (log.includes('ダメージ')) c.logDamageAt ??= now;
+      if (log.includes('魔法防御')) c.logMdownAt ??= now;
+      if (document.querySelector('[data-testid="pb-focus-lines"]')) c.focusLines = true;
+      // What is pulled in: a mote's way to the point, and each circle dragged toward the creatures.
+      const box = (sel: string) => document.querySelector(sel)?.getBoundingClientRect();
+      const core = box('[data-testid="pb-collapse-core"]');
+      const mote = document.querySelectorAll<HTMLElement>('[data-testid="pb-collapse-dust"]')[5];
+      if (core && mote && Number(getComputedStyle(mote).opacity) > 0.3) {
+        const m = mote.getBoundingClientRect();
+        const d = Math.hypot(m.x + m.width / 2 - (core.x + core.width / 2), m.y + m.height / 2 - (core.y + core.height / 2));
+        c.moteFar = Math.max((c.moteFar as number) ?? 0, d);
+        c.moteNear = Math.min((c.moteNear as number) ?? 9999, d);
+      }
+      for (const k of ['white', 'violet']) {
+        const r = box(`[data-testid="pb-collapse-ringbox-${k}"]`);
+        const img = document.querySelector(`[data-testid="pb-collapse-ring-${k}"]`);
+        if (!r || !img || Number(getComputedStyle(img).opacity) < 0.3) continue;
+        const x = r.x + r.width / 2;
+        c[`ring0-${k}`] ??= x;
+        c[`ringMoved-${k}`] = Math.max((c[`ringMoved-${k}`] as number) ?? 0, Math.abs(x - (c[`ring0-${k}`] as number)));
+      }
+      if (core && c.flashAt === undefined && Number(getComputedStyle(document.querySelector('[data-testid="pb-collapse-core"]')!).opacity) > 0.5) {
+        c.coreBig = Math.max((c.coreBig as number) ?? 0, core.width);
+        c.coreLast = core.width;
+      }
       if (document.querySelector('[data-testid="pb-float-mdown"]')) c.said ??= now;
       const badge = document.querySelector('[data-testid="pb-mdown-badge"]');
       if (badge) {
@@ -67,6 +106,20 @@ async function record(page: Page) {
       if (wo > 0.6 && vo > 0.6) {
         c.bothFrom ??= now;
         c.bothTo = now;
+        // Her circles over no one else in the party (v2 §14): each drawn ring clear of every other figure's body.
+        if (c.ringsClear === undefined) {
+          const bodies = [...document.querySelectorAll<HTMLElement>('[data-testid^="pb-figure-"] > img')]
+            .filter((el) => !el.closest('[data-testid="pb-figure-kaos"]'))
+            .map((el) => el.getBoundingClientRect())
+            .map((r) => ({ l: r.left + r.width * 0.25, r: r.right - r.width * 0.25, t: r.top + r.height * 0.1, b: r.bottom }));
+          c.ringsClear = ['white', 'violet'].every((k) => {
+            const r = document.querySelector(`[data-testid="pb-collapse-ringbox-${k}"]`)!.getBoundingClientRect();
+            const x = r.x + r.width / 2;
+            const y = r.y + r.height / 2;
+            const rad = (r.height / 2) * 0.8;
+            return bodies.every((o) => Math.hypot(x - Math.max(o.l, Math.min(x, o.r)), y - Math.max(o.t, Math.min(y, o.b))) >= rad);
+          });
+        }
       }
       if (so > 0.3 && c.sealOn === undefined) {
         c.sealOn = now;
@@ -78,7 +131,7 @@ async function record(page: Page) {
         c.eyesLit ??= now;
         c.goldLeftOfBlue ??= eyes[0].classList.contains('gold') && eyes[0].getBoundingClientRect().x < eyes[1].getBoundingClientRect().x;
       }
-      c.beams = Math.max((c.beams as number) ?? 0, document.querySelectorAll('[data-testid="pb-collapse-beam"]').length);
+      c.beams = Math.max((c.beams as number) ?? 0, document.querySelectorAll('.pb-cl-beam').length);
       c.motes = Math.max((c.motes as number) ?? 0, document.querySelectorAll('[data-testid="pb-collapse-mote"]').length);
       if (document.querySelector('[data-testid="pb-result"]')) c.result ??= now;
       if (document.querySelector('.pb-foe.down')) c.fell ??= now;
@@ -139,7 +192,7 @@ test.describe('with motion', () => {
   test.use({ reducedMotion: 'no-preference' });
 
   for (const fast of [false, true]) {
-    test(`at ${fast ? '×2' : '×1'}: her cut-in (gold and purple), the circles into the core, four strikes at all three (COMBO 12), 界核崩壊 — then 魔防DOWN; she never moves`, async ({ page }) => {
+    test(`at ${fast ? '×2' : '×1'}: her cut-in, her circles beside her and into the seal, the pull, the stillness, 界核崩壊 — and only then four strikes at all three (COMBO 12), then 魔防DOWN; she never moves`, async ({ page }) => {
       test.setTimeout(90_000);
       await page.goto('/?preview=party&collapse=1&enemies=3');
       if (fast) await page.getByTestId('pb-speed').click();
@@ -148,13 +201,19 @@ test.describe('with motion', () => {
       await collapse(page);
       await expect(page.getByTestId('pb-collapse')).toBeVisible({ timeout: 8_000 });
       // The pictures: the white-gold circle, the black-purple, the core.
-      for (const id of ['pb-collapse-ring-white', 'pb-collapse-ring-violet', 'pb-collapse-seal', 'pb-collapse-film', 'pb-collapse-gold', 'pb-collapse-void']) await expect(page.getByTestId(id)).toHaveCount(1);
+      for (const id of ['pb-collapse-ring-white', 'pb-collapse-ring-violet', 'pb-collapse-seal', 'pb-collapse-film', 'pb-collapse-void', 'pb-collapse-core', 'pb-collapse-blaze', 'pb-collapse-cracks'])
+        await expect(page.getByTestId(id)).toHaveCount(1);
       await expect(page.getByTestId('pb-collapse-ring-white')).toHaveAttribute('src', /kaos-circle-gold/);
       await expect(page.getByTestId('pb-collapse-ring-violet')).toHaveAttribute('src', /kaos-circle-purple/);
       await expect(page.getByTestId('pb-collapse-seal')).toHaveAttribute('src', /kaos-seal/);
       await expect(page.getByTestId('pb-collapse-film')).toHaveAttribute('src', /kaos-collapse-video.*\.webm/);
       await expect(page.getByTestId('pb-collapse-residue')).toHaveAttribute('src', /kaos-residue/);
-      await expect(page.getByTestId('pb-collapse-pull')).toHaveCount(2);
+      // What is really pulled in (v2 §9–10): motes, thin light and crystal shards; warped space closing, twice — no picture turning.
+      await expect(page.getByTestId('pb-collapse-dust')).toHaveCount(32);
+      await expect(page.getByTestId('pb-collapse-streak')).toHaveCount(8);
+      await expect(page.getByTestId('pb-collapse-crystal')).toHaveCount(10);
+      await expect(page.getByTestId('pb-collapse-warp')).toHaveCount(2);
+      await expect(page.locator('[data-testid="pb-collapse-pull"], [data-testid="pb-collapse-gold"]')).toHaveCount(0);
       // The film keyed: a WebM with its own alpha, on the field (moving with the camera), never a black square.
       expect(await page.getByTestId('pb-collapse-film').evaluate((v) => (v as HTMLVideoElement).muted && !!v.closest('[data-shake-layer="field"]'))).toBe(true);
       // The white turns clockwise, the black-purple the other way.
@@ -200,11 +259,30 @@ test.describe('with motion', () => {
       expect(c.filmAtFlash as number).toBeLessThan(2.6);
       expect(c.filmHeld).toBe(true);
       expect((c.ringsGone as number) - (c.whiteOn as number)).toBeGreaterThanOrEqual(fast ? 800 : 1100);
-      expect(c.beams).toBe(2);
+      // No streak straight across (v2 §25), no manga focus lines (§23); her light runs in as motes.
+      expect(c.beams).toBe(0);
+      expect(c.focusLines).toBeUndefined();
       expect(c.motes).toBeGreaterThanOrEqual(16);
+      // Her circles beside her and over no one else; pulled toward the creatures before they are gone.
+      expect(c.ringsClear).toBe(true);
+      expect(c['ringMoved-white'] as number).toBeGreaterThan(30);
+      expect(c['ringMoved-violet'] as number).toBeGreaterThan(30);
+      // Drawn in, not turned: a mote from far out to the point; the core grown, then crushed to a point.
+      expect(c.moteNear as number).toBeLessThan((c.moteFar as number) * 0.3);
+      expect(c.coreLast as number).toBeLessThan((c.coreBig as number) * 0.25);
+      // The stillness (v2 §19–21): the film held at the point before the release — 0.12s or so at ×1, 0.08s at ×2.
+      expect(c.stillFilm as number).toBeGreaterThan(2.25);
+      expect(c.stillFilm as number).toBeLessThan(2.42);
+      expect((c.flashAt as number) - (c.stillAt as number)).toBeGreaterThanOrEqual(fast ? 60 : 100);
+      // Every result with the release (v2 §33): HP, the numbers, COMBO, its line — none before the white flash; before
+      // it the line says only that she used it; 魔防DOWN's line after, in the afterglow.
+      for (const k of ['hpAt', 'numberAt', 'comboAt', 'logDamageAt']) expect(c[k] as number, k).toBeGreaterThanOrEqual((c.flashAt as number) - 34);
+      for (const k of ['hpAt', 'numberAt', 'comboAt', 'logDamageAt']) expect(c[k] as number, k).toBeLessThanOrEqual((c.flashAt as number) + 120);
+      expect(c.logUsed as number).toBeLessThan(c.flashAt as number);
+      expect(c.logMdownAt as number).toBeGreaterThan((c.flashAt as number) + (fast ? 60 : 150));
       // After her cut-in, never under it.
       expect(c.on as number).toBeGreaterThanOrEqual((c.cutOff as number) - 50);
-      // 魔防DOWN said on them as the afterglow fades — and only then on the plate.
+      // 魔防DOWN said on them in the afterglow — and only then on the plate.
       expect(c.said).toBeDefined();
       expect((c.badge as number) - (c.on as number)).toBeGreaterThan(fast ? 900 : 1700);
       expect(c.badgeText).toBe('魔防DOWN 残り3');

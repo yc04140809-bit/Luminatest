@@ -102,3 +102,63 @@ export function kaosCollapse(spots: readonly CollapseSpot[]): Collapse {
   });
   return { x, y, cracks, shards };
 }
+
+/**
+ * THE SUCTION (グレードアップ v2 §7–10: 「回っている」ではなく「吸われている」): what lies about the point is drawn into
+ * it — the film is not the pull, these are. Motes of white, gold, purple and black-purple and thin light, from far out
+ * round it, each a little way round as it goes (a spiral, never straight), slow at first and quickening, gone into
+ * the point before the stillness; and crystal shards — black-purple and silver — floating where they are, drifting,
+ * then pulled in faster still. Fixed, the same every time.
+ */
+export interface Mote {
+  /** Where it starts: its angle round the point (deg) and how far out (a share of the field's width). */
+  a: number;
+  far: number;
+  /** How far round it goes on its way in (deg — the spiral). */
+  turn: number;
+  /** When it lets go: a share of the pull (0 at the film, 1 at the point). */
+  start: number;
+  /** Its size (px) and colour; a streak is a thin line of light along its way. */
+  size: number;
+  tone: 'white' | 'gold' | 'violet' | 'dark';
+  streak: boolean;
+}
+export interface Crystal {
+  a: number;
+  far: number;
+  turn: number;
+  /** Its own turn as it goes (deg), its size (px, longer side), black-purple or silver. */
+  spin: number;
+  size: number;
+  tone: 'violet' | 'silver';
+}
+
+export const SUCTION_MOTES = 32;
+export const SUCTION_STREAKS = 8;
+export const SUCTION_CRYSTALS = 10;
+
+export function collapseSuction(): { motes: Mote[]; crystals: Crystal[] } {
+  const tones: Mote['tone'][] = ['white', 'gold', 'violet', 'dark'];
+  const motes: Mote[] = Array.from({ length: SUCTION_MOTES + SUCTION_STREAKS }, (_, i) => {
+    const streak = i >= SUCTION_MOTES;
+    // Round the whole of it (the golden angle: never bunched), far out — some beyond the screen's edge.
+    return {
+      a: Math.round((i * 137.5 + jitter(i, 21) * 20) % 360),
+      far: r1((0.42 + jitter(i, 22) * 0.38) * 100) / 100,
+      turn: Math.round(70 + jitter(i, 23) * 80),
+      start: Math.round(jitter(i, 24) * 0.5 * 100) / 100,
+      size: streak ? Math.round(26 + jitter(i, 25) * 22) : Math.round(4 + jitter(i, 25) * 6),
+      tone: streak ? (i % 2 ? 'gold' : 'white') : tones[i % 4],
+      streak,
+    };
+  });
+  const crystals: Crystal[] = Array.from({ length: SUCTION_CRYSTALS }, (_, i) => ({
+    a: Math.round(((i + jitter(i, 31) * 0.7) / SUCTION_CRYSTALS) * 360),
+    far: Math.round((0.26 + jitter(i, 32) * 0.18) * 100) / 100,
+    turn: Math.round(40 + jitter(i, 33) * 50),
+    spin: Math.round((jitter(i, 34) - 0.5) * 720),
+    size: Math.round(12 + jitter(i, 35) * 14),
+    tone: i % 3 === 2 ? 'silver' : 'violet',
+  }));
+  return { motes, crystals };
+}

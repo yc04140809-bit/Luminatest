@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { COLLAPSE_FLOOR_MS, COLLAPSE_FX, COLLAPSE_VIDEO, HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { COLLAPSE_FLOOR_MS, COLLAPSE_FX, COLLAPSE_JOLT, COLLAPSE_VIDEO, HIGANBANA_CUTS, HIGANBANA_FX, HIGANBANA_JOLT, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -365,58 +365,67 @@ describe('a cut-in move\'s camera follows it — TRACK (作者 2026-10-23, FF Re
   });
 });
 
-describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles, the seal, the suction film (作者 2026-10-26 魔法陣ブラッシュアップ, 動画＋PNG統合)', () => {
+describe('ケイオス 《双極臨界 → 界核崩壊》: her two circles, the seal, the suction film, the stillness, the release (作者 2026-10-26, グレードアップ v2)', () => {
   const collapse = (speed: number, hits: number[] = [4, 5, 5, 9]) =>
     beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits, magicDown: true }), ctx({ skillId: 'soukyoku_rinkai', speed })).collapse!;
 
-  it('×1: the white alone first (0.5s), then the black-purple, the two together, their light into the seal while they are still there', () => {
+  it('×1: the white alone first (0.5s), then the black-purple, the two together (0.7s or more), pulled into the seal while they are still there', () => {
     const c = collapse(1);
     expect(c.purple - c.white).toBe(COLLAPSE_FX.alone);
-    expect(c.purple - c.white).toBeGreaterThanOrEqual(450);
+    expect(c.purple - c.white).toBeGreaterThanOrEqual(500);
     expect(c.both - c.purple).toBe(COLLAPSE_FX.enter);
-    // Both there (opened through drunk dry) 0.8s or more; the hush before the seal 0.2–0.4s.
-    expect(c.drained - c.both).toBeGreaterThanOrEqual(750);
+    // Both there (opened through pulled in) 0.7s or more (v2 §16); the hush before the seal 0.2–0.4s.
+    expect(c.drained - c.both).toBeGreaterThanOrEqual(700);
     expect(c.core - c.both).toBeGreaterThanOrEqual(200);
     expect(c.core - c.both).toBeLessThanOrEqual(400);
-    // The film begins while the circles are still being drunk (no gap: the seal falls into it).
+    // The film begins while the circles are still being pulled in (no gap: the seal falls into it).
     expect(c.video).toBeLessThan(c.drained);
     expect(c.video).toBeGreaterThan(c.core);
   });
 
-  it('the film is the move from there: the strikes in its crush, the fourth at its release — its own time at its own speed', () => {
+  it('the film to its point at its own speed, then the stillness (0.12–0.18s), then the release', () => {
     const c = collapse(1);
     const film = (ms: number) => Math.round(ms / COLLAPSE_VIDEO.rate);
     expect(c.rate).toBe(COLLAPSE_VIDEO.rate);
-    expect(c.strikes.slice(0, 3)).toEqual(COLLAPSE_VIDEO.strikes.map((t) => c.video + film(t)));
-    expect(c.burst).toBe(c.video + film(COLLAPSE_VIDEO.pull));
-    expect(c.strikes[3]).toBe(c.burst);
+    expect(c.still).toBe(COLLAPSE_FX.still);
+    expect(c.still).toBeGreaterThanOrEqual(120);
+    expect(c.still).toBeLessThanOrEqual(180);
+    expect(c.burst).toBe(c.video + film(COLLAPSE_VIDEO.pull) + c.still);
   });
 
-  it('×2: the film quicker but not doubled (1.7), the circle phase keeping its floors on screen', () => {
+  it('×2: the film quicker but not doubled (1.7), the circles and the stillness keeping their floors on screen (still ≥ 0.08s)', () => {
     const c = collapse(0.5);
     const screen = (ms: number) => ms * 0.5;
     expect(c.rate).toBe(COLLAPSE_VIDEO.rateFast);
     expect(screen(c.purple - c.white)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.alone);
     expect(screen(c.core - c.both)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.hush);
     expect(screen(c.drained - c.core)).toBeGreaterThanOrEqual(COLLAPSE_FLOOR_MS.drain);
+    expect(screen(c.still)).toBeGreaterThanOrEqual(80);
+    expect(screen(c.still)).toBeLessThanOrEqual(100);
     // The pull on screen: its 2.4s at 1.7.
-    expect(screen(c.burst - c.video)).toBeCloseTo(COLLAPSE_VIDEO.pull / COLLAPSE_VIDEO.rateFast, -1);
+    expect(screen(c.burst - c.still - c.video)).toBeCloseTo(COLLAPSE_VIDEO.pull / COLLAPSE_VIDEO.rateFast, -1);
     expect(screen(c.burst)).toBeLessThan(collapse(1).burst);
   });
 
-  it('brought down before the fourth: no collapse strike (no hold), the film still runs to its release', () => {
-    const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 9, hits: [4, 5] }), ctx({ skillId: 'soukyoku_rinkai' }));
-    expect(fx.collapse!.burst).toBe(-1);
-    expect(fx.hitStop).toBe(0);
-    expect(fx.collapse!.strikes).toHaveLength(2);
+  it('nothing lands before the release (v2 §4–6): no strike before it — every number, COMBO and HP at it, with its hold', () => {
+    const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9], magicDown: true }), ctx({ skillId: 'soukyoku_rinkai' }));
+    expect(fx.stages ?? []).toEqual([]);
+    expect(fx.impact).toBe(fx.collapse!.burst);
+    expect(fx.amounts).toEqual([4, 5, 5, 9]);
+    expect(fx.hitStop).toBe(HIT_STOPS.higanbana);
+    // Brought down before the fourth: the same — shown at the release, the release whole.
+    const early = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 9, hits: [4, 5] }), ctx({ skillId: 'soukyoku_rinkai' }));
+    expect(early.stages ?? []).toEqual([]);
+    expect(early.impact).toBe(early.collapse!.burst);
+    expect(early.hitStop).toBe(HIT_STOPS.higanbana);
   });
 
-  it('the camera stays on her and her circles until the film takes over; the strikes in the crush hold nothing (the film runs on)', () => {
+  it('the camera stays on her and her circles until the film takes over, then its one jolt at the release', () => {
     const fx = beatFx(beat({ actor: 'kaos', kind: 'SKILL', name: '双極臨界', amount: 23, hits: [4, 5, 5, 9] }), ctx({ skillId: 'soukyoku_rinkai', cutIn: true }));
-    const track = fx.camera![0] as { kind: string; impact: number };
+    const track = fx.camera![0] as { kind: string; impact: number; blows?: number[]; weights?: number[] };
     expect(track.kind).toBe('TRACK');
     expect(track.impact).toBe(fx.collapse!.video);
-    expect(fx.stages!.every((st) => st.hitStop === 0)).toBe(true);
-    expect(fx.hitStop).toBe(HIT_STOPS.higanbana);
+    expect(track.blows).toEqual([fx.collapse!.burst]);
+    expect(track.weights).toEqual([COLLAPSE_JOLT.last]);
   });
 });
