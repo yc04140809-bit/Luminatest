@@ -11,6 +11,7 @@ import {
 import type { SekiryugaStage } from '@mugen/core/world/storyArc';
 import { dueTalks, sitting, startsOnEntry, type TalkEvent, type TalkStep } from '@mugen/core/talk/talkQueue';
 import {
+  GRAVE_AFTER_SEKIRYUGA_ID,
   GRAVE_MEETING_ID,
   GRAVE_MEETING_PRIORITY,
   GRAVE_SEKIRYUGA_STORY_ID,
@@ -25,6 +26,7 @@ import { CraftPanel, MusicArchivePanel, TradePanel, type TavernHub } from './tav
 import { NewBadge } from './common/NewBadge';
 import { graveFaceOf, type GraveFace } from '@mugen/content/characters/graveFaces';
 import { graveFaceSrc } from '../assets/graveFaces';
+import { playVoice } from '../platform/audio';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -203,7 +205,7 @@ export function TavernScreen({
    * his plain greeting too, after the incident's word if both are owed.
    * `onHeard` when read to its end.
    */
-  dailyTalk?: { lines: readonly DialogueLine[]; onHeard: () => void } | null;
+  dailyTalk?: { id?: string; lines: readonly DialogueLine[]; onHeard: () => void } | null;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -310,6 +312,8 @@ export function TavernScreen({
     setAt(0);
     // His plain greeting only (met, nothing of the route in it): the incident's word instead, once.
     if (incidentTalk && metBefore && lines === base) {
+      // His worry for them, in his own voice, as he speaks of the village's trouble.
+      playVoice('talk.grave.incident');
       setTalk({ lines: incidentTalk.lines, rumor: false, incident: true });
       return;
     }
@@ -317,6 +321,8 @@ export function TavernScreen({
       setTalk({ lines: dailyTalk.lines, rumor: false, daily: true });
       return;
     }
+    // His plain greeting (met before, nothing of the route in it): 「おう、よく来たな」 as it begins.
+    if (metBefore && lines === base) playVoice('talk.grave.greeting');
     setTalk({ lines, rumor, first: !metBefore });
   };
   /** Tonight's stranger: their few lines, their silhouette. Records nothing. */
@@ -333,6 +339,8 @@ export function TavernScreen({
       arc?.onTold();
       if (!metBefore) onMet();
     } else arc?.onHeard(id);
+    // セキリュウガ stopped, and he has said so to the end: his laugh.
+    if (id === GRAVE_AFTER_SEKIRYUGA_ID) playVoice('talk.grave.after_sekiryuga', { wait: true });
   };
   const next = () => {
     if (!last) return setAt((n) => n + 1);
@@ -358,6 +366,8 @@ export function TavernScreen({
       return setTalk(null);
     }
     if (talk?.daily) {
+      // The old greatsword — his own past — told to its end: 「……昔の話だ。気にするな」.
+      if (dailyTalk?.id === 'GRAVE_GREATSWORD') playVoice('talk.grave.greatsword', { wait: true });
       dailyTalk?.onHeard();
       return setTalk(null);
     }

@@ -24,6 +24,7 @@
  *   battle.<move id>.release         a move's second line, out of its stillness (《双極臨界》, 《彼岸花》, 重撃・豪断)
  *   shop.<shop id>.welcome|thanks|touch   a shop's keeper: walked in (one of theirs at random), walked out to the
  *                                    village, touched (ui/audio/shopVoices.ts; ALDEN_BAKERY リナ, ALDEN_ITEM_SHOP ミレイ)
+ *   talk.<who>.<moment>              a keeper's word as a talk goes (グレイヴ in the tavern: ui/tavern.tsx)
  *   event.<who>.<name>               a line for an event whose moment is still to be set (registered only)
  *   daily.<scene id>.<line no.>      a line of a small thing in the village (content/story/dailyScenes.ts), from 1
  *
@@ -148,6 +149,21 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'shop.ALDEN_ITEM_SHOP.welcome': mirei(['v_mirei_welcome01.mp3', 'v_mirei_welcome02.mp3', 'v_mirei_welcome03.mp3'], 'あら、いらっしゃい／いい品、揃ってるわよ／ふふ、目利きね', { play: 'RANDOM' }),
   'shop.ALDEN_ITEM_SHOP.thanks': mirei(['v_mirei_thanks01.mp3'], '毎度あり。また来てね'),
   'shop.ALDEN_ITEM_SHOP.touch': mirei(['v_mirei_touch01.mp3', 'v_mirei_touch02.mp3'], 'あら、なあに？／ふふ、買ってくれるなら許すわ', { play: 'RANDOM' }),
+  // ---- 酒場（グレイヴ — 第8便 日常追加版）：話しかけたときの反応、会話の中身に合わせて ----
+  // His plain greeting, as it begins.
+  'talk.grave.greeting': grave(['v_grave_daily01.mp3'], 'おう、よく来たな'),
+  // The village's trouble (aldenIncident), as he speaks of it: his worry for them.
+  'talk.grave.incident': grave(['v_grave_daily02.mp3'], '無理すんなよ。飯は食ったか？'),
+  // After セキリュウガ was stopped, told to its end: his laugh.
+  'talk.grave.after_sekiryuga': grave(['v_grave_daily03.mp3'], 'はっはっは、それでこそだ'),
+  // The old greatsword (his own past), told to its end.
+  'talk.grave.greatsword': grave(['v_grave_daily04.mp3'], '……昔の話だ。気にするな'),
+  // ---- 村（リゼル — 第9便 日常追加版）：登録のみ（口調の確認待ち）。daily05 は小声のテイク：+9dB ----
+  'event.rizel.daily01': rizel(['v_rizel_daily01.mp3'], 'こんにちは！ 今日は森に行くの？'),
+  'event.rizel.daily02': rizel(['v_rizel_daily02.mp3'], '私も剣の練習、頑張ってるんだ。……まだまだだけど'),
+  'event.rizel.daily03': rizel(['v_rizel_daily03.mp3'], '怪我してない？ ちゃんと見せて'),
+  'event.rizel.daily04': rizel(['v_rizel_daily04.mp3'], 'よかった、無事で……本当に心配したんだから'),
+  'event.rizel.daily05': rizel(['v_rizel_daily05.mp3'], 'あ、ありがとう。……えへへ', { gainDb: 9 }),
   // リナ — イベント用（発火条件は今後）。
   'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
   // ---- イベント（村の小さな出来事。未納品） ----

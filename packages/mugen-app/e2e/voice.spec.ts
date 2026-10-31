@@ -242,3 +242,34 @@ test('グレイヴ: his plain blow says its take, and 重撃・豪断 its two �
   ]);
   expect(ear.errors).toEqual([]);
 });
+
+test('the tavern: グレイヴ’s 「おう、よく来たな」 as his ordinary greeting begins — not at the first meeting', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  const talkThrough = async () => {
+    await page.getByTestId('tavern-talk').click();
+    for (let i = 0; i < 40; i++) {
+      if (await page.getByTestId('tavern-master-menu').isVisible().catch(() => false)) {
+        await page.getByTestId('tavern-master-listen').click();
+        continue;
+      }
+      if (!(await page.getByTestId('tavern-next').isVisible().catch(() => false))) break;
+      await page.getByTestId('tavern-next').click();
+    }
+  };
+  // The first time: he introduces himself — no greeting voice.
+  let before = (await ear.heard()).length;
+  await (await placeButton(page, 'tavern-button')).click();
+  await expect(page.getByTestId('tavern-screen')).toBeVisible();
+  await talkThrough();
+  expect((await ear.files()).slice(before)).not.toContain('v_grave_daily01.mp3');
+  await page.getByTestId('tavern-leave').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  // After: his ordinary greeting, and his word with it.
+  before = (await ear.heard()).length;
+  await (await placeButton(page, 'tavern-button')).click();
+  await talkThrough();
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_grave_daily01.mp3');
+  expect(ear.errors).toEqual([]);
+});

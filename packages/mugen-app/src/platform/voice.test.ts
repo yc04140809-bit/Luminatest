@@ -57,7 +57,7 @@ describe('the table', () => {
     const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
     expect(new Set(files).size).toBe(files.length);
     for (const [id, line] of Object.entries(VOICE_LINES)) {
-      expect(id).toMatch(/^(battle|op|daily|shop|event)\./);
+      expect(id).toMatch(/^(battle|op|daily|shop|event|talk)\./);
       const named = {
         KAOS: /^(v_chaos_|v_op_chaos|kaos_)/,
         HERO: /^(v_hero_|hero_)/,
@@ -86,9 +86,9 @@ describe('the table', () => {
       expect(voiceUrl(id), id).not.toBeNull();
   });
 
-  it('第4〜9便 too, every file in it and found: リナ 5, ミレイ 6, レヴィ 9, アリア 9, グレイヴ 9, リゼル 6', () => {
+  it('第4〜9便 too, every file in it and found: リナ 5, ミレイ 6, レヴィ 9, アリア 9, グレイヴ 13, リゼル 11', () => {
     const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
-    for (const [prefix, n] of [['v_lina_', 5], ['v_mirei_', 6], ['v_levi_', 9], ['v_aria_', 9], ['v_grave_', 9], ['v_rizel_', 6]] as const)
+    for (const [prefix, n] of [['v_lina_', 5], ['v_mirei_', 6], ['v_levi_', 9], ['v_aria_', 9], ['v_grave_', 13], ['v_rizel_', 11]] as const)
       expect(files.filter((f) => f.startsWith(prefix)), prefix).toHaveLength(n);
     for (const id of Object.keys(VOICE_LINES).filter((k) => VOICE_LINES[k].files.every((f) => /^v_/.test(f)))) expect(voiceUrl(id), id).not.toBeNull();
     // Who fights with a voice: the three now; レヴィ, アリア, リゼル the moment they join (their lines are here).
@@ -106,6 +106,7 @@ describe('the table', () => {
     expect(voiceGainOf(voiceUrl('battle.rizel.win')!)).toBeCloseTo(10 ** (11 / 20), 3);
     expect(voiceGainOf(voiceUrl('battle.rizel.down')!)).toBeCloseTo(10 ** (11 / 20), 3);
     expect(voiceGainOf(voiceUrl('battle.rizel.start')!)).toBe(1);
+    expect(voiceGainOf(voiceUrl('event.rizel.daily05')!)).toBeCloseTo(10 ** (9 / 20), 3);
   });
 
   it('the opening in the order of its panels: three on the first page, three on the second, then one a page', () => {

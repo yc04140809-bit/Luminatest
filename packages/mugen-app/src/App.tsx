@@ -933,7 +933,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             }
             dailyTalk={(() => {
               const scene = world.getDailyScene('TAVERN');
-              return scene ? { lines: scene.lines, onHeard: () => void world.finishDailyScene(scene.id).catch(() => {}) } : null;
+              return scene ? { id: scene.id, lines: scene.lines, onHeard: () => void world.finishDailyScene(scene.id).catch(() => {}) } : null;
             })()}
             hub={{
               held: (id) => world.getItemCount(id),
