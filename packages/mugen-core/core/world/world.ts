@@ -1,0 +1,3804 @@
+// MUGEN CORE — the world aggregate.
+// Owns WORLD MEMORY (past facts), WORLD CLOCK and CHARACTER STATE (current),
+// and runs the EVENT ENGINE when time passes. The DB is the single source of
+// truth; React / Phaser only mirror what lives here.
+
+import type { LifeChoiceId, Screen } from '../flow/types';
+import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
+import { isForgeEventType } from '../memory/types';
+import { SAVE_VERSION, migrateRows } from './saveSchema';
+import { DEFAULT_HERO_NAME, normaliseHeroName, readHeroName } from './heroName';
+import {
+  readEquipment,
+  readOwned,
+  type EquipmentTable,
+  type OwnedTable,
+} from './equipmentState';
+import {
+  readPickupsTaken,
+  readRareFinds,
+  readVisits,
+  type RareFindTable,
+  type VisitTable,
+} from './explorationState';
+import { advanceStage, arcOpen, readSekiryugaStage, stageReached, type SekiryugaStage } from './storyArc';
+import { advanceFinale, readFinaleStage, type FinaleStage } from './chapterFinale';
+import { readReadMarks, withMarks } from './readMarks';
+import {
+  addLoaves,
+  afterRest,
+  eatOne,
+  readBreadBuff,
+  readBreadFreshness,
+  reconcileFreshness,
+  NO_BREAD,
+  type BreadBuff,
+  type BreadFreshness,
+} from '../economy/bread';
+import {
+  NO_TRADES,
+  readMusicUnlocks,
+  readTavernTrades,
+  readVillageBgm,
+  type TavernTradesRow,
+} from './tavernState';
+import type { BgmId } from '@mugen/assets';
+import { MUSIC_ARCHIVE_IDS, isArchivedPiece } from '../../content/audio/musicArchive';
+import type { TavernTrade } from '../../content/economy/tavernTrades';
+import { readRegrowth, pickupThere, type RegrowthRow } from './pickupRegrowth';
+import { PICKUP_REGROWTH, regrowthOf } from '../../content/exploration/regrowth';
+import type { GraveCraft } from '../../content/economy/graveCraft';
+import {
+  NO_INCIDENT,
+  countIncident,
+  incidentCounting,
+  readIncident,
+  type IncidentKind,
+  type IncidentPhase,
+  type IncidentRow,
+} from './aldenIncident';
+import { GRAVE_MEETING_MARK } from '../../content/talk/graveTalks';
+import { NO_DAILY_SCENE, readDailyScene, type DailySceneRow } from './dailySceneState';
+import {
+  DAILY_SCENES,
+  dailySceneAt,
+  dailySceneMark,
+  type DailyScene,
+  type DailySceneId,
+  type DailyScenePlace,
+} from '../../content/story/dailyScenes';
+import {
+  INITIAL_EQUIPMENT,
+  weaponDefOf,
+  weaponInBattle,
+  type EquipmentSlot,
+} from '../../content/equipment/equipment';
+import { canEquip } from '../../content/equipment/equipResolve';
+import {
+  FORCED_BATTLE_BGM,
+  INITIAL_UNLOCKED_BATTLE_BGM,
+  isBattleBgm,
+  type BattleBgmId,
+} from '../../content/audio/battleBgm';
+import { statsForLevels, type PartyStats } from '../progression/levelStats';
+import {
+  BATTLE_HP_HOLDER,
+  BATTLE_MP_HOLDER,
+  carryUp,
+  ceilingFor,
+  readLegacyShared,
+  readParty,
+  toStored,
+  type CharacterCondition,
+  type PartyCondition,
+  type StoredParty,
+} from '../party/condition';
+import { refuseUse, useYield, type ItemRefusal } from '../../game/battle/battleLogic';
+import {
+  readBag,
+  readCharacterState,
+  readClaimedRewards,
+  readClock,
+  readEnemyIndividuals,
+  readEnemyProgressTable,
+  readExperienceLog,
+  readGrowth,
+  readIdList,
+  readPurse,
+  type ReadRow,
+  type RowHealth,
+} from './saveRead';
+import type { CharacterState } from '../characters/types';
+import { resolveDueLifeEvents, type ResolvedLifeEvent } from '../events/eventEngine';
+import { bloomPossible } from '../life/worldReading';
+import { buildGaldLifeArchive, type LifeArchiveEntry } from '../archive/lifeArchive';
+import {
+  type WorldClock,
+  INITIAL_CLOCK,
+  addDays,
+  addYears,
+  toAbsoluteDay,
+} from '../time/calendar';
+import {
+  GALD_LIFE_CHOICE_EVENT_ID,
+  GALD_LIFE_CHOICE_EVENT_TYPE,
+  GALD_LIFE_CHOICE_TYPE_TO_CHOICE,
+  GALD_LIFE_CHOICE_STATE_EFFECTS,
+  GALD_FUTURE_VISION_ID,
+} from '../../content/events/galdLifeChoice';
+import { LIFE_TICK_DEFS, OFF_SCREEN_FACTS } from '../../content/events/offScreenLife';
+import { knownTruths, learnable, readPlayerKnowledge, type PlayerKnowledgeRow } from './playerKnowledge';
+import {
+  FUTURE_SITE_DEFS,
+  FUTURE_DISCOVERY_TYPES,
+  futureSiteDef,
+  type FutureSiteDef,
+} from '../../content/world/futureSites';
+import { INITIAL_GALD_STATE } from '../../content/characters/gald';
+import { INITIAL_LINA_STATE } from '../../content/characters/lina';
+import { INITIAL_BAKERY_OWNER_STATE } from '../../content/characters/bakeryOwner';
+import type { ExperienceWorldView } from '../experience/types';
+import { recentEmotionsOf } from '../experience/experienceEngine';
+import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
+import { ALDEN_NARRATIVE_SEEDS } from '../../content/narrative/aldenSeeds';
+import { seedStatuses, unresolvedSeedCount } from '../narrative/narrativeSeeds';
+import {
+  mintIndividualId,
+  rollIndividualStory,
+  type Rng,
+  type StoryTriggerConfig,
+} from '../enemies/enemyEncounters';
+import {
+  CREATURE_LIFE_CHOICE_EVENT_TYPE,
+  CREATURE_LIFE_CHOICE_TYPE_TO_CHOICE,
+} from '../../content/events/creatureLifeChoice';
+import { FUUMIMI_INDIVIDUAL_ID } from '../../content/enemies/fuumimi';
+import {
+  applyArcanaConditions,
+  emptyArcanaRecord,
+  isComplete,
+  readArcanaRecord,
+  type ArcanaConditionId,
+  type ArcanaGain,
+  type ArcanaRecord,
+} from '../arcana/arcana';
+import { ARCANA_DEFS, arcanaDef } from '../../content/arcana/arcanaDefs';
+import {
+  addItem as addToBag,
+  getItemCount as countInBag,
+  hasItem as bagHas,
+  removeItem as removeFromBag,
+  roomFor,
+} from '../economy/inventory';
+import { INITIAL_LUMI, addLumi, canAfford, spendLumi } from '../economy/lumi';
+import { EMPTY_INVENTORY, type Inventory, type ItemStack } from '../economy/items';
+import { buyPriceOf, inStock, sellPriceOf, type ShopOffer } from '../economy/shop';
+import {
+  INITIAL_PROGRESS,
+  gainExp,
+  type LevelProgress,
+} from '../progression/levelCurve';
+import {
+  NOTHING_APPLIED,
+  readReward,
+  type AppliedReward,
+  type BattleReward,
+} from '../progression/battleReward';
+import { activeParty } from '../../game/party/battleParty';
+import { itemDef } from '../../content/economy/itemDefs';
+import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
+import {
+  emptyAccidentRecord,
+  observed as observedAccident,
+  type AccidentRecord,
+  type AccidentState,
+} from '../summon/summonAccident';
+import type { NarrativeSeedStatus } from '../narrative/types';
+
+const CLOCK_KEY = 'world_clock';
+/**
+ * Which NOW / NEXT experience events the player has already met.
+ *
+ * This is engine bookkeeping, not world canon: bumping into a villager
+ * is not a fact of history the way sparing a man is, and it must never
+ * appear in the LIFE ARCHIVE. It lives as one more key in the existing
+ * key/value state store — no new store, no new index, no DB version
+ * change, and a save written before this build simply has no such key.
+ */
+const SEEN_EXPERIENCE_KEY = 'experience_seen';
+/**
+ * Pacing bookkeeping: when each event last played, and the order they
+ * were met in. A separate key from experience_seen on purpose — a save
+ * written before this build has no such row, reads as empty, and every
+ * "have I seen this?" answer still comes from the older key.
+ */
+const EXPERIENCE_LOG_KEY = 'experience_log';
+/**
+ * How many of each species the player has beaten, and how long it has
+ * been since one of them turned out to be somebody.
+ *
+ * Current state, not history: WORLD MEMORY does not record that a moss
+ * rabbit was fought on the path, because nothing about the world
+ * changed when it was. Absent in an older save, which reads as none.
+ */
+const ENEMY_PROGRESS_KEY = 'enemy_progress';
+/** The creatures that DID turn out to be somebody, and what became of them. */
+const ENEMY_INDIVIDUALS_KEY = 'enemy_individuals';
+/**
+ * ARCANA — how much the player has come to know about each thing.
+ *
+ * Kept as one row of arcanaId -> the conditions that have been met, and
+ * deliberately NOT as percentages: the number is worked out from the
+ * conditions every time it is asked for, so a save can never disagree
+ * with the rules and rebalancing them rewrites nobody's history.
+ *
+ * Absent in a save written before this build, which reads as "nothing
+ * is known yet" — the same answer a new world gives.
+ */
+const ARCANA_KEY = 'arcana_records';
+/**
+ * SUMMONING ACCIDENTS: where the player stands with each thing that
+ * has ever crossed them.
+ *
+ * One row per candidate — how far along it is, how many times it has
+ * been seen, and when — which is everything the pool needs to decide
+ * whether it may happen again. Deliberately NOT a WORLD MEMORY event:
+ * killing a man changes the world and glimpsing something you cannot
+ * name does not, and the archive must not fill up with sightings.
+ *
+ * Absent in a save written before this build, which reads as "nothing
+ * has crossed yet" — the same answer a new world gives.
+ */
+const ACCIDENTS_KEY = 'summon_accidents';
+/**
+ * THE BAG: what the player is actually carrying.
+ *
+ * One row per item — an id and a count, and nothing else. What a herb
+ * IS lives in the catalogue, so rebalancing a price or rewriting a
+ * description never touches a save: no save has ever recorded either.
+ *
+ * Deliberately NOT a WORLD MEMORY event. Picking a herb up is not
+ * something the world remembers about itself; it is something the
+ * player is holding, which is current state and belongs here with the
+ * clock and the characters.
+ *
+ * Absent in a save written before this build, which reads as an empty
+ * bag — the same answer a new world gives.
+ */
+const INVENTORY_KEY = 'inventory';
+/**
+ * THE PURSE, in LUMI.
+ *
+ * One number. Absent in an older save reads as nought, which is what a
+ * player who has never been paid holds — so a save from before the
+ * economy existed opens as a poor player rather than a broken one.
+ */
+const LUMI_KEY = 'lumi';
+/**
+ * LEVEL AND EXPERIENCE, one row per character.
+ *
+ * What FIGHTING has given them, and only that. The other half of how
+ * somebody grows in this game — what involving yourself in the world
+ * gives you — is WORLD MEMORY, the arcana and the resonance that is
+ * still to come, and none of those may ever be spent into this number.
+ * Two kinds of growth, two records, on purpose.
+ *
+ * Absent in a save written before this build, which reads as everybody
+ * at level one having earned nothing — the same answer a new world
+ * gives, so there is nothing to convert.
+ */
+const PROGRESSION_KEY = 'progression';
+/**
+ * THE REWARDS ALREADY PAID, so none of them is paid twice.
+ *
+ * A battle screen can call its own ending more than once — a re-render,
+ * a double tap, AUTO and the player arriving at the same moment, a
+ * timer that fired after the state had already moved on. Every one of
+ * those is ordinary, and every one of them would otherwise be a second
+ * helping of experience and a second herb.
+ *
+ * So a reward carries an id and the world remembers which ids it has
+ * honoured. Only the most recent are kept: this is a guard against a
+ * double-tap, not a ledger of everything that ever happened, and a save
+ * that grew one row per fight forever would be a save that grows
+ * forever.
+ *
+ * Absent in an older save, which reads as "nothing has been paid" — and
+ * that is correct, because an older save also has no reward in flight.
+ */
+const CLAIMED_REWARDS_KEY = 'claimed_rewards';
+
+/** How many paid rewards are remembered. Long enough for any re-entry. */
+const CLAIMED_REWARDS_KEPT = 40;
+
+/**
+ * WHERE THE PLAYER WAS WHEN THE GAME STOPPED BEING LOOKED AT.
+ *
+ * Deliberately not "which screen was showing". A screen is a moment —
+ * a fight mid-turn, a line of dialogue half read, a shop with a
+ * confirmation open — and restoring a moment means saving everything
+ * that moment depended on. A PLACE is a fact, and it is the only part
+ * of "where was I" that a player actually misses.
+ *
+ * So there are two: the village, and out on the map. Everything that
+ * happens inside the forest, a fight included, resumes at the map with
+ * the forest one tap away. That is the safe direction, and it is also
+ * the answer to being interrupted mid-battle: the fight is simply not
+ * there any more, which is the same as never having been paid for it.
+ */
+/**
+ * WHAT THE PARTY HAS LEFT, between fights.
+ *
+ * New this round, and the whole reason a herb can be drunk on the road
+ * at all: before it, every fight began full and nothing carried out of
+ * one, so there was no wound outside a fight for an item to close.
+ *
+ * Stored as absolute numbers and judged against today's ceiling when
+ * read — a level gained between sessions raises the maximum, and only
+ * the absolute number survives that.
+ */
+const CONDITION_KEY = 'party_condition';
+/**
+ * WHAT THE PLAYER CALLS THEMSELVES. A display name and nothing else —
+ * `hero` remains the id everywhere. A save from before this row
+ * existed simply has none, which reads as the default, so no schema
+ * version moved and no migration step was written. See `heroName.ts`.
+ */
+const HERO_NAME_KEY = 'hero_name';
+/**
+ * WHAT IS WORN, AND WHAT IS HELD. Two rows because they are two
+ * questions — see `equipmentState.ts`. Neither existed before, and an
+ * absent row reads as nothing, so no schema version moved.
+ */
+const EQUIPMENT_KEY = 'character_equipment';
+const OWNED_EQUIPMENT_KEY = 'owned_equipment';
+/**
+ * WALKING PLACES: whose once-in-a-world find has been taken, and how
+ * many real visits each place has had — see `explorationState.ts`.
+ * Neither existed before; an absent row reads as nothing taken and no
+ * visits, so no schema version moved.
+ */
+const RARE_FINDS_KEY = 'explorationRareFinds';
+/** The fixed pickups taken (explorationState `readPickupsTaken`). */
+const PICKUPS_KEY = 'explorationPickups';
+const VISITS_KEY = 'explorationVisits';
+/**
+ * THE FIRST BOSS ROUTE: the furthest stage this world has reached on it —
+ * see `storyArc.ts`. Absent reads as NONE, so no schema version moved.
+ */
+const SEKIRYUGA_ARC_KEY = 'sekiryugaArc';
+/**
+ * 第1章終盤: the furthest stage reached — see `chapterFinale.ts`. Absent
+ * reads as NONE, so no schema version moved.
+ */
+const FINALE_KEY = 'chapter1Finale';
+/** What the player has actually looked at — every NEW (see `readMarks.ts`). Absent reads as nothing read. */
+const READ_MARKS_KEY = 'readMarks';
+/**
+ * パン屋 MVP (2026-10-09): how many nights each loaf in the bag has left,
+ * and the one lift in effect (core/economy/bread.ts). Absent reads as no
+ * bread and no lift, so no schema version moved.
+ */
+const BREAD_FRESHNESS_KEY = 'breadFreshness';
+const BREAD_BUFF_KEY = 'breadBuff';
+/**
+ * 酒場ハブ化 Phase 1 (2026-10-09, core/world/tavernState.ts): the swaps made
+ * tonight, the music heard, and the village's chosen piece. Absent reads
+ * as none, none and its own — no schema version moved.
+ */
+const TAVERN_TRADES_KEY = 'tavernTrades';
+/** When each pickup that grows back was last taken (core/world/pickupRegrowth.ts), 2026-10-11. */
+const REGROWTH_KEY = 'pickupRegrowth';
+/** 鉄の腕輪 (was 鉄の護符; id IRON_CHARM kept for saves): carried, +1 on his swing (content/economy/graveCraft.ts). */
+const IRON_CHARM_ID = 'IRON_CHARM';
+const IRON_CHARM_ATTACK = 1;
+const MUSIC_UNLOCKS_KEY = 'musicUnlocks';
+const VILLAGE_BGM_KEY = 'villageBgm';
+/**
+ * ALDEN INCIDENT (予兆フェーズ, 2026-10-10, core/world/aldenIncident.ts): the
+ * hidden point and its phase. Absent reads as 0 / phase 0 — no schema moved.
+ */
+const INCIDENT_KEY = 'aldenIncident';
+/**
+ * 襲撃前の日常 (2026-10-10, core/world/dailySceneState.ts): the day the last
+ * small scene was seen. Absent reads as none yet — no schema moved.
+ */
+const DAILY_SCENE_KEY = 'dailyScene';
+/**
+ * PLAYER KNOWLEDGE (OFF-SCREEN LIFE, 2026-10-17): what the player has been
+ * told of what happened where they were not — see `playerKnowledge.ts`.
+ * Absent reads as knowing none of it, so no schema version moved.
+ */
+const PLAYER_KNOWLEDGE_KEY = 'playerKnowledge';
+/**
+ * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
+ *
+ * PROGRESS, NOT PREFERENCE, which is why it is here and not in
+ * localStorage beside the chosen piece: it is a fact about what
+ * happened in this game, it should travel with the save, and it must
+ * not be something a player can simply set. An absent row is the
+ * starting set, so no schema version moved.
+ */
+const UNLOCKED_BGM_KEY = 'unlocked_battle_bgm';
+
+const SESSION_KEY = 'session';
+
+/**
+ * The `createdAt` on a previewed event. Previews are not moments in
+ * anybody's day, and a real timestamp would make the same look
+ * different every time it was taken.
+ */
+const PREVIEW_TIMESTAMP = '';
+
+export type ResumeArea = 'HOME' | 'EXPLORE';
+
+/** Where a screen puts the player back, if the game stops here. */
+const RESUME_AREA: Partial<Record<Screen, ResumeArea>> = {
+  HOME: 'HOME',
+  WORLD_MEMORY: 'HOME',
+  WORLD_NEWS: 'HOME',
+  ARCHIVE: 'HOME',
+  STATUS: 'HOME',
+  ARCANA: 'HOME',
+  BAG: 'HOME',
+  SETTINGS: 'HOME',
+  TIME_SHIFT: 'HOME',
+  // THE END OF THE STORY'S OWN FIGHT. Both of these have exactly one
+  // way out and it is the village, so that is where they resume — not
+  // the forest they happen to be standing in. Leaving them unmapped
+  // meant a player who closed the game while reading what their choice
+  // had done came back to the map, having skipped the walk home the
+  // scene was written to end with.
+  LIFE_CHOICE: 'HOME',
+  CHOICE_RESULT: 'HOME',
+  ENDING: 'HOME',
+  PLAYTEST_SURVEY: 'HOME',
+  EXPLORE: 'EXPLORE',
+  ITEM_SHOP: 'EXPLORE',
+  TALK_SPOT: 'EXPLORE',
+  FUTURE_SITE: 'EXPLORE',
+  GREENWOOD: 'EXPLORE',
+  ENCOUNTER: 'EXPLORE',
+  BATTLE: 'EXPLORE',
+  BATTLE_RESULT: 'EXPLORE',
+  CREATURE_LIFE_CHOICE: 'EXPLORE',
+};
+
+/**
+ * Where a screen resumes to, or null for one that should not be
+ * resumed into at all.
+ *
+ * The title, the prologue and the developer's rooms are all null: the
+ * first two are the way IN to a world rather than a place in it, and
+ * nobody should come back from lunch into DEV ADMIN.
+ */
+export function resumeAreaOf(screen: Screen): ResumeArea | null {
+  return RESUME_AREA[screen] ?? null;
+}
+
+function readResumeArea(raw: unknown): ResumeArea {
+  if (!raw || typeof raw !== 'object') return 'HOME';
+  const screen = (raw as { screen?: unknown }).screen;
+  return screen === 'EXPLORE' ? 'EXPLORE' : 'HOME';
+}
+
+/** What one character's share of a reward came to. */
+export interface LevelGainRecord {
+  characterId: string;
+  from: number;
+  to: number;
+  levelsGained: number;
+  /** How much experience actually landed. Nought when nothing did. */
+  earned: number;
+}
+
+export interface ExperienceLog {
+  /** eventId -> absolute day it last played. */
+  lastSeenDay: Record<string, number>;
+  /** Event ids in the order they were met, newest last. */
+  order: string[];
+}
+
+/** Enough history to keep two or three beats from repeating a feeling. */
+const LOG_ORDER_LIMIT = 12;
+
+function characterKey(id: string): string {
+  return `character_${id}`;
+}
+
+const INITIAL_CHARACTERS: Record<string, CharacterState> = {
+  GALD: INITIAL_GALD_STATE,
+  // Alden's baker and his daughter. Added here rather than anywhere
+  // else because this is what `World.open` walks: an existing save
+  // simply has no stored row for either of them and falls back to
+  // these, so adding people is save-compatible by construction.
+  LINA: INITIAL_LINA_STATE,
+  BAKERY_OWNER: INITIAL_BAKERY_OWNER_STATE,
+};
+
+/** A future site that world truth has put on the map, and whether the
+ *  player has actually been there. */
+export interface OpenFutureSite {
+  def: FutureSiteDef;
+  discovered: boolean;
+}
+
+/**
+ * How the player is getting on with one species.
+ *
+ * `defeated` is the whole count; `sinceStory` is how many of them have
+ * been beaten since one of them turned out to be somebody, which is what
+ * the chance of the next one being somebody is read off.
+ */
+export interface EnemyProgress {
+  defeated: number;
+  sinceStory: number;
+  /** How many of this species have been named so far. */
+  named: number;
+}
+
+/**
+ * One creature that stopped being a species and became somebody.
+ *
+ * Minted only when a fight ends in a story, which is why an ordinary
+ * moss rabbit has no row here and killing one changes nothing about
+ * whether Greenwood has moss rabbits in it.
+ */
+export interface EnemyIndividual {
+  individualId: string;
+  speciesId: string;
+  status: 'alive' | 'dead';
+  /** What the player chose to be to it. 'unknown' until they choose. */
+  relationship: 'unknown' | 'spared' | 'helped' | 'captured' | 'ended';
+  firstMetYear: number;
+  lastMetYear: number;
+  /** Whether meeting them again years from now is possible at all. */
+  reunionAvailable: boolean;
+}
+
+/**
+ * Whether somebody is exactly as the world first found them.
+ *
+ * Compared field by field rather than by JSON, because key order is not
+ * part of what a character IS: a save written by an older build can
+ * hold the same facts in a different order, and telling that player
+ * their story has moved on would be a lie in the safe direction — but
+ * telling them it has NOT is the dangerous one, so neither is allowed
+ * to be decided by an accident of serialisation.
+ */
+function sameCharacterState(
+  state: CharacterState | undefined,
+  initial: CharacterState,
+): boolean {
+  if (!state) return true;
+  const keys = new Set([...Object.keys(state), ...Object.keys(initial)]) as Set<
+    keyof CharacterState
+  >;
+  for (const key of keys) {
+    const a = state[key];
+    const b = initial[key];
+    if (Array.isArray(a) || Array.isArray(b)) {
+      const left = Array.isArray(a) ? a : [];
+      const right = Array.isArray(b) ? b : [];
+      if (left.length !== right.length) return false;
+      if (left.some((v, i) => v !== right[i])) return false;
+      continue;
+    }
+    if (a !== b) return false;
+  }
+  return true;
+}
+
+const EMPTY_PROGRESS: EnemyProgress = { defeated: 0, sinceStory: 0, named: 0 };
+
+/** What the four answers make a creature to the player, afterwards. */
+const CREATURE_RELATIONSHIP: Record<LifeChoiceId, EnemyIndividual['relationship']> = {
+  KILL: 'ended',
+  SPARE: 'spared',
+  HELP: 'helped',
+  CAPTURE: 'captured',
+};
+
+type Listener = () => void;
+
+export class World {
+  private events: MemoryEvent[];
+  private clock: WorldClock;
+  private characters: Record<string, CharacterState>;
+  private listeners = new Set<Listener>();
+  private version = 0;
+  private timePassing = false;
+
+  /**
+   * ONE NIGHT AT A TIME, whoever is asking.
+   *
+   * Every persisted move of the clock goes through here. The reason is
+   * that none of them is atomic across their awaits: `advanceDay`
+   * reads the clock, works out tomorrow, resolves what is due and only
+   * then commits, so two calls in flight together both start from
+   * TODAY. They compute the same tomorrow and write the same rows, and
+   * the world comes out one day older instead of two — or, on a day
+   * when a life event falls due, the second commit is refused outright
+   * because history is write-once and the id is already taken.
+   *
+   * IT SERIALISES RATHER THAN REFUSES, and the difference is the
+   * point. A second night asked for is a real second night: it waits
+   * for the first, then runs from the clock the first left behind, so
+   * two requests are two days. What is prevented is a night applied
+   * twice or lost, not a player who is in a hurry. TIME SHIFT keeps
+   * its own separate refusal on top of this, because a shift IS a
+   * one-off and a double tap on it is a stutter.
+   *
+   * The gate reopens on failure as well as on success — a lock left
+   * shut by one bad commit would be a world that can never age again.
+   */
+  private timeLock: Promise<unknown> = Promise.resolve();
+
+  private passTime<T>(work: () => Promise<T>): Promise<T> {
+    // `then(work, work)` so a predecessor's failure still lets the next
+    // one run, and the queue never rejects on somebody else's behalf.
+    const run = this.timeLock.then(work, work);
+    this.timeLock = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private seenExperience: Set<string>;
+  private experienceLog: ExperienceLog;
+  private enemyProgress: Record<string, EnemyProgress>;
+  private enemyIndividuals: EnemyIndividual[];
+  private arcana: Record<string, ArcanaRecord>;
+  private accidents: Record<string, AccidentRecord>;
+  private inventory: Inventory;
+  private lumi: number;
+  private progression: Record<string, LevelProgress>;
+  private claimedRewards: string[];
+  private resumeArea: ResumeArea;
+  /** Null while nothing has hurt them: a world with no row is whole. */
+  private condition: StoredParty | null;
+  /** The display name only. `hero` is still the id everywhere. */
+  private heroName: string;
+  /** Whether the save actually held one — see `WorldFields.heroNamed`. */
+  private heroNamed: boolean;
+  private equipment: EquipmentTable;
+  private ownedEquipment: OwnedTable;
+  private unlockedBgm: BattleBgmId[];
+  private rareFinds: RareFindTable;
+  private pickupsTaken: string[];
+  private visits: VisitTable;
+  private sekiryugaStage: SekiryugaStage;
+  private finaleStage: FinaleStage;
+  private readMarks: Set<string>;
+  private readMarkList: string[];
+  private breadFreshness: BreadFreshness;
+  private breadBuff: BreadBuff | null;
+  private tavernTrades: TavernTradesRow;
+  private pickupRegrowth: RegrowthRow;
+  private musicUnlocks: BgmId[];
+  private villageBgm: BgmId | null;
+  private incident: IncidentRow;
+  private dailyScene: DailySceneRow;
+  private playerKnowledge: PlayerKnowledgeRow;
+  /** The incident writes, one after another (see `addIncident`). */
+  private incidentQueue: Promise<unknown> = Promise.resolve();
+  /** The music writes, one after another (see `markMusicHeard`). */
+  private musicQueue: Promise<unknown> = Promise.resolve();
+  /** The read-mark writes, one after another (see `markRead`). */
+  private readMarkQueue: Promise<unknown> = Promise.resolve();
+
+  private readonly health: SaveHealth;
+
+  private constructor(
+    private readonly store: MemoryEventStore,
+    events: MemoryEvent[],
+    fields: WorldFields,
+    health: SaveHealth,
+  ) {
+    this.events = events;
+    this.clock = fields.clock;
+    this.heroName = fields.heroName;
+    this.heroNamed = fields.heroNamed;
+    this.unlockedBgm = fields.unlockedBgm;
+    this.rareFinds = fields.rareFinds;
+    this.pickupsTaken = fields.pickupsTaken;
+    this.visits = fields.visits;
+    this.sekiryugaStage = fields.sekiryugaStage;
+    this.finaleStage = fields.finaleStage;
+    this.readMarkList = fields.readMarks;
+    this.readMarks = new Set(fields.readMarks);
+    this.breadFreshness = fields.breadFreshness;
+    this.breadBuff = fields.breadBuff;
+    this.tavernTrades = fields.tavernTrades;
+    this.pickupRegrowth = fields.pickupRegrowth;
+    this.musicUnlocks = fields.musicUnlocks;
+    this.villageBgm = fields.villageBgm;
+    this.incident = fields.incident;
+    this.dailyScene = fields.dailyScene;
+    this.playerKnowledge = fields.playerKnowledge;
+    // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
+    // memory only: nothing is written until the player actually
+    // changes something, so opening an old save does not rewrite it.
+    if (fields.equipmentStarted) {
+      this.equipment = fields.equipment;
+      this.ownedEquipment = fields.ownedEquipment;
+    } else {
+      ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
+    }
+    this.characters = fields.characters;
+    this.seenExperience = new Set(fields.seenExperience);
+    this.experienceLog = fields.experienceLog;
+    this.enemyProgress = fields.enemyProgress;
+    this.enemyIndividuals = fields.enemyIndividuals;
+    this.arcana = fields.arcana;
+    this.accidents = fields.accidents;
+    this.inventory = fields.inventory;
+    this.lumi = fields.lumi;
+    this.progression = fields.progression;
+    this.claimedRewards = fields.claimedRewards;
+    this.resumeArea = fields.resumeArea;
+    this.condition = fields.condition;
+    this.health = health;
+  }
+
+  /**
+   * Opens the save and restores the world from it.
+   *
+   * FOUR STEPS, AND THE ORDER MATTERS:
+   *
+   *   1. MIGRATE. Bring the rows up to this build's version, one step
+   *      at a time. A save from a LATER build is left completely alone.
+   *   2. READ. Every row through a reader that validates rather than a
+   *      cast that assumes, so damage is found here instead of on the
+   *      screen that first displays it.
+   *   3. RECOVER. If a row was not merely wrong but the wrong KIND of
+   *      thing, try the last copy that loaded cleanly — and keep the
+   *      damaged rows rather than throwing them away.
+   *   4. BACK UP. If this save loaded with nothing wrong at all, it
+   *      becomes the copy step 3 will reach for next time.
+   *
+   * WHAT IT NEVER DOES IS START A NEW GAME. A save that cannot be read
+   * is a save whose owner still deserves an answer better than an empty
+   * world; the worst outcome allowed here is "as much of it as could be
+   * read", and even then the unreadable rows are kept on disk.
+   */
+  static async open(store: MemoryEventStore): Promise<World> {
+    await store.init();
+    const events = await store.getAll();
+    const stored = await store.getAllState();
+    const storedVersion = versionOf(await store.getMeta(SAVE_VERSION_META_KEY));
+
+    const migrated = migrateRows(stored, storedVersion, repairSavedRow);
+
+    // READ FIRST, REPAIR SECOND, and that order is the whole of the
+    // recovery. Reading reports how badly each row was wrong; repairing
+    // would hide it, because a `lumi` holding the string "gone" repairs
+    // to a perfectly good zero and the player's purse is quietly empty
+    // with nothing having gone visibly wrong. So the judgement is made
+    // on the rows as they were found.
+    let rows = migrated.rows;
+    let read = readWorldRows(rows);
+    let recoveredFromBackup = false;
+
+    // If a row was not merely wrong but the wrong KIND of thing, this
+    // save may not be this save any more. Try the last copy that loaded
+    // cleanly — and keep what was found, rather than destroying the only
+    // evidence of what went wrong.
+    if (read.unreadableKeys.length > 0) {
+      const backup = readBackup(await store.getMeta(BACKUP_META_KEY));
+      if (backup) {
+        const fromBackup = readWorldRows(backup.rows);
+        // Only if it is actually in better shape. A backup as broken as
+        // the save it would be rescuing is not a rescue, and swapping
+        // would throw away the newer of two damaged saves for nothing.
+        if (fromBackup.unreadableKeys.length < read.unreadableKeys.length) {
+          await store.setMeta(DAMAGED_META_KEY, {
+            savedAt: new Date().toISOString(),
+            unreadableKeys: read.unreadableKeys,
+            rows: stored,
+          });
+          rows = backup.rows;
+          read = fromBackup;
+          recoveredFromBackup = true;
+        }
+      }
+    }
+
+    // AND NOW THE REPAIR IS WRITTEN DOWN, every load, whatever the
+    // version says. Damage does not wait for a version boundary: a
+    // write cut off halfway leaves a bad row in a save that is
+    // perfectly up to date. Without this, such a row would be repaired
+    // on the way into memory and left on disk to be repaired again on
+    // every load forever — fixed each time and never actually fixed.
+    const persist = migrated.fromTheFuture
+      ? rows
+      : rows.map((row) => {
+          const fixed = repairSavedRow(row.key, row.value);
+          return fixed.changed ? { key: row.key, value: fixed.value } : row;
+        });
+
+    // Never for a save from a later build: the worst thing an older
+    // build can do to one is rewrite it into a shape the newer build no
+    // longer recognises.
+    if (!migrated.fromTheFuture && (recoveredFromBackup || !sameRows(stored, persist))) {
+      await store.commit({ putState: persist });
+    }
+    if (!migrated.fromTheFuture && storedVersion !== SAVE_VERSION) {
+      await store.setMeta(SAVE_VERSION_META_KEY, SAVE_VERSION);
+    }
+
+    const health: SaveHealth = {
+      version: migrated.fromTheFuture ? (storedVersion ?? SAVE_VERSION) : SAVE_VERSION,
+      health: read.unreadableKeys.length
+        ? 'unreadable'
+        : read.repairedKeys.length || migrated.changedKeys.length
+          ? 'repaired'
+          : 'ok',
+      repairedKeys: read.repairedKeys,
+      unreadableKeys: read.unreadableKeys,
+      migrationsApplied: migrated.applied,
+      recoveredFromBackup,
+      fromTheFuture: migrated.fromTheFuture,
+    };
+
+    const world = new World(store, events, read.fields, health);
+
+    // 4. BACK UP, but only a save that came through all of that with
+    //    nothing to report. "Last known good" has to mean good.
+    if (health.health === 'ok' && !migrated.fromTheFuture) {
+      await world.writeBackup(persist);
+    }
+
+    // 5. WHAT WAS EARNED BEFORE THE SAVE KEPT A NOTE OF IT. Never in a
+    //    save from a later build, which is not this build's to write.
+    if (!migrated.fromTheFuture) await world.recoverEarnedBattleBgm();
+    return world;
+  }
+
+  /**
+   * Takes a fresh copy of the save as the last known good one.
+   *
+   * Called when a world opens cleanly, and again when the page is about
+   * to go away — which is what keeps the copy from being a whole
+   * session out of date. It is a copy of the ROWS rather than of this
+   * object, so a row this build does not understand is copied too.
+   */
+  async snapshotBackup(): Promise<void> {
+    if (this.health.fromTheFuture) return;
+    if (this.health.health === 'unreadable') return;
+    await this.writeBackup(await this.store.getAllState());
+  }
+
+  private async writeBackup(rows: readonly WorldStateRow[]): Promise<void> {
+    const body = { version: SAVE_VERSION, savedAt: new Date().toISOString(), rows };
+    // Nothing to do when it would be the same copy again. Compared on
+    // the rows alone: the timestamp changes every time and is not a
+    // reason to write.
+    const existing = readBackup(await this.store.getMeta(BACKUP_META_KEY));
+    if (existing && sameRows(existing.rows, rows)) return;
+    await this.store.setMeta(BACKUP_META_KEY, body);
+  }
+
+  /** What reading this save had to say about it. */
+  getSaveHealth(): SaveHealth {
+    return this.health;
+  }
+
+  /**
+   * The rows a past load could not read, if any were ever kept.
+   *
+   * THE POINT OF KEEPING THEM IS BEING ABLE TO LOOK. Recovery already
+   * put the damaged rows somewhere rather than destroying them, on the
+   * grounds that they are the only evidence of what went wrong — and
+   * evidence nobody can read is the same as no evidence. This is the
+   * reading end, for the developer panel: a save that has never been
+   * damaged returns null and says nothing.
+   */
+  async getDamagedRows(): Promise<DamagedSave | null> {
+    return readDamaged(await this.store.getMeta(DAMAGED_META_KEY));
+  }
+
+  /**
+   * Forgets the damaged rows.
+   *
+   * Only for after somebody has actually looked. Nothing in the game
+   * calls this; the developer panel does, so a save that has been
+   * investigated stops reporting the same fault for ever.
+   */
+  async clearDamagedRows(): Promise<void> {
+    await this.store.setMeta(DAMAGED_META_KEY, null);
+  }
+
+  /** Where 「つづきから」 should put the player back. */
+  getResumeArea(): ResumeArea {
+    return this.resumeArea;
+  }
+
+  // ---- WHAT THE PARTY HAS LEFT ----
+
+  /**
+   * The ceilings, which come from the levels and are never stored — and
+   * his swing, with what his weapon adds to both ends while he holds it
+   * (`effect.attack`; 0 for every weapon but a found one). The battle
+   * builds its fighters from this, so the screens and the fight agree.
+   */
+  getPartyStats(): PartyStats {
+    const stats = statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
+    // 鉄の腕輪 (グレイヴの加工, 2026-10-11): carried, a little more on his swing — one, however many.
+    const attack = weaponInBattle(this.getEquipped('hero', 'WEAPON')).attack + (this.getItemCount(IRON_CHARM_ID) > 0 ? IRON_CHARM_ATTACK : 0);
+    if (attack === 0) return stats;
+    return { ...stats, attackMin: stats.attackMin + attack, attackMax: stats.attackMax + attack };
+  }
+
+  /**
+   * His weapon's first-strike ability for the next fight, while he holds
+   * a weapon that has one. Null otherwise.
+   */
+  getHeroFirstStrike(): { name: string; multiplier: number } | null {
+    return weaponInBattle(this.getEquipped('hero', 'WEAPON')).firstStrike;
+  }
+
+  /** Who this world's condition is kept for. Two today. */
+  private partyMembers(): readonly string[] {
+    return activeParty().map((member) => member.id);
+  }
+
+  /**
+   * WHAT EACH OF THEM HAS LEFT, against the party they are now.
+   *
+   * Per character, with the maxima worked out from the levels rather
+   * than read from disk: a stored maximum is a second copy of a truth
+   * the level already holds, and the two would disagree the first time
+   * the curve is retuned. A world nobody has hurt has no row here and
+   * everybody comes back whole.
+   */
+  getPartyCondition(): PartyCondition {
+    return readParty(
+      this.condition ?? {},
+      this.partyMembers(),
+      this.getLevel(BATTLE_HP_HOLDER),
+      this.getLevel(BATTLE_MP_HOLDER),
+    );
+  }
+
+  /** One of them, by id. Somebody nobody has heard of comes back whole. */
+  getCharacterCondition(characterId: string): CharacterCondition {
+    const party = this.getPartyCondition();
+    if (party[characterId]) return party[characterId];
+    const ceiling = ceilingFor(
+      characterId,
+      this.getLevel(BATTLE_HP_HOLDER),
+      this.getLevel(BATTLE_MP_HOLDER),
+    );
+    return {
+      currentHp: ceiling.maxHp,
+      maxHp: ceiling.maxHp,
+      currentMp: ceiling.maxMp,
+      maxMp: ceiling.maxMp,
+    };
+  }
+
+  /**
+   * WHAT THE FIGHT READS, and the only place the mapping lives.
+   *
+   * The battle has one health bar and one pool of magic. The bar is
+   * the front rank taking the blows and the magic is hers — the same
+   * split the level curve already makes. Two lines, in one function,
+   * so nothing else has to know it.
+   */
+  getBattleCondition(): { hp: number; mp: number } {
+    const party = this.getPartyCondition();
+    return {
+      hp: party[BATTLE_HP_HOLDER]?.currentHp ?? 0,
+      mp: party[BATTLE_MP_HOLDER]?.currentMp ?? 0,
+    };
+  }
+
+  /**
+   * What a fight left them with.
+   *
+   * Handed the two numbers a fight actually has, and puts them back
+   * where they came from. Clamped here rather than trusted: the caller
+   * is a screen, and a screen is the last place a ceiling should be
+   * enforced.
+   */
+  async setBattleCondition(left: { hp: number; mp: number }): Promise<void> {
+    const party = this.getPartyCondition();
+    await this.writeParty({
+      ...toStored(party),
+      [BATTLE_HP_HOLDER]: {
+        hp: left.hp,
+        mp: party[BATTLE_HP_HOLDER]?.currentMp ?? 0,
+      },
+      [BATTLE_MP_HOLDER]: {
+        hp: party[BATTLE_MP_HOLDER]?.currentHp ?? 0,
+        mp: left.mp,
+      },
+    });
+  }
+
+  /**
+   * ケイオスの MP、少しだけ戻る (作者指示 2026-10-12「MP 自然回復」): `share` of her
+   * most (rounded up), never past it. Small on purpose — the night's rest is
+   * what fills her; this only keeps a long day from feeling unfair. How much
+   * was given (0 when she is full).
+   */
+  async recoverKaosMp(share: number): Promise<number> {
+    const kaos = this.getCharacterCondition(BATTLE_MP_HOLDER);
+    const gain = Math.min(kaos.maxMp - kaos.currentMp, Math.ceil(kaos.maxMp * share));
+    if (gain <= 0) return 0;
+    await this.setCharacterCondition(BATTLE_MP_HOLDER, { hp: kaos.currentHp, mp: kaos.currentMp + gain });
+    return gain;
+  }
+
+  /** One person's, by id. For the developer panel and for tests. */
+  async setCharacterCondition(
+    characterId: string,
+    left: { hp: number; mp: number },
+  ): Promise<void> {
+    await this.writeParty({
+      ...toStored(this.getPartyCondition()),
+      [characterId]: { hp: left.hp, mp: left.mp },
+    });
+  }
+
+  /**
+   * WHAT THE PLAYER CALLS THEMSELVES, for anything that shows a name.
+   *
+   * A save from before naming existed has no row, and that reads as
+   * the default — so an old world opens showing 「主人公」 rather than
+   * showing nothing, and nothing had to be migrated to make that true.
+   */
+  getHeroName(): string {
+    return this.heroName;
+  }
+
+  /** Whether a name has ever been chosen, however it was spelled. */
+  hasNamedHero(): boolean {
+    return this.heroNamed;
+  }
+
+  /**
+   * Naming, or renaming. THE ID DOES NOT MOVE.
+   *
+   * `hero` stays `hero`: the battle, WORLD MEMORY, the four answers
+   * about Gald and every event id are keyed off it and none of them
+   * can see this. Renaming is therefore never a way to take a story
+   * decision again — it changes a word on a screen.
+   *
+   * A name that is not a name is refused rather than written, and the
+   * caller is told, so a blank confirm can never leave somebody
+   * nameless.
+   */
+  async setHeroName(name: string): Promise<boolean> {
+    const clean = normaliseHeroName(name);
+    if (clean === null) return false;
+    if (this.heroNamed && clean === this.heroName) return true;
+    await this.store.commit({ putState: [{ key: HERO_NAME_KEY, value: clean }] });
+    this.heroName = clean;
+    this.heroNamed = true;
+    this.emit();
+    return true;
+  }
+
+  /** Confirming without typing anything: the default, recorded as chosen. */
+  async acceptDefaultHeroName(): Promise<void> {
+    await this.setHeroName(DEFAULT_HERO_NAME);
+  }
+
+  /** What somebody has in a slot, or null for an empty one. */
+  getEquipped(characterId: string, slot: EquipmentSlot): string | null {
+    return this.equipment[characterId]?.[slot] ?? null;
+  }
+
+  /** How many of an equipment id is held. */
+  getOwnedEquipment(): Readonly<OwnedTable> {
+    return this.ownedEquipment;
+  }
+
+  /** The fighting music this world may choose between. */
+  getUnlockedBattleBgm(): readonly BattleBgmId[] {
+    return this.unlockedBgm;
+  }
+
+  /**
+   * WON, NOT HEARD. Called when a fight is come through, never when
+   * one starts — the rule is that a piece becomes yours by beating a
+   * fight to it, so hearing the boss music and fleeing leaves it
+   * locked.
+   *
+   * Idempotent, and silent when there is nothing to add: a player wins
+   * many fights to the same piece and none of them should write.
+   */
+  async unlockBattleBgm(id: string): Promise<boolean> {
+    if (!isBattleBgm(id) || this.unlockedBgm.includes(id)) return false;
+    const next = [...this.unlockedBgm, id];
+    await this.store.commit({ putState: [{ key: UNLOCKED_BGM_KEY, value: next }] });
+    this.unlockedBgm = next;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * MUSIC WON BEFORE THE SAVE REMEMBERED WINNING IT.
+   *
+   * Gald's piece became something a save keeps after some worlds had
+   * already beaten him — and his fight is fought once per world, so
+   * those worlds could never earn it again. This gives it back to them,
+   * from proof and only from proof:
+   *
+   *   HIS FOUR-WAY ANSWER. It is asked on the screen that only a WON
+   *   fight with him leads to (a lost one goes back to the village), and
+   *   every build that has had the fight has led there the same way. A
+   *   world holding the answer has beaten him.
+   *
+   * Nothing weaker counts. Having met him, having lost to him, having
+   * seen Kaos wake in his fight: none of those is a win, and none of
+   * them is read here. A world with no answer on record stays as it is,
+   * and the rule for everybody else is unchanged — the piece is earned
+   * the moment he is beaten.
+   *
+   * No new version and no migration: this fills in one missing row from
+   * a record the save already has. Idempotent and silent — a world that
+   * already holds the piece, or holds no proof, writes nothing.
+   */
+  private async recoverEarnedBattleBgm(): Promise<void> {
+    if (this.getGaldLifeChoice()) await this.unlockBattleBgm(FORCED_BATTLE_BGM.GALD);
+    // 2026-10-11, the same from the same kind of proof: セキリュウガ stopped
+    // (the arc past BEATEN), and フウミミ answered (its four-way answer, asked
+    // only after a won fight).
+    if (stageReached(this.sekiryugaStage, 'BEATEN')) await this.unlockBattleBgm(FORCED_BATTLE_BGM.SEKIRYUGA);
+    if (this.getFuumimiAnswer()) await this.unlockBattleBgm(FORCED_BATTLE_BGM.FUUMIMI);
+  }
+
+  /**
+   * Handing somebody a piece of equipment.
+   *
+   * A REAL ROUTE, not a test hatch: a shop sale, a chest and a drop
+   * all end here, and until one of those exists the only caller is an
+   * e2e — which is a reason to keep it honest, not to hide it. It
+   * refuses an id this build does not know rather than recording a
+   * possession that can never be worn.
+   */
+  async grantEquipment(equipmentId: string, quantity = 1): Promise<boolean> {
+    const count = Math.floor(quantity);
+    if (!weaponDefOf(equipmentId) || count <= 0) return false;
+    const next: OwnedTable = {
+      ...this.ownedEquipment,
+      [equipmentId]: (this.ownedEquipment[equipmentId] ?? 0) + count,
+    };
+    await this.store.commit({
+      putState: [
+        { key: OWNED_EQUIPMENT_KEY, value: next },
+        { key: EQUIPMENT_KEY, value: this.equipment },
+      ],
+    });
+    this.ownedEquipment = next;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * Putting something on, or taking it off with null.
+   *
+   * REFUSED RATHER THAN WRITTEN when it is not theirs to hold or they
+   * do not own it — the caller is told, so a screen can never leave
+   * somebody carrying a weapon the rules forbid.
+   *
+   * ONE COMMIT for both rows, so a crash between them cannot leave
+   * a sword equipped that is not owned.
+   */
+  async setEquipped(
+    characterId: string,
+    slot: EquipmentSlot,
+    equipmentId: string | null,
+  ): Promise<boolean> {
+    if (equipmentId !== null) {
+      const def = weaponDefOf(equipmentId);
+      if (!def || def.slot !== slot) return false;
+      if (!canEquip(characterId, def)) return false;
+      if ((this.ownedEquipment[equipmentId] ?? 0) <= 0) return false;
+    }
+    const slots = { ...(this.equipment[characterId] ?? {}) };
+    if (equipmentId === null) delete slots[slot];
+    else slots[slot] = equipmentId;
+    const next: EquipmentTable = { ...this.equipment, [characterId]: slots };
+    if (Object.keys(slots).length === 0) delete next[characterId];
+    if (JSON.stringify(next) === JSON.stringify(this.equipment)) return true;
+    await this.store.commit({
+      putState: [
+        { key: EQUIPMENT_KEY, value: next },
+        { key: OWNED_EQUIPMENT_KEY, value: this.ownedEquipment },
+      ],
+    });
+    this.equipment = next;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * THE FIRST BOSS ROUTE — whether it has begun (after Gald, whichever of
+   * the four answers), and how far along it this world is. See `storyArc.ts`.
+   */
+  isSekiryugaArcOpen(): boolean {
+    return arcOpen({
+      galdDecided: this.getGaldLifeChoice() !== null,
+      visionSeen: this.hasSeenExperience(GALD_FUTURE_VISION_ID),
+      oldShift: this.hasEventOfType('WORLD_TIME_SHIFTED'),
+    });
+  }
+
+  getSekiryugaStage(): SekiryugaStage {
+    return this.sekiryugaStage;
+  }
+
+  /**
+   * Moves the route on to `stage`. Forward only: asking for a stage
+   * already passed writes nothing and returns false. Refused, too, while
+   * the route has not begun — nothing about it can be heard before Gald.
+   */
+  async advanceSekiryugaArc(stage: SekiryugaStage): Promise<boolean> {
+    if (!this.isSekiryugaArcOpen()) return false;
+    const next = advanceStage(this.sekiryugaStage, stage);
+    if (next === this.sekiryugaStage) return false;
+    await this.store.commit({ putState: [{ key: SEKIRYUGA_ARC_KEY, value: next }] });
+    this.sekiryugaStage = next;
+    this.emit();
+    return true;
+  }
+
+  /** 第1章終盤: how far this world has got (`chapterFinale.ts`). */
+  getFinaleStage(): FinaleStage {
+    return this.finaleStage;
+  }
+
+  /** Moves the finale on to `stage`. Forward only: a stage already passed writes nothing and returns false. */
+  async advanceFinaleStage(stage: FinaleStage): Promise<boolean> {
+    const next = advanceFinale(this.finaleStage, stage);
+    if (next === this.finaleStage) return false;
+    await this.store.commit({ putState: [{ key: FINALE_KEY, value: next }] });
+    this.finaleStage = next;
+    this.emit();
+    return true;
+  }
+
+  /** Whether the player has actually looked at this (`readMarks.ts`). */
+  isRead(id: string): boolean {
+    return this.readMarks.has(id);
+  }
+
+  /**
+   * Marks these as looked at. Writes only when something is new to the
+   * list; returns whether it wrote.
+   */
+  markRead(ids: readonly string[]): Promise<boolean> {
+    // ONE AT A TIME. Several things are often looked at in quick
+    // succession (a row of rumours tapped through); each write starts from
+    // the list the one before it left, so none is lost to another.
+    const run = this.readMarkQueue.then(async () => {
+      const next = withMarks(this.readMarkList, ids);
+      if (next.length === this.readMarkList.length && next.every((id, i) => id === this.readMarkList[i])) return false;
+      await this.store.commit({ putState: [{ key: READ_MARKS_KEY, value: next }] });
+      this.readMarkList = next;
+      this.readMarks = new Set(next);
+      this.emit();
+      return true;
+    });
+    this.readMarkQueue = run.catch(() => false);
+    return run;
+  }
+
+  /** Whether a place's once-in-a-world find has been taken in this world. */
+  hasRareFind(place: string): boolean {
+    return this.rareFinds[place] === true;
+  }
+
+  /** How many real visits a place has had in this world. */
+  getExplorationVisits(place: string): number {
+    return this.visits[place] ?? 0;
+  }
+
+  /**
+   * One more real visit to a place. Called by the walk screen once a
+   * visit has amounted to something (it decides what counts), and only
+   * once per visit. Returns the new count.
+   */
+  async recordExplorationVisit(place: string): Promise<number> {
+    if (!place) return 0;
+    const next: VisitTable = { ...this.visits, [place]: (this.visits[place] ?? 0) + 1 };
+    await this.store.commit({ putState: [{ key: VISITS_KEY, value: next }] });
+    this.visits = next;
+    this.emit();
+    return next[place];
+  }
+
+  /**
+   * TAKING A PLACE'S ONCE-IN-A-WORLD FIND: the mark that it is gone,
+   * and the thing itself into the player's hands.
+   *
+   * ONE COMMIT for both, so a crash between them can neither leave the
+   * find marked taken with nothing held nor hand it over twice. Refused
+   * — nothing written — when it was already taken, or when the thing is
+   * not equipment this build knows.
+   */
+  async claimRareFind(place: string, equipmentId: string): Promise<boolean> {
+    if (!place || this.rareFinds[place] === true || !weaponDefOf(equipmentId)) return false;
+    const finds: RareFindTable = { ...this.rareFinds, [place]: true };
+    const owned: OwnedTable = {
+      ...this.ownedEquipment,
+      [equipmentId]: (this.ownedEquipment[equipmentId] ?? 0) + 1,
+    };
+    await this.store.commit({
+      putState: [
+        { key: RARE_FINDS_KEY, value: finds },
+        { key: OWNED_EQUIPMENT_KEY, value: owned },
+        { key: EQUIPMENT_KEY, value: this.equipment },
+      ],
+    });
+    this.rareFinds = finds;
+    this.ownedEquipment = owned;
+    this.emit();
+    return true;
+  }
+
+  // ---- THINGS TO PICK UP (2026-10-07) ----
+
+  /**
+   * The fixed pickups gone from the floor today, by id: those taken, less
+   * the few that have grown back since (content/exploration/regrowth.ts,
+   * 2026-10-11).
+   */
+  getTakenPickups(): readonly string[] {
+    return this.pickupsTaken.filter((id) => !this.regrown(id));
+  }
+
+  /** Whether this pickup is gone from the floor today. */
+  isPickupTaken(pickupId: string): boolean {
+    return this.pickupsTaken.includes(pickupId) && !this.regrown(pickupId);
+  }
+
+  /** Whether this pickup has ever been taken in this world (grown back or not). */
+  hasEverTakenPickup(pickupId: string): boolean {
+    return this.pickupsTaken.includes(pickupId);
+  }
+
+  /** Taken once, grows back, and has: there to take again today. */
+  private regrown(pickupId: string): boolean {
+    const rule = regrowthOf(pickupId);
+    if (!rule || !this.pickupsTaken.includes(pickupId)) return false;
+    return pickupThere(pickupId, this.pickupsTaken, this.pickupRegrowth, toAbsoluteDay(this.clock), rule.days);
+  }
+
+  /** Whether anything in the forest has grown back since it was taken (for Kaos's word). */
+  hasRegrownPickup(): boolean {
+    return Object.keys(PICKUP_REGROWTH).some((id) => this.regrown(id));
+  }
+
+  /**
+   * TAKING WHAT IS IN A PICKUP: the mark that it is gone and the thing
+   * into the bag, in ONE COMMIT — a crash between them can neither leave
+   * it marked with nothing held nor hand it over twice. Returns how many
+   * went in the bag; nought, with nothing written, when it was already
+   * taken, the thing is not in the catalogue, or there is no room for all
+   * of it (then it stays where it is, to come back for).
+   */
+  async claimPickup(pickupId: string, itemId: string, quantity: number): Promise<number> {
+    const def = itemDef(itemId);
+    const want = Math.floor(quantity);
+    if (!pickupId || this.isPickupTaken(pickupId) || !def) return 0;
+    if (!Number.isFinite(want) || want <= 0) return 0;
+    if (roomFor(this.inventory, def) < want) return 0;
+    const bag = addToBag(this.inventory, def, want);
+    if (bag.moved !== want) return 0;
+    const taken = this.pickupsTaken.includes(pickupId) ? this.pickupsTaken : [...this.pickupsTaken, pickupId];
+    // One that grows back: the day it was taken, so it can be there again some days on.
+    const regrowth = regrowthOf(pickupId)
+      ? { ...this.pickupRegrowth, [pickupId]: toAbsoluteDay(this.clock) }
+      : this.pickupRegrowth;
+    await this.store.commit({
+      putState: [
+        { key: PICKUPS_KEY, value: taken },
+        { key: INVENTORY_KEY, value: bag.inventory },
+        ...(regrowth !== this.pickupRegrowth ? [{ key: REGROWTH_KEY, value: regrowth }] : []),
+      ],
+    });
+    this.pickupsTaken = taken;
+    this.pickupRegrowth = regrowth;
+    this.inventory = bag.inventory;
+    this.emit();
+    return want;
+  }
+
+  private async writeParty(next: StoredParty): Promise<void> {
+    // Clamped by reading it straight back: one definition of what a
+    // stored row means, used for what goes in as well as what comes
+    // out, so nothing can be written that could not be read.
+    const clamped = toStored(
+      readParty(
+        next,
+        this.partyMembers(),
+        this.getLevel(BATTLE_HP_HOLDER),
+        this.getLevel(BATTLE_MP_HOLDER),
+      ),
+    );
+    if (JSON.stringify(this.condition ?? null) === JSON.stringify(clamped)) return;
+    await this.store.commit({ putState: [{ key: CONDITION_KEY, value: clamped }] });
+    this.condition = clamped;
+    this.emit();
+  }
+
+  /**
+   * Whole again — a night's rest, or being carried home beaten.
+   *
+   * THE FREE WAY BACK, and it has to stay free. Carrying a wound out
+   * of a fight means a player can be left too hurt to win the next
+   * one, and the answer to that must never be "buy a herb": somebody
+   * with no LUMI and no bag would be stranded in their own save.
+   */
+  async restoreParty(): Promise<void> {
+    if (this.condition === null) return;
+    await this.store.commit({ putState: [{ key: CONDITION_KEY, value: null }] });
+    this.condition = null;
+    this.emit();
+  }
+
+  // ── BREAD (パン屋 MVP, 2026-10-09) ─────────────────────────────────
+  //
+  // A loaf is an ordinary thing in the bag; what it has besides is its age
+  // and the lift eating it gives (core/economy/bread.ts). The ages are
+  // always read MATCHED TO THE BAG, so a loaf that left the bag some other
+  // way is forgotten and one that arrived some other way is fresh.
+
+  /** For each kind of bread in the bag, the nights each loaf has left. */
+  getBreadFreshness(): BreadFreshness {
+    return reconcileFreshness(this.breadFreshness, this.inventory, (id) => itemDef(id)?.bread);
+  }
+
+  /** The lift from the last loaf eaten, until the next night's rest. */
+  getBreadBuff(): BreadBuff | null {
+    return this.breadBuff;
+  }
+
+  /**
+   * ONE LOAF EATEN, out of a fight: the front rank's health back by the
+   * loaf's amount (as far as it goes — a loaf is eaten for its lift too, so
+   * being whole does not refuse it), its lift in place of any before it,
+   * one fewer in the bag. One commit. Refused, touching nothing, when there
+   * is none or every one left has gone stale.
+   */
+  async eatBread(itemId: string): Promise<BreadEatResult> {
+    const def = itemDef(itemId);
+    const name = def?.name ?? itemId;
+    if (!def?.bread || !def.use) return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+    if (countInBag(this.inventory, itemId) <= 0) {
+      return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+    }
+    const fresh = eatOne(this.getBreadFreshness(), itemId);
+    if (!fresh) return { ok: false, refusal: 'STALE', name, given: 0, buff: this.breadBuff };
+    const taken = removeFromBag(this.inventory, itemId, 1);
+    if (taken.moved === 0) return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+
+    const party = this.getPartyCondition();
+    const front = party[BATTLE_HP_HOLDER];
+    const given = front ? Math.max(0, Math.min(def.use.amount, front.maxHp - front.currentHp)) : 0;
+    const next: StoredParty | null =
+      front && given > 0
+        ? { ...toStored(party), [BATTLE_HP_HOLDER]: { hp: front.currentHp + given, mp: front.currentMp } }
+        : null;
+    const buff: BreadBuff = { itemId, buffType: def.bread.buffType, buffValue: def.bread.buffValue };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: taken.inventory },
+        { key: BREAD_FRESHNESS_KEY, value: fresh },
+        { key: BREAD_BUFF_KEY, value: buff },
+        ...(next ? [{ key: CONDITION_KEY, value: next }] : []),
+      ],
+    });
+    this.inventory = taken.inventory;
+    this.breadFreshness = fresh;
+    this.breadBuff = buff;
+    if (next) this.condition = next;
+    this.emit();
+    return { ok: true, refusal: null, name, given, buff };
+  }
+
+  /**
+   * A NIGHT'S REST, for the bread: every loaf a night older, and the lift
+   * over. Writes only when there is bread or a lift to change.
+   */
+  async restBread(): Promise<void> {
+    const now = this.getBreadFreshness();
+    const older = afterRest(now);
+    const changed = JSON.stringify(older) !== JSON.stringify(this.breadFreshness) || this.breadBuff !== null;
+    if (!changed) return;
+    await this.store.commit({
+      putState: [
+        { key: BREAD_FRESHNESS_KEY, value: older },
+        { key: BREAD_BUFF_KEY, value: null },
+      ],
+    });
+    this.breadFreshness = older;
+    this.breadBuff = null;
+    this.emit();
+  }
+
+  // ── THE TAVERN (酒場ハブ化 Phase 1, 2026-10-09) ────────────────────
+  //
+  // Swaps with tonight's stranger, the music the game has played, and the
+  // piece the village plays (core/world/tavernState.ts).
+
+  /** The swaps already made on this (absolute) day. */
+  getTradesDone(day: number): readonly string[] {
+    return this.tavernTrades.day === day ? this.tavernTrades.done : [];
+  }
+
+  /**
+   * グレイヴの簡単な加工 (2026-10-11): the materials out of the bag and the
+   * thing in, in ONE COMMIT. As often as the bag allows; the charm only
+   * while none is carried. Nothing else is written (no point, no memory).
+   */
+  async craftAtTavern(craft: GraveCraft): Promise<'OK' | 'SHORT' | 'FULL' | 'OWNED'> {
+    if (craft.once && this.getItemCount(craft.get.itemId) > 0) return 'OWNED';
+    let bag = this.inventory;
+    for (const line of craft.give) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'SHORT';
+      const taken = removeFromBag(bag, line.itemId, line.quantity);
+      if (taken.moved !== line.quantity) return 'SHORT';
+      bag = taken.inventory;
+    }
+    const def = itemDef(craft.get.itemId);
+    if (!def || roomFor(bag, def) < craft.get.quantity) return 'FULL';
+    const added = addToBag(bag, def, craft.get.quantity);
+    if (added.moved !== craft.get.quantity) return 'FULL';
+    bag = added.inventory;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: bag }] });
+    this.inventory = bag;
+    this.emit();
+    return 'OK';
+  }
+
+  /**
+   * ONE SWAP WITH TONIGHT'S STRANGER: what they want out of the bag, what
+   * they give in — and the night's record — in one commit, or nothing.
+   * Once per swap per day: the strangers change with a night's rest, so
+   * one while they are in. Refused, touching nothing, when it is already
+   * made tonight, the bag is short, or what they give will not fit.
+   */
+  async tradeItems(trade: TavernTrade, day: number): Promise<TradeOutcome> {
+    if (this.getTradesDone(day).includes(trade.id)) return 'DONE';
+    let bag = this.inventory;
+    for (const line of trade.give) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'SHORT';
+      const taken = removeFromBag(bag, line.itemId, line.quantity);
+      if (taken.moved !== line.quantity) return 'SHORT';
+      bag = taken.inventory;
+    }
+    for (const line of trade.get) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'FULL';
+      if (roomFor(bag, def) < line.quantity) return 'FULL';
+      const added = addToBag(bag, def, line.quantity);
+      if (added.moved !== line.quantity) return 'FULL';
+      bag = added.inventory;
+    }
+    const record: TavernTradesRow = { day, done: [...this.getTradesDone(day), trade.id] };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag },
+        { key: TAVERN_TRADES_KEY, value: record },
+      ],
+    });
+    this.inventory = bag;
+    this.tavernTrades = record;
+    this.emit();
+    return 'OK';
+  }
+
+  /**
+   * THE MUSIC THIS WORLD HAS HEARD, in the archive's order: what the game
+   * has recorded playing, and — for a save from before it recorded any —
+   * what the save shows was certainly played: a named hero came through
+   * the title, the opening, Kaos and into the village; his first talk
+   * with Grave was in the tavern; a fight in the forest was in the
+   * forest; Gald's piece won is Gald's piece heard. Nothing else is
+   * guessed (the ordinary fight's piece is recorded the next time).
+   */
+  getHeardMusic(): BgmId[] {
+    const heard = new Set<BgmId>(this.musicUnlocks);
+    if (this.heroNamed) for (const id of ['TITLE_MAIN', 'OPENING', 'KAOS_EVENT', 'ALDEN_VILLAGE'] as const) heard.add(id);
+    if (this.readMarks.has(GRAVE_MEETING_MARK)) heard.add('TAVERN');
+    if (Object.keys(this.enemyProgress).length > 0 || this.pickupsTaken.some((p) => p.startsWith('forest_'))) {
+      heard.add('GREENWOOD_FOREST');
+    }
+    for (const id of this.unlockedBgm) if (!(INITIAL_UNLOCKED_BATTLE_BGM as readonly string[]).includes(id)) heard.add(id);
+    return MUSIC_ARCHIVE_IDS.filter((id) => heard.has(id));
+  }
+
+  /**
+   * A piece the game has just played. Writes only the first time; one
+   * write at a time, so two pieces in quick succession are both kept.
+   */
+  markMusicHeard(id: string): Promise<boolean> {
+    const run = this.musicQueue.then(async () => {
+      // Already known — recorded, or certain from the save — writes nothing.
+      if (!isArchivedPiece(id) || this.getHeardMusic().includes(id)) return false;
+      const next = [...this.musicUnlocks, id];
+      await this.store.commit({ putState: [{ key: MUSIC_UNLOCKS_KEY, value: next }] });
+      this.musicUnlocks = next;
+      this.emit();
+      return true;
+    });
+    this.musicQueue = run.catch(() => false);
+    return run;
+  }
+
+  // ── ALDEN INCIDENT (予兆フェーズ, 2026-10-10) ───────────────────────
+  //
+  // A hidden point moved by what the player does, and the phase it reads as
+  // (core/world/aldenIncident.ts). Nothing here starts anything.
+
+  /** The hidden point (never shown). */
+  getIncidentPoint(): number {
+    return this.incident.aldenIncidentPoint;
+  }
+
+  /** The phase it reads as: 0 平常, 1 違和感, 2 異変, 3 直前. */
+  getIncidentPhase(): IncidentPhase {
+    return this.incident.aldenIncidentPhase;
+  }
+
+  /**
+   * Something done in the world. Writes only when it counts (see
+   * aldenIncident.ts for what counts and how often — and nothing before
+   * セキリュウガ's part is over); one write at a time.
+   * The day is read when it runs.
+   */
+  addIncident(kind: IncidentKind, id?: string): Promise<boolean> {
+    const run = this.incidentQueue.then(async () => {
+      // Nothing counts until セキリュウガ's part is over (read when it runs).
+      if (!incidentCounting(this.sekiryugaStage)) return false;
+      const next = countIncident(this.incident, kind, toAbsoluteDay(this.clock), id);
+      if (!next) return false;
+      await this.store.commit({ putState: [{ key: INCIDENT_KEY, value: next }] });
+      this.incident = next;
+      this.emit();
+      return true;
+    });
+    this.incidentQueue = run.catch(() => false);
+    return run;
+  }
+
+  /**
+   * THE VILLAGE'S SMALL THINGS (content/story/dailyScenes.ts): the one that
+   * happens at this place now, if any — after セキリュウガ's part, one a day,
+   * each once in a world. Reading it pays nothing and moves nothing.
+   */
+  getDailyScene(place: DailyScenePlace): DailyScene | null {
+    return dailySceneAt(place, {
+      stage: this.sekiryugaStage,
+      phase: this.incident.aldenIncidentPhase,
+      day: toAbsoluteDay(this.clock),
+      lastDay: this.dailyScene.lastDay,
+      isRead: (mark) => this.readMarks.has(mark),
+      galdChoice: this.getGaldLifeChoice(),
+      fuumimi: this.getFuumimiAnswer(),
+      isTrue: (type) => this.hasEventOfType(type),
+    });
+  }
+
+  /** What was decided about フウミミ (IND-43452DFD), and on which absolute day — or null. */
+  getFuumimiAnswer(): { choice: LifeChoiceId; day: number } | null {
+    const event = this.events.find((e) => e.id === `evt_creature_life_choice_${FUUMIMI_INDIVIDUAL_ID}`);
+    const choice = event ? (CREATURE_LIFE_CHOICE_TYPE_TO_CHOICE as Record<string, LifeChoiceId>)[event.type] : undefined;
+    if (!event || !choice) return null;
+    return { choice, day: toAbsoluteDay({ worldYear: event.worldYear, worldDay: event.worldDay }) };
+  }
+
+  /** The day the last small scene was seen to its end, or null. */
+  getDailySceneDay(): number | null {
+    return this.dailyScene.lastDay;
+  }
+
+  /**
+   * A small scene seen to its end: marked read, and today is its day — in one
+   * commit, in turn with the other read marks (see `markRead`).
+   */
+  finishDailyScene(id: DailySceneId): Promise<boolean> {
+    const run = this.readMarkQueue.then(async () => {
+      const mark = dailySceneMark(id);
+      if (this.readMarks.has(mark)) return false;
+      const marks = withMarks(this.readMarkList, [mark]);
+      const row: DailySceneRow = { lastDay: toAbsoluteDay(this.clock) };
+      // What the scene told them of the world, learned with it (PLAYER KNOWLEDGE).
+      const knowledge = this.withLearned(DAILY_SCENES.find((s) => s.id === id)?.reveals ?? [], mark);
+      await this.store.commit({
+        putState: [
+          { key: READ_MARKS_KEY, value: marks },
+          { key: DAILY_SCENE_KEY, value: row },
+          ...(knowledge ? [{ key: PLAYER_KNOWLEDGE_KEY, value: knowledge }] : []),
+        ],
+      });
+      this.readMarkList = marks;
+      this.readMarks = new Set(marks);
+      this.dailyScene = row;
+      if (knowledge) this.playerKnowledge = knowledge;
+      this.emit();
+      return true;
+    });
+    this.readMarkQueue = run.catch(() => false);
+    return run;
+  }
+
+  // ---- PLAYER KNOWLEDGE (OFF-SCREEN LIFE, 2026-10-17; playerKnowledge.ts) ----
+
+  /** Whether the player has been told this (a fact id of content/events/offScreenLife.ts). */
+  knows(factId: string): boolean {
+    return this.playerKnowledge[factId] !== undefined;
+  }
+
+  /** Everything the player has been told of what happened where they were not — apart from WORLD TRUTH (`getEvents`). */
+  getPlayerKnowledge(): PlayerKnowledgeRow {
+    return { ...this.playerKnowledge };
+  }
+
+  /**
+   * The player has just been told these — by `via`, what they read or saw
+   * (`rumor:<id>`, `seen:<place>`, `talk:<id>`). Only facts already true in
+   * the world are learned; the rest are ignored, never stored in advance.
+   * Returns the ids newly learned. In turn with the read marks.
+   */
+  learnFacts(factIds: readonly string[], via: string): Promise<string[]> {
+    const run = this.readMarkQueue.then(async () => {
+      const before = this.playerKnowledge;
+      const next = this.withLearned(factIds, via);
+      if (!next) return [];
+      await this.store.commit({ putState: [{ key: PLAYER_KNOWLEDGE_KEY, value: next }] });
+      this.playerKnowledge = next;
+      this.emit();
+      return Object.keys(next).filter((id) => !before[id]);
+    });
+    this.readMarkQueue = run.then(() => false).catch(() => false);
+    return run;
+  }
+
+  /** The knowledge row with these learned, or null when nothing in it changes. */
+  private withLearned(factIds: readonly string[], via: string): PlayerKnowledgeRow | null {
+    const fresh = learnable(factIds, OFF_SCREEN_FACTS, this.playerKnowledge, (type) => this.hasEventOfType(type));
+    if (fresh.length === 0) return null;
+    const day = toAbsoluteDay(this.clock);
+    return { ...this.playerKnowledge, ...Object.fromEntries(fresh.map((id) => [id, { day, via }])) };
+  }
+
+  /** The piece Alden's ordinary places play, or null for its own. */
+  getVillageBgm(): BgmId | null {
+    return this.villageBgm;
+  }
+
+  /** Sets it to a piece heard (or back to its own with null). */
+  async setVillageBgm(id: BgmId | null): Promise<boolean> {
+    if (id !== null && !this.getHeardMusic().includes(id)) return false;
+    // Its own piece chosen is the same as none chosen.
+    const next = id === 'ALDEN_VILLAGE' ? null : id;
+    if (next === this.villageBgm) return true;
+    await this.store.commit({ putState: [{ key: VILLAGE_BGM_KEY, value: next }] });
+    this.villageBgm = next;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * USING SOMETHING OUT OF THE BAG, OUTSIDE A FIGHT.
+   *
+   * ONE COMMIT for the thing and the effect, which is the whole point
+   * of it living here rather than in the screen. A bag that called
+   * `removeItem` and then wrote a condition could be interrupted
+   * between them, and both halves of that are bugs a player would
+   * notice: a herb that vanished without healing, or one that healed
+   * for ever.
+   *
+   * It refuses before it touches anything, and it refuses with a
+   * REASON — the same reasons the tray in a fight gives, decided by
+   * the same function, so the two places can never disagree.
+   *
+   * WHO IT IS USED ON. `targetId` is real and is honoured. Left out,
+   * it goes to whoever holds the bar the item fills — the front rank
+   * for health, her for magic — which is the only answer that means
+   * anything while the fight has one of each. A screen that asks
+   * 「誰に使う？」 passes the id and nothing here changes.
+   */
+  async useItemFromBag(itemId: string, targetId?: string): Promise<BagUseResult> {
+    const def = itemDef(itemId);
+    const held = countInBag(this.inventory, itemId);
+    const nobody = { ok: false, given: 0, stat: 'HP' as const, held };
+    if (!def?.use) return { ...nobody, refusal: 'NONE_LEFT', name: itemId, targetId: targetId ?? '' };
+    // A loaf is eaten (`eatBread`), never used: its age and its lift go with it.
+    if (def.bread) return { ...nobody, refusal: 'NONE_LEFT', name: def.name, targetId: targetId ?? '' };
+
+    const on = targetId ?? (def.use.kind === 'HEAL' ? BATTLE_HP_HOLDER : BATTLE_MP_HOLDER);
+    const party = this.getPartyCondition();
+    const them = party[on];
+    // Somebody who is not in the party is not a target, and saying so
+    // is better than quietly healing the wrong person.
+    if (!them) return { ...nobody, refusal: 'NO_SUCH_TARGET', name: def.name, targetId: on };
+
+    const where = {
+      place: 'FIELD' as const,
+      hp: them.currentHp,
+      maxHp: them.maxHp,
+      mp: them.currentMp,
+      maxMp: them.maxMp,
+    };
+    const refusal = refuseUse(where, def.use, held);
+    if (refusal) return { ...nobody, refusal, name: def.name, targetId: on };
+
+    const { given, stat } = useYield(def.use, where);
+    const taken = removeFromBag(this.inventory, itemId, 1);
+    // Nothing above this line touched the world, so a refusal here
+    // costs nothing — and nothing below it can half-happen.
+    if (taken.moved === 0) {
+      return { ...nobody, refusal: 'NONE_LEFT', stat, name: def.name, targetId: on };
+    }
+    const next: StoredParty = {
+      ...toStored(party),
+      [on]: {
+        hp: stat === 'HP' ? them.currentHp + given : them.currentHp,
+        mp: stat === 'MP' ? them.currentMp + given : them.currentMp,
+      },
+    };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: taken.inventory },
+        { key: CONDITION_KEY, value: next },
+      ],
+    });
+    this.inventory = taken.inventory;
+    this.condition = next;
+    this.emit();
+    return {
+      ok: true,
+      refusal: null,
+      given,
+      stat,
+      name: def.name,
+      targetId: on,
+      held: held - 1,
+    };
+  }
+
+  /**
+   * Remembers where the player is.
+   *
+   * Does nothing at all when it is already what is stored, which is
+   * what keeps walking in and out of a shop from writing to the save
+   * twice a second. The caller is still expected not to ask on every
+   * frame; this is the floor, not the plan.
+   */
+  async setResumeArea(area: ResumeArea): Promise<void> {
+    if (this.resumeArea === area) return;
+    this.resumeArea = area;
+    await this.store.commit({
+      putState: [{ key: SESSION_KEY, value: { screen: area, savedAt: new Date().toISOString() } }],
+    });
+  }
+
+  subscribe(listener: Listener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(): void {
+    this.version++;
+    for (const l of this.listeners) l();
+  }
+
+  /** Monotonic change counter — a stable snapshot for UI subscriptions. */
+  getVersion(): number {
+    return this.version;
+  }
+
+  // ---- WORLD MEMORY (past facts) ----
+
+  /** All recorded events, in world-chronological order. */
+  getEvents(): MemoryEvent[] {
+    return [...this.events].sort((a, b) => {
+      const dayDiff =
+        toAbsoluteDay({ worldYear: a.worldYear, worldDay: a.worldDay }) -
+        toAbsoluteDay({ worldYear: b.worldYear, worldDay: b.worldDay });
+      if (dayDiff !== 0) return dayDiff;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+  }
+
+  hasEventOfType(type: MemoryEvent['type']): boolean {
+    return this.events.some((e) => e.type === type);
+  }
+
+  /**
+   * Whether this world has been lived in at all.
+   *
+   * This is the question behind 「つづきから」, and getting it wrong in
+   * the direction of "no" is the worst answer the game can give: it
+   * offers a new game to somebody who has one, and if they take it,
+   * everything they had is gone. So the rule is that ANY of the things
+   * a player can accumulate counts, and the list has to be kept in step
+   * with the things a player can accumulate.
+   *
+   * IT MISSED THE ECONOMY AND THE GROWTH. When this was written there
+   * was no purse, no bag and no level; when they arrived, nobody came
+   * back here. A world where somebody had earned LUMI, filled a bag or
+   * reached Lv.2 without ALSO writing an event was a world this
+   * function called empty. In practice a victory writes an event too,
+   * so nothing was lost — but "in practice nothing was lost" is a
+   * statement about today's code, not a rule, and this is a place that
+   * has to be a rule.
+   *
+   * WHAT DOES NOT COUNT is anything about how the game is presented
+   * rather than what has happened in it: volume, the opening-theme
+   * setting, the battle-UI switch. Those live in localStorage and are
+   * not the world; turning the music down is not a playthrough.
+   */
+  hasProgress(): boolean {
+    return (
+      // What happened. Not the two FORGE event types: nothing writes
+      // them any more (adopted characters are content, not save data —
+      // core/forge/content.ts), but a debug build of 2026-09-27 could, and
+      // a save it touched must still open on 「はじめる」 if that is all
+      // it holds.
+      this.events.some((event) => !isForgeEventType(event.type)) ||
+      this.seenExperience.size > 0 ||
+      // HAVING SAID WHO YOU ARE IS PROGRESS. A player who answered the
+      // naming question and closed the game has done something, and it
+      // was saved; without this they would be offered only 「はじめる」,
+      // lose the name, and be asked it a second time — which is the one
+      // thing the naming spec says must never happen. Always false in
+      // the Artifact, which has no naming screen, so nothing there moves.
+      this.heroNamed ||
+      // Having come to know something is progress too. A player who met
+      // a moss rabbit and closed the game must be offered their world
+      // back, not a new one.
+      Object.values(this.arcana).some((record) => record.met.length > 0) ||
+      Object.keys(this.accidents).length > 0 ||
+      // What they are carrying. An empty bag and an empty purse are
+      // what a new world holds, so anything at all in either is a world
+      // somebody has been playing.
+      this.inventory.length > 0 ||
+      this.lumi > 0 ||
+      // What they have become. Compared against the total rather than
+      // against the level, because the total is what is stored and the
+      // level is derived from it.
+      Object.values(this.progression).some((p) => p.totalExp > 0 || p.level > 1) ||
+      // Where the story has got to. Compared against the same initial
+      // states `World.open` falls back to, so a save with no row for
+      // somebody reads as "nothing has happened to them" rather than as
+      // progress — which is what makes adding a character to the cast
+      // save-compatible.
+      Object.entries(INITIAL_CHARACTERS).some(
+        ([id, initial]) => !sameCharacterState(this.characters[id], initial),
+      ) ||
+      // And when they are.
+      this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
+      this.clock.worldDay !== INITIAL_CLOCK.worldDay
+    );
+  }
+
+  /**
+   * Minimal PLAYER KNOWLEDGE approximation (full system arrives in a later
+   * phase): the player-facing WORLD MEMORY view shows only events the
+   * player took part in, plus world-scale time passage. Gald's off-screen
+   * life stays hidden until the player finds him (or, on the KILL route,
+   * finds his grave) — world truth must never spoil itself through the UI.
+   */
+  getKnownEvents(): MemoryEvent[] {
+    // Whatever the route, the player learns Gald's off-screen history at
+    // one moment only: when they go to the place the world put on the map
+    // and see for themselves.
+    const discovered = this.hasDiscoveredGaldFuture();
+    // And what happened where they were not, once somebody has told them
+    // the whole of it (PLAYER KNOWLEDGE, OFF-SCREEN LIFE 2026-10-17).
+    const told = knownTruths(OFF_SCREEN_FACTS, this.playerKnowledge);
+    return this.getEvents().filter(
+      (e) =>
+        e.actors.includes('PLAYER') ||
+        e.type === 'WORLD_TIME_SHIFTED' ||
+        (discovered && e.actors.includes('GALD')) ||
+        told.has(e.type),
+    );
+  }
+
+  /**
+   * LIFE ARCHIVE — a pure projection over PLAYER KNOWLEDGE.
+   * Nothing is stored for it; RESET and save compatibility come for free.
+   */
+  getLifeArchive(): LifeArchiveEntry[] {
+    const gald = buildGaldLifeArchive(this.getKnownEvents());
+    return gald ? [gald] : [];
+  }
+
+  /**
+   * FUTURE SITES the world has opened, whichever route this world took —
+   * the bakery, the waystation, the workyard or the grave. World truth
+   * decides that a place exists; `discovered` is player knowledge and is
+   * the only thing that may put a name on it.
+   */
+  getOpenFutureSites(): OpenFutureSite[] {
+    return FUTURE_SITE_DEFS.filter((def) => this.hasEventOfType(def.requiredMemory)).map(
+      (def) => ({ def, discovered: this.hasEventOfType(def.discovery.type) }),
+    );
+  }
+
+  /**
+   * WHAT WOULD BECOME OF HIM, WITHOUT LIVING THROUGH IT.
+   *
+   * A pure look ahead: the same chain resolver the clock uses, run
+   * against a date this world has not reached, returning the events
+   * that WOULD follow. Nothing is committed, no clock moves, no
+   * character ages and nothing enters WORLD MEMORY — calling this
+   * twice returns the same answer and changes nothing either time.
+   *
+   * It exists for the one scene that shows a player the far end of the
+   * decision they just made. What comes back is a picture, not a fact:
+   * it must never be written down as something that happened, because
+   * in this world it has not.
+   */
+  previewLifeEvents(years: number): MemoryEvent[] {
+    return this.previewResolved(years).map((r) => r.event);
+  }
+
+  /**
+   * WHO THEY WOULD BE BY THEN — the same look ahead, as people rather than
+   * events: every character with the preview's effects applied (where he
+   * lives, what he does). Ages are not moved: three years looked at are not
+   * three years lived. Pure, like previewLifeEvents.
+   */
+  previewCharacterStates(years: number): Record<string, CharacterState> {
+    return this.applyCharacterEffects(this.characters, this.previewResolved(years)).characters;
+  }
+
+  /**
+   * The look ahead reads EXACTLY what the nights resolve (LIFE_TICK_DEFS,
+   * with `unless` and the people's readiness): what Kaos shows after HELP is
+   * the bakery route this world would live, not an older picture of the
+   * answer (TIGS2027 STEP ①, 2026-10-19 — it replaces 作者 2026-10-16's
+   * "TIME SHIFT unchanged", which held while the route was a PoC). The other
+   * three answers' chains have no conditions and read as they always did.
+   */
+  private previewResolved(years: number): ResolvedLifeEvent[] {
+    if (!Number.isInteger(years) || years <= 0) return [];
+    return resolveDueLifeEvents(
+      LIFE_TICK_DEFS,
+      this.events,
+      addYears(this.clock, years),
+      // A fixed stamp: a preview is not a moment, and handing back
+      // `new Date()` would make two identical looks compare unequal.
+      () => PREVIEW_TIMESTAMP,
+      bloomPossible,
+    );
+  }
+
+  /** Whether the player has been to this particular place. */
+  hasDiscoveredSite(siteId: string): boolean {
+    const def = futureSiteDef(siteId);
+    return def ? this.hasEventOfType(def.discovery.type) : false;
+  }
+
+  /**
+   * Whether the player has seen what became of their choice — on ANY
+   * route. Gates the LIFE ARCHIVE and the player-facing WORLD MEMORY.
+   */
+  hasDiscoveredGaldFuture(): boolean {
+    return FUTURE_DISCOVERY_TYPES.some((type) => this.hasEventOfType(type));
+  }
+
+  // ---- EXPERIENCE (NOW / NEXT events) ----
+
+  /**
+   * A read-only window for the EXPERIENCE ENGINE. The engine never sees
+   * the world itself — only this.
+   */
+  getExperienceView(): ExperienceWorldView {
+    const hasSeen = (eventId: string) => this.seenExperience.has(eventId);
+    return {
+      hasMemory: (type) => this.events.some((e) => e.type === type),
+      hasSeen,
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      // EXPERIENCE CONTROL v0.2 — pacing, never gating.
+      today: toAbsoluteDay(this.clock),
+      lastSeenDay: (eventId) => this.experienceLog.lastSeenDay[eventId] ?? null,
+      recentEmotions: recentEmotionsOf(
+        ALDEN_EXPERIENCE_EVENTS,
+        [...this.experienceLog.order].reverse(),
+        3,
+      ),
+      unresolvedSeeds: unresolvedSeedCount(ALDEN_NARRATIVE_SEEDS, hasSeen),
+      // EXPERIENCE DIRECTOR v0.1 — the recent past, newest first, and
+      // whether a life is waiting to be found. Both derived on the spot.
+      recentEventIds: [...this.experienceLog.order].reverse(),
+      lifeEventAvailable: this.getOpenFutureSites().some((site) => !site.discovered),
+    };
+  }
+
+  /**
+   * What the experience layer has actually done so far, for DEV REVIEW
+   * HUB. Read-only, derived, and never world canon — none of it belongs
+   * in the LIFE ARCHIVE.
+   */
+  getExperienceSummary(): {
+    seenEventIds: string[];
+    recentEventIds: string[];
+    lastSeenDay: Record<string, number>;
+  } {
+    return {
+      seenEventIds: [...this.seenExperience],
+      recentEventIds: [...this.experienceLog.order].reverse(),
+      lastSeenDay: { ...this.experienceLog.lastSeenDay },
+    };
+  }
+
+  /**
+   * NARRATIVE SEEDS, derived from what the player has met. Nothing is
+   * stored for this and none of it is world canon.
+   */
+  getNarrativeSeeds(): NarrativeSeedStatus[] {
+    return seedStatuses(ALDEN_NARRATIVE_SEEDS, (id) => this.seenExperience.has(id));
+  }
+
+  hasSeenExperience(eventId: string): boolean {
+    return this.seenExperience.has(eventId);
+  }
+
+  /**
+   * Remembers that the player met this event, and when.
+   *
+   * The "seen" set is idempotent; the log is not — a repeatable event
+   * plays again, and the pacing needs to know it just did.
+   */
+  async markExperienceSeen(eventId: string): Promise<void> {
+    const seen = this.seenExperience.has(eventId) ? [...this.seenExperience] : [...this.seenExperience, eventId];
+    const log: ExperienceLog = {
+      lastSeenDay: { ...this.experienceLog.lastSeenDay, [eventId]: toAbsoluteDay(this.clock) },
+      order: [...this.experienceLog.order, eventId].slice(-LOG_ORDER_LIMIT),
+    };
+    await this.store.commit({
+      putState: [
+        { key: SEEN_EXPERIENCE_KEY, value: seen },
+        { key: EXPERIENCE_LOG_KEY, value: log },
+      ],
+    });
+    this.seenExperience = new Set(seen);
+    this.experienceLog = log;
+    this.emit();
+  }
+
+  /** World truth: a bakery exists in Alden. (Not player knowledge.) */
+  isBakeryOpen(): boolean {
+    return this.hasEventOfType('GALD_BECOMES_BAKER');
+  }
+
+  /** The player has actually met the baker. */
+  hasReunitedWithGald(): boolean {
+    return this.hasEventOfType('PLAYER_REUNITED_WITH_GALD');
+  }
+
+  /** The final life choice made for Gald's first encounter, if any. */
+  getGaldLifeChoice(): LifeChoiceId | null {
+    const event = this.events.find((e) => e.id === GALD_LIFE_CHOICE_EVENT_ID);
+    if (!event) return null;
+    return GALD_LIFE_CHOICE_TYPE_TO_CHOICE[event.type as keyof typeof GALD_LIFE_CHOICE_TYPE_TO_CHOICE];
+  }
+
+  // ---- WORLD CLOCK / CHARACTER STATE (current) ----
+
+  getClock(): WorldClock {
+    return { ...this.clock };
+  }
+
+  getCharacter(id: string): CharacterState | undefined {
+    const state = this.characters[id];
+    return state ? { ...state } : undefined;
+  }
+
+  // ---- mutations ----
+
+  /**
+   * Records Gald's life choice as world truth, together with its immediate
+   * current-state consequence (KILL → alive: false) in one transaction.
+   * - Exclusive: only one of the four outcomes can ever exist per world
+   *   (all four share one fixed event id, and the store rejects duplicates).
+   * - Idempotent for the same choice (double-tap safety).
+   * - Resolves only after the write is durably committed; the caller must
+   *   not advance the game until this resolves.
+   */
+  async recordGaldLifeChoice(choice: LifeChoiceId): Promise<MemoryEvent> {
+    const existing = this.getGaldLifeChoice();
+    if (existing !== null) {
+      if (existing === choice) {
+        return this.events.find((e) => e.id === GALD_LIFE_CHOICE_EVENT_ID)!;
+      }
+      throw new Error(
+        `Gald's life choice is already recorded as ${existing}; refusing contradictory ${choice}`,
+      );
+    }
+
+    const event: MemoryEvent = {
+      id: GALD_LIFE_CHOICE_EVENT_ID,
+      type: GALD_LIFE_CHOICE_EVENT_TYPE[choice],
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      location: 'GREENWOOD_FOREST',
+      actors: ['PLAYER', 'GALD'],
+      importance: 'MAJOR',
+      createdAt: new Date().toISOString(),
+    };
+
+    const stateRows: WorldStateRow[] = [];
+    const effect = GALD_LIFE_CHOICE_STATE_EFFECTS[choice];
+    let nextGald = this.characters.GALD;
+    if (effect && nextGald) {
+      nextGald = { ...nextGald, ...effect };
+      stateRows.push({ key: characterKey('GALD'), value: nextGald });
+    }
+
+    await this.store.commit({ addEvents: [event], putState: stateRows });
+    this.events = [...this.events, event];
+    if (nextGald) this.characters = { ...this.characters, GALD: nextGald };
+    this.emit();
+    return event;
+  }
+
+  /**
+   * Finds every life event due at `atClock`, chains included: an event fired
+   * in one pass can satisfy another def's requiredMemory in the next pass.
+   * Bounded by the number of defs (each pass must fire at least one new
+   * once-event), so it cannot loop forever.
+   * Each event is dated the day its condition actually came true (its
+   * cause's day + minElapsedDays, capped at `atClock`) — a TIME SHIFT never
+   * swallows in-between history.
+   */
+  private resolveLifeEvents(atClock: WorldClock): ResolvedLifeEvent[] {
+    // THE LIFE TICK (docs/OFF_SCREEN_LIFE_SYSTEM.md §20): only when story
+    // time passes — a night, or a shift — every life in the world, the
+    // off-screen ones included (content/events/offScreenLife.ts).
+    // Whether the people are ready is read off the same facts (core/life).
+    return resolveDueLifeEvents(LIFE_TICK_DEFS, this.events, atClock, undefined, bloomPossible);
+  }
+
+  /** Applies life-event character effects; returns the new map + changed ids. */
+  private applyCharacterEffects(
+    base: Record<string, CharacterState>,
+    resolved: ResolvedLifeEvent[],
+  ): { characters: Record<string, CharacterState>; changedIds: Set<string> } {
+    const characters = { ...base };
+    const changedIds = new Set<string>();
+    for (const { def } of resolved) {
+      for (const effect of def.characterEffects) {
+        const current = characters[effect.characterId];
+        if (!current) continue;
+        characters[effect.characterId] = { ...current, ...effect.changes };
+        changedIds.add(effect.characterId);
+      }
+    }
+    return { characters, changedIds };
+  }
+
+  private async commitTimePassage(
+    nextClock: WorldClock,
+    extraEvents: MemoryEvent[],
+    resolved: ResolvedLifeEvent[],
+    characters: Record<string, CharacterState>,
+    changedIds: Set<string>,
+  ): Promise<void> {
+    const stateRows: WorldStateRow[] = [{ key: CLOCK_KEY, value: nextClock }];
+    for (const id of changedIds) {
+      stateRows.push({ key: characterKey(id), value: characters[id] });
+    }
+    await this.store.commit({
+      addEvents: [...resolved.map((r) => r.event), ...extraEvents],
+      putState: stateRows,
+    });
+    this.clock = nextClock;
+    this.characters = characters;
+    this.events = [...this.events, ...resolved.map((r) => r.event), ...extraEvents];
+    this.emit();
+  }
+
+  /**
+   * REST: advances the world by one day (year rollover included), runs the
+   * EVENT ENGINE, and atomically commits the new clock, any due life events,
+   * and their character-state effects in a single transaction.
+   * Returns the life events that occurred (world truth — the UI decides
+   * separately what the player gets to notice; no automatic popups).
+   */
+  async advanceDay(): Promise<MemoryEvent[]> {
+    return this.passTime(() => this.oneNight());
+  }
+
+  /**
+   * The night itself, which may only be run through `passTime`.
+   *
+   * Reads the clock at the moment it actually runs rather than at the
+   * moment it was asked for, which is the whole of the fix.
+   */
+  private async oneNight(): Promise<MemoryEvent[]> {
+    const nextClock = addDays(this.clock, 1);
+    const resolved = this.resolveLifeEvents(nextClock);
+    const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
+    await this.commitTimePassage(nextClock, [], resolved, characters, changedIds);
+    return resolved.map((r) => r.event);
+  }
+
+  /**
+   * TIME SHIFT: skips whole years at once.
+   * - Catches up every life event that became due inside the skipped span,
+   *   dated the day it actually happened (see resolveLifeEvents) — nothing
+   *   is swallowed, causal order is preserved.
+   * - Ages every LIVING character by the elapsed years (the dead do not age).
+   * - Records the shift itself as a WORLD_TIME_SHIFTED memory event.
+   * - Everything lands in one transaction. Re-entrant calls are refused
+   *   (double-tap cannot shift twice).
+   */
+  async timeShift(years: number): Promise<{ shift: MemoryEvent; lifeEvents: MemoryEvent[] }> {
+    if (!Number.isInteger(years) || years <= 0) {
+      throw new Error(`Invalid TIME SHIFT length: ${years}`);
+    }
+    if (this.timePassing) {
+      throw new Error('TIME SHIFT already in progress');
+    }
+    this.timePassing = true;
+    try {
+      // THE REFUSAL ABOVE AND THE QUEUE HERE DO DIFFERENT JOBS. The
+      // flag keeps a second SHIFT from being started at all, which is
+      // the behaviour this has always had. The queue keeps the shift
+      // from running on top of a night that is already in flight —
+      // both move the clock, and before this one of them lost it.
+      return await this.passTime(async () => {
+        const from = { ...this.clock };
+        const to = addYears(this.clock, years);
+
+        const resolved = this.resolveLifeEvents(to);
+        const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
+
+        // NPC AGE: living characters walk their own years; the dead stay
+        // still, and so does anybody whose age nobody has decided.
+        //
+        // That last case is the one worth saying out loud. `null + years`
+        // is `years` in JavaScript, so a character with an undecided age
+        // would come out of a three-year shift aged exactly three — a
+        // number nobody chose, indistinguishable afterwards from one
+        // somebody did. Undecided stays undecided until an author decides.
+        for (const [id, state] of Object.entries(characters)) {
+          if (!state.alive) continue;
+          if (state.age === null) continue;
+          characters[id] = { ...state, age: state.age + years };
+          changedIds.add(id);
+        }
+
+        const shift: MemoryEvent = {
+          id: `evt_world_time_shifted_y${to.worldYear}d${to.worldDay}`,
+          type: 'WORLD_TIME_SHIFTED',
+          worldYear: to.worldYear,
+          worldDay: to.worldDay,
+          location: 'WORLD',
+          actors: ['WORLD'],
+          importance: 'MAJOR',
+          createdAt: new Date().toISOString(),
+          from,
+          to: { ...to },
+          yearsElapsed: years,
+        };
+
+        await this.commitTimePassage(to, [shift], resolved, characters, changedIds);
+        return { shift, lifeEvents: resolved.map((r) => r.event) };
+      });
+    } finally {
+      this.timePassing = false;
+    }
+  }
+
+  /**
+   * Records the moment the player actually goes to a future site and sees
+   * what became of their choice — the bakery, the waystation, the workyard
+   * or the grave.
+   *
+   * Only callable in a world whose truth already contains the site's
+   * required memory: a TIME SHIFT alone never creates this event, and no
+   * route can produce another route's discovery. Once per world
+   * (idempotent on revisit).
+   */
+  // ---- ORDINARY ENEMIES (species, and the rare individual) ----
+
+  /** How the player is getting on with one species. Never null. */
+  getEnemyProgress(speciesId: string): EnemyProgress {
+    return this.enemyProgress[speciesId] ?? EMPTY_PROGRESS;
+  }
+
+  /** The creatures that turned out to be somebody. */
+  getEnemyIndividuals(): EnemyIndividual[] {
+    return this.enemyIndividuals.map((one) => ({ ...one }));
+  }
+
+  getEnemyIndividual(individualId: string): EnemyIndividual | null {
+    const found = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    return found ? { ...found } : null;
+  }
+
+  /**
+   * SOMEBODY MET WHO ALREADY HAS A NAME — an individual FORGE sent with its
+   * own ID (content/enemies/species.ts FIXED_INDIVIDUALS), kept as it is.
+   * Written once, when they are first met; met again, nothing changes.
+   * Nothing goes into WORLD MEMORY here: what is decided about them does
+   * (`recordCreatureLifeChoice`).
+   */
+  async meetFixedIndividual(individualId: string, speciesId: string): Promise<EnemyIndividual> {
+    const known = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    if (known) return { ...known };
+    const individual: EnemyIndividual = {
+      individualId,
+      speciesId,
+      status: 'alive',
+      relationship: 'unknown',
+      firstMetYear: this.clock.worldYear,
+      lastMetYear: this.clock.worldYear,
+      reunionAvailable: false,
+    };
+    const next = [...this.enemyIndividuals, individual];
+    await this.store.commit({ putState: [{ key: ENEMY_INDIVIDUALS_KEY, value: next }] });
+    this.enemyIndividuals = next;
+    this.emit();
+    return { ...individual };
+  }
+
+  /**
+   * A fight in the forest is over. Was that one just an animal, or was
+   * it somebody?
+   *
+   * Beating an ordinary creature is not a fact the world keeps — it only
+   * moves the count, which is what makes the next one a little more
+   * likely to have a story. When one does, it is named here and now, and
+   * the count starts again.
+   *
+   * Returns the newly named individual, or null for an ordinary victory.
+   * Resolves only once the write is committed.
+   */
+  async resolveEnemyVictory(
+    speciesId: string,
+    options: { rng?: Rng; forced?: boolean | null; config?: StoryTriggerConfig } = {},
+  ): Promise<EnemyIndividual | null> {
+    const before = this.getEnemyProgress(speciesId);
+    const sinceStory = before.sinceStory + 1;
+    const becomesSomebody = rollIndividualStory({
+      victoriesSinceStory: sinceStory,
+      rng: options.rng,
+      config: options.config,
+      forced: options.forced ?? null,
+    });
+
+    const individual: EnemyIndividual | null = becomesSomebody
+      ? {
+          individualId: mintIndividualId(speciesId, before.named),
+          speciesId,
+          status: 'alive',
+          relationship: 'unknown',
+          firstMetYear: this.clock.worldYear,
+          lastMetYear: this.clock.worldYear,
+          reunionAvailable: false,
+        }
+      : null;
+
+    const progress: EnemyProgress = {
+      defeated: before.defeated + 1,
+      sinceStory: becomesSomebody ? 0 : sinceStory,
+      named: before.named + (becomesSomebody ? 1 : 0),
+    };
+    const nextProgress = { ...this.enemyProgress, [speciesId]: progress };
+    const nextIndividuals = individual
+      ? [...this.enemyIndividuals, individual]
+      : this.enemyIndividuals;
+
+    const rows: WorldStateRow[] = [{ key: ENEMY_PROGRESS_KEY, value: nextProgress }];
+    if (individual) rows.push({ key: ENEMY_INDIVIDUALS_KEY, value: nextIndividuals });
+    await this.store.commit({ putState: rows });
+    this.enemyProgress = nextProgress;
+    this.enemyIndividuals = nextIndividuals;
+    this.emit();
+    return individual ? { ...individual } : null;
+  }
+
+  /**
+   * What the player decided about one particular creature.
+   *
+   * The same shape as the choice made about Gald, and for the same
+   * reason: it is a fact about a life, so it goes into WORLD MEMORY and
+   * stays there. The individual's own row is updated in the same
+   * transaction, because "killed" and "still alive" must never disagree.
+   *
+   * Idempotent for the same choice; a contradictory second answer is
+   * refused rather than overwritten.
+   */
+  async recordCreatureLifeChoice(individualId: string, choice: LifeChoiceId): Promise<MemoryEvent> {
+    const eventId = `evt_creature_life_choice_${individualId}`;
+    const existing = this.events.find((e) => e.id === eventId);
+    if (existing) {
+      if (existing.type === CREATURE_LIFE_CHOICE_EVENT_TYPE[choice]) return existing;
+      throw new Error(
+        `${individualId}'s life is already recorded as ${existing.type}; refusing ${choice}`,
+      );
+    }
+    const individual = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    if (!individual) throw new Error(`No such individual: ${individualId}`);
+
+    const event: MemoryEvent = {
+      id: eventId,
+      type: CREATURE_LIFE_CHOICE_EVENT_TYPE[choice],
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      location: 'GREENWOOD_FOREST',
+      actors: ['PLAYER', individualId],
+      importance: 'NORMAL',
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated: EnemyIndividual = {
+      ...individual,
+      status: choice === 'KILL' ? 'dead' : 'alive',
+      relationship: CREATURE_RELATIONSHIP[choice],
+      lastMetYear: this.clock.worldYear,
+      // Somebody let go, helped or taken along can be met again years
+      // from now. Somebody whose life ended cannot — though what that
+      // death did to the world is a separate question, and still open.
+      reunionAvailable: choice !== 'KILL',
+    };
+    const nextIndividuals = this.enemyIndividuals.map((one) =>
+      one.individualId === individualId ? updated : one,
+    );
+
+    await this.store.commit({
+      addEvents: [event],
+      putState: [{ key: ENEMY_INDIVIDUALS_KEY, value: nextIndividuals }],
+    });
+    this.events = [...this.events, event];
+    this.enemyIndividuals = nextIndividuals;
+    this.emit();
+    return event;
+  }
+
+  // ---- ARCANA (what the player has come to know) ----
+
+  /**
+   * What is known about one thing. Never null: a page nobody has opened
+   * is an empty page, not a missing one.
+   */
+  getArcanaRecord(arcanaId: string): ArcanaRecord {
+    const found = this.arcana[arcanaId];
+    return found ? { ...found, met: [...found.met] } : emptyArcanaRecord(arcanaId);
+  }
+
+  /** The whole book, in page order. */
+  getArcanaRecords(): ArcanaRecord[] {
+    return ARCANA_DEFS.map((def) => this.getArcanaRecord(def.arcanaId));
+  }
+
+  /**
+   * The player has come to know something. Says what that changed.
+   *
+   * Given a batch, because one fight teaches several things at once and
+   * the player should pay for that with one write, not five. Conditions
+   * already met, conditions this page does not define, planned ones and
+   * ones that need the thing to be known at all are all dropped by the
+   * pure rules — and if nothing survives, nothing is written and null
+   * comes back. That is what makes the same fight, fought again,
+   * silent.
+   */
+  async recordArcanaConditions(
+    arcanaId: string,
+    conditionIds: readonly ArcanaConditionId[],
+  ): Promise<ArcanaGain | null> {
+    const def = arcanaDef(arcanaId);
+    if (!def) return null;
+    const applied = applyArcanaConditions(def, this.getArcanaRecord(arcanaId), conditionIds);
+    if (!applied) return null;
+
+    const next = { ...this.arcana, [arcanaId]: applied.record };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+    return applied.gain;
+  }
+
+  /**
+   * The completion moment has been played. Saved, so a reload does not
+   * play it a second time — the one thing about a page that is state
+   * rather than a consequence of what the player did.
+   */
+  async markArcanaCompleteSeen(arcanaId: string): Promise<void> {
+    const current = this.getArcanaRecord(arcanaId);
+    if (current.completeSeen) return;
+    const next = { ...this.arcana, [arcanaId]: { ...current, completeSeen: true } };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+  }
+
+  // ---- SUMMONING ACCIDENTS (what the player glimpsed) ----
+
+  /** Where this save stands with everything that could cross it. */
+  getAccidentRecords(): AccidentRecord[] {
+    return SUMMON_ACCIDENTS.map((def) => this.getAccidentRecord(def.id));
+  }
+
+  /** Never null: a thing nobody has seen is UNSEEN, not missing. */
+  getAccidentRecord(accidentId: string): AccidentRecord {
+    const found = this.accidents[accidentId];
+    return found ? { ...found } : emptyAccidentRecord(accidentId);
+  }
+
+  /** The ones actually witnessed, in the order they first were. */
+  getObservedAccidents(): string[] {
+    return SUMMON_ACCIDENTS.filter((def) => this.getAccidentRecord(def.id).timesObserved > 0).map(
+      (def) => def.id,
+    );
+  }
+
+  /**
+   * ARCANA the player holds outright.
+   *
+   * What the accident pool excludes by. A completed page is a thing
+   * the player summons on purpose, and it must never turn up again as
+   * something crossing them by chance.
+   */
+  getAcquiredArcanaIds(): string[] {
+    return ARCANA_DEFS.filter((def) => isComplete(def, this.getArcanaRecord(def.arcanaId))).map(
+      (def) => def.arcanaId,
+    );
+  }
+
+  /**
+   * The player saw something cross. Says whether that was the first.
+   *
+   * Counted rather than merely flagged: how many times and how long
+   * ago are what a repeat policy and a cooldown are made of.
+   */
+  async recordAccidentObserved(accidentId: string): Promise<boolean> {
+    const current = this.getAccidentRecord(accidentId);
+    const day = toAbsoluteDay(this.clock);
+    const next = { ...this.accidents, [accidentId]: observedAccident(current, day) };
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: next }] });
+    this.accidents = next;
+    this.emit();
+    return current.timesObserved === 0;
+  }
+
+  /**
+   * Where the player has got to with one of them.
+   *
+   * The entry point for UNKNOWN → IDENTIFIED → ACQUIRED. Nothing in
+   * the game calls this yet, because the event that would — actually
+   * meeting the thing — is a later phase. It exists so that phase is
+   * a call rather than a migration.
+   */
+  async setAccidentState(accidentId: string, state: AccidentState): Promise<void> {
+    const current = this.getAccidentRecord(accidentId);
+    if (current.state === state) return;
+    const next = { ...this.accidents, [accidentId]: { ...current, state } };
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: next }] });
+    this.accidents = next;
+    this.emit();
+  }
+
+  /**
+   * Development only: forget what was glimpsed, so it can be glimpsed
+   * again. Testing a sight with a month-long cooldown otherwise means
+   * a new save every time.
+   */
+  async forgetObservedAccidents(): Promise<void> {
+    if (Object.keys(this.accidents).length === 0) return;
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: {} }] });
+    this.accidents = {};
+    this.emit();
+  }
+
+  async recordFutureSiteDiscovery(siteId: string): Promise<MemoryEvent> {
+    const def = futureSiteDef(siteId);
+    if (!def) throw new Error(`Unknown future site: ${siteId}`);
+    const existing = this.events.find((e) => e.type === def.discovery.type);
+    if (existing) return existing;
+    if (!this.hasEventOfType(def.requiredMemory)) {
+      throw new Error(`${def.discovery.type} requires ${def.requiredMemory} in world truth`);
+    }
+    const event: MemoryEvent = {
+      id: def.discovery.eventId,
+      type: def.discovery.type,
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      location: def.id,
+      // The grave is still his: the archive follows GALD's actor tag.
+      actors: ['PLAYER', 'GALD'],
+      importance: 'MAJOR',
+      createdAt: new Date().toISOString(),
+      causedBy: [def.requiredMemory],
+    };
+    await this.store.commit({ addEvents: [event] });
+    this.events = [...this.events, event];
+    this.emit();
+    return event;
+  }
+
+  /** The SPARE route's discovery, by its Phase E name. */
+  async recordGaldReunion(): Promise<MemoryEvent> {
+    return this.recordFutureSiteDiscovery('ALDEN_BAKERY');
+  }
+
+  /** Advances the world day by day, n times (each day fully resolved). */
+  async advanceDays(n: number): Promise<MemoryEvent[]> {
+    const fired: MemoryEvent[] = [];
+    for (let i = 0; i < n; i++) {
+      fired.push(...(await this.advanceDay()));
+    }
+    return fired;
+  }
+
+  /**
+   * DEV TOOLING ONLY (dev-admin RESET SCENARIO).
+   * Removes Gald's life-choice and life events from history and restores
+   * his initial CHARACTER STATE, atomically, so the Gald scenario can be
+   * re-tested. The WORLD CLOCK and non-Gald history (e.g. time shifts) are
+   * preserved. This is the single sanctioned exception to write-once
+   * history; gameplay code must never call it.
+   */
+  async devResetGaldScenario(): Promise<void> {
+    // Everything Gald took part in — choice events, his life events, and
+    // the reunion — while world-scale history (time shifts) survives.
+    const removeIds = this.events.filter((e) => e.actors.includes('GALD')).map((e) => e.id);
+    const initialGald = INITIAL_CHARACTERS.GALD;
+    await this.store.commit({
+      deleteEventIds: removeIds,
+      putState: [{ key: characterKey('GALD'), value: initialGald }],
+    });
+    this.events = this.events.filter((e) => !removeIds.includes(e.id));
+    this.characters = { ...this.characters, GALD: initialGald };
+    this.emit();
+  }
+
+  /**
+   * DEV ONLY: put a page into a given state outright.
+   *
+   * Reaching 90% by playing takes a dozen fights and a time shift,
+   * which is the right price for a player and the wrong one for
+   * checking that the page renders. Reachable only through DEV ADMIN,
+   * which is compiled out of a production build.
+   */
+  async devSetArcanaConditions(
+    arcanaId: string,
+    conditionIds: readonly ArcanaConditionId[],
+  ): Promise<void> {
+    const def = arcanaDef(arcanaId);
+    if (!def) return;
+    const record: ArcanaRecord = {
+      arcanaId,
+      met: conditionIds.filter((id) => def.conditions.some((c) => c.id === id && !c.planned)),
+      completeSeen: false,
+    };
+    const next = { ...this.arcana, [arcanaId]: record };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+  }
+
+  // ---- WHAT THE PLAYER IS CARRYING, AND WHAT THEY ARE WORTH ----
+  //
+  // The bag and the purse are current state, like the clock and the
+  // characters: they say where the player IS, not what the world
+  // remembers happening. Nothing here writes a WORLD MEMORY event —
+  // picking a herb up is not a fact about the world.
+  //
+  // Every write commits and then emits, in that order, so a screen that
+  // re-renders on the change is reading something already saved. A
+  // refused move — a full stack, a purse that is short — commits
+  // nothing and emits nothing, because nothing happened.
+
+  /** The bag, in the order things were first picked up. */
+  getInventory(): Inventory {
+    return this.inventory;
+  }
+
+  /** How many of one thing is being carried. */
+  getItemCount(itemId: string): number {
+    return countInBag(this.inventory, itemId);
+  }
+
+  /** Whether at least this many are being carried. */
+  hasItem(itemId: string, quantity = 1): boolean {
+    return bagHas(this.inventory, itemId, quantity);
+  }
+
+  /**
+   * Picks some up, and says how many actually went in.
+   *
+   * PARTIAL IS A REAL ANSWER: asking for five with room for two takes
+   * two and returns two, so a screen can say 「持ちきれない」 rather than
+   * pretending. Nought means nothing was taken — an unknown id, or a
+   * stack already full — and nothing was saved either.
+   */
+  async addItem(itemId: string, quantity = 1): Promise<number> {
+    const def = itemDef(itemId);
+    if (!def) return 0;
+    const change = addToBag(this.inventory, def, quantity);
+    if (change.moved === 0) return 0;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: change.inventory }] });
+    this.inventory = change.inventory;
+    this.emit();
+    return change.moved;
+  }
+
+  /**
+   * Puts some down. ALL OR NOTHING — see `removeItem` in the bag
+   * module for why spending may not be partial.
+   */
+  async removeItem(itemId: string, quantity = 1): Promise<number> {
+    const change = removeFromBag(this.inventory, itemId, quantity);
+    if (change.moved === 0) return 0;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: change.inventory }] });
+    this.inventory = change.inventory;
+    this.emit();
+    return change.moved;
+  }
+
+  /** What is in the purse. */
+  getLumi(): number {
+    return this.lumi;
+  }
+
+  /** Whether this price can be paid. */
+  canAfford(amount: number): boolean {
+    return canAfford(this.lumi, amount);
+  }
+
+  /** Paid. Returns the new total. */
+  async addLumi(amount: number): Promise<number> {
+    const next = addLumi(this.lumi, amount);
+    if (next === this.lumi) return this.lumi;
+    await this.store.commit({ putState: [{ key: LUMI_KEY, value: next }] });
+    this.lumi = next;
+    this.emit();
+    return next;
+  }
+
+  /**
+   * Spent, or not spent at all.
+   *
+   * Returns whether the money actually left. A purse that is short
+   * changes nothing and saves nothing, which is what stops a shop from
+   * ever handing over goods it was not paid for.
+   */
+  async spendLumi(amount: number): Promise<boolean> {
+    const next = spendLumi(this.lumi, amount);
+    if (next === null || next === this.lumi) return next !== null;
+    await this.store.commit({ putState: [{ key: LUMI_KEY, value: next }] });
+    this.lumi = next;
+    this.emit();
+    return true;
+  }
+
+  // ---- HOW FAR FIGHTING HAS TAKEN THEM ----
+  //
+  // LEVEL is the ordinary half of growth: what turning up and winning
+  // gives you. The other half — what the world gives back for having
+  // been involved in it — is WORLD MEMORY and the arcana, and it is
+  // deliberately not counted here. A game where caring about a creature
+  // is a slower way of levelling up is a game that has told the player
+  // which of the two actually matters.
+
+  /** What this character has earned. Level one and nothing, by default. */
+  getProgress(characterId: string): LevelProgress {
+    return this.progression[characterId] ?? { ...INITIAL_PROGRESS };
+  }
+
+  /** Their level, which is the number a screen usually wants. */
+  getLevel(characterId: string): number {
+    return this.getProgress(characterId).level;
+  }
+
+  /**
+   * Experience earned, and every level it crosses.
+   *
+   * Returns what happened rather than nothing, because the thing that
+   * granted it is usually about to say so on a result screen — and
+   * because "did that level anybody up" must not be worked out twice,
+   * once here and once by whoever is drawing.
+   *
+   * A gain of nothing is not an event: it saves nothing and announces
+   * nothing, so a reward with no experience in it cannot make the world
+   * look like it changed.
+   */
+  /**
+   * WHAT A LEVEL DOES TO SOMEBODY WHO IS ALREADY HURT.
+   *
+   * Levelling must not heal and must not wound. Somebody at 70 of 100
+   * who gains eight maximum health is at 78 of 108 — the same gap,
+   * carried up. Both alternatives are wrong in a way a player notices:
+   * leaving them at 70 of 108 makes levelling look like being hurt,
+   * and jumping to 108 of 108 makes it a free full heal they will
+   * learn to farm.
+   *
+   * Returns the row to write, or null when nothing needs to change —
+   * which is the common case, because most experience is not a level.
+   */
+  private conditionAfterLevels(
+    nextProgression: Record<string, LevelProgress>,
+  ): StoredParty | null {
+    // Nobody is hurt: there is no gap to carry, and a world with no
+    // row must not grow one just because somebody levelled.
+    if (this.condition === null) return null;
+    const heroBefore = this.getLevel(BATTLE_HP_HOLDER);
+    const kaosBefore = this.getLevel(BATTLE_MP_HOLDER);
+    const levelIn = (table: Record<string, LevelProgress>, id: string) =>
+      table[id]?.level ?? INITIAL_PROGRESS.level;
+    const heroAfter = levelIn(nextProgression, BATTLE_HP_HOLDER);
+    const kaosAfter = levelIn(nextProgression, BATTLE_MP_HOLDER);
+    if (heroAfter === heroBefore && kaosAfter === kaosBefore) return null;
+
+    const before = this.getPartyCondition();
+    const out: StoredParty = {};
+    for (const id of this.partyMembers()) {
+      const was = before[id];
+      out[id] = carryUp(
+        { hp: was.currentHp, mp: was.currentMp },
+        ceilingFor(id, heroBefore, kaosBefore),
+        ceilingFor(id, heroAfter, kaosAfter),
+      );
+    }
+    return out;
+  }
+
+  async grantExp(characterId: string, amount: number): Promise<LevelGainRecord> {
+    const before = this.getProgress(characterId);
+    const gain = gainExp(before, amount);
+    if (gain.progress.totalExp === before.totalExp) {
+      return { characterId, from: before.level, to: before.level, levelsGained: 0, earned: 0 };
+    }
+    const next = { ...this.progression, [characterId]: gain.progress };
+    // A longer bar and the same gap in it, written in the same commit
+    // as the level that caused it — so there is no moment where the
+    // ceiling has moved and what is under it has not.
+    const carried = this.conditionAfterLevels(next);
+    await this.store.commit({
+      putState: [
+        { key: PROGRESSION_KEY, value: next },
+        ...(carried ? [{ key: CONDITION_KEY, value: carried }] : []),
+      ],
+    });
+    this.progression = next;
+    if (carried) this.condition = carried;
+    this.emit();
+    return {
+      characterId,
+      from: gain.from,
+      to: gain.to,
+      levelsGained: gain.levelsGained,
+      earned: gain.progress.totalExp - before.totalExp,
+    };
+  }
+
+  /**
+   * A FIGHT'S WINNINGS, ALL OF THEM OR NONE.
+   *
+   * Experience, money and goods land in ONE commit, so there is no
+   * moment where a player has the herb and not the LUMI. That is the
+   * same rule `buyItem` follows and for the same reason: a reward
+   * applied in three calls can be interrupted after the first.
+   *
+   * PAID ONCE, WHATEVER HAPPENS UPSTREAM. A battle screen calls its own
+   * ending more than once — a re-render, a double tap, AUTO and the
+   * player arriving together, a timer firing after the state moved on —
+   * and the id is what makes all of those harmless. A repeat is not an
+   * error: it comes back saying the reward was already claimed, with
+   * nothing applied and nothing saved, so a result screen redrawn after
+   * a reload shows what happened rather than paying again.
+   *
+   * WHAT LANDED, NOT WHAT WAS OFFERED. A bag with no room takes fewer
+   * items and a character at the ceiling earns nothing, so the answer
+   * describes what actually happened — a screen that drew the offer
+   * would congratulate a player on something they did not get.
+   *
+   * Only the three real fields are applied. `worldMemory`, `resonance`
+   * and `arcanaProgress` are declared on a reward and deliberately
+   * inert; what the world remembers about a fight is still
+   * `resolveEnemyVictory`'s, which does it properly.
+   */
+  async applyBattleReward(
+    rewardId: string,
+    raw: BattleReward,
+    options: { earners?: readonly { id: string; label: string }[] } = {},
+  ): Promise<AppliedReward> {
+    if (typeof rewardId !== 'string' || rewardId === '') return NOTHING_APPLIED;
+    if (this.claimedRewards.includes(rewardId)) {
+      return { ...NOTHING_APPLIED, alreadyClaimed: true };
+    }
+    const reward = readReward(raw);
+    const earners = options.earners ?? activeParty();
+
+    // Worked out first, committed second: nothing below touches this
+    // world until every row is known, so a refusal costs nothing.
+    let bag = this.inventory;
+    const took: ItemStack[] = [];
+    for (const stack of reward.items) {
+      const def = itemDef(stack.itemId);
+      if (!def) continue;
+      const change = addToBag(bag, def, stack.quantity);
+      if (change.moved <= 0) continue;
+      bag = change.inventory;
+      took.push({ itemId: stack.itemId, quantity: change.moved });
+    }
+    const purse = addLumi(this.lumi, reward.lumi);
+
+    const progression = { ...this.progression };
+    const levels: {
+      characterId: string;
+      label: string;
+      from: number;
+      to: number;
+      levelsGained: number;
+    }[] = [];
+    for (const earner of earners) {
+      const before = progression[earner.id] ?? { ...INITIAL_PROGRESS };
+      const gain = gainExp(before, reward.exp);
+      progression[earner.id] = gain.progress;
+      levels.push({
+        characterId: earner.id,
+        label: earner.label,
+        from: gain.from,
+        to: gain.to,
+        levelsGained: gain.levelsGained,
+      });
+    }
+    const expEarned = levels.length > 0 ? reward.exp : 0;
+
+    // AN EMPTY REWARD IS STILL CLAIMED. A fight worth nothing has been
+    // fought, and letting its id through unrecorded would leave the
+    // guard open for a reward that is not empty later.
+    const nextClaimed = [...this.claimedRewards, rewardId].slice(-CLAIMED_REWARDS_KEPT);
+    const rows: WorldStateRow[] = [{ key: CLAIMED_REWARDS_KEY, value: nextClaimed }];
+    if (took.length > 0) rows.push({ key: INVENTORY_KEY, value: bag });
+    if (purse !== this.lumi) rows.push({ key: LUMI_KEY, value: purse });
+    if (expEarned > 0) rows.push({ key: PROGRESSION_KEY, value: progression });
+    // A LEVEL IN THE SAME COMMIT AS THE GAP IT WIDENS. The winnings
+    // already land all together or not at all; a longer health bar
+    // whose contents arrived separately would be the one part of a
+    // reward that could be interrupted halfway.
+    const carried = expEarned > 0 ? this.conditionAfterLevels(progression) : null;
+    if (carried) rows.push({ key: CONDITION_KEY, value: carried });
+
+    // What the purse ACTUALLY gained, read before anything is replaced.
+    const lumiEarned = purse - this.lumi;
+
+    await this.store.commit({ putState: rows });
+    this.claimedRewards = nextClaimed;
+    if (took.length > 0) this.inventory = bag;
+    this.lumi = purse;
+    if (expEarned > 0) this.progression = progression;
+    if (carried) this.condition = carried;
+    this.emit();
+    return {
+      exp: expEarned,
+      lumi: lumiEarned,
+      items: took,
+      levels: expEarned > 0 ? levels : [],
+      alreadyClaimed: false,
+    };
+  }
+
+  /** Whether this reward has already been paid. For a redrawn screen. */
+  hasClaimedReward(rewardId: string): boolean {
+    return this.claimedRewards.includes(rewardId);
+  }
+
+  // ---- THE TWO MOVES A SHOP MAKES ----
+  //
+  // NO SHOP EXISTS YET, and these are not one: there is no screen, no
+  // stock list and no haggling. They are here because a purchase is the
+  // one thing in this file that changes TWO saved rows, and a shop
+  // written on top of `spendLumi` then `addItem` could be interrupted
+  // between them — money gone, nothing bought. One commit, both rows,
+  // or neither.
+  //
+  // THE PRICE ARRIVES WITH THE OFFER and is never read from the
+  // catalogue. What a herb IS belongs to content/economy/itemDefs; what
+  // a herb COSTS belongs to whoever is selling it, because a village
+  // with a bad harvest charges more and the next town charges something
+  // else again. A price written into the definition would be one price
+  // forever, everywhere. So a purchase takes a ShopOffer, and the shop
+  // round becomes a matter of writing offers rather than of touching
+  // any of this.
+  //
+  // Selling falls back to the catalogue's `sellPrice`, because what a
+  // thing is worth when you hand it over IS a fact about the thing —
+  // and an offer may still override it for the collector who wants
+  // arrowheads.
+
+  /**
+   * Money out, goods in — together or not at all.
+   *
+   * Refused, having changed nothing, when the offer names something
+   * the catalogue does not describe, its price is not a price, the
+   * shopkeeper has not got that many, the purse is short, or the bag
+   * has no room for the whole order. A half-filled order is not a
+   * purchase.
+   *
+   * The offer's `stock` is READ AND NOT SPENT: refusing to sell what
+   * is not there is a guard that cannot be wrong, and counting it down
+   * is the shop's own state, which does not exist yet.
+   */
+  async buyItem(offer: ShopOffer, quantity: number): Promise<boolean> {
+    const def = itemDef(offer.itemId);
+    const want = Math.floor(quantity);
+    const price = buyPriceOf(offer);
+    if (!def || !Number.isFinite(want) || want <= 0) return false;
+    if (price === null) return false;
+    if (!inStock(offer, want)) return false;
+    if (roomFor(this.inventory, def) < want) return false;
+    const purse = spendLumi(this.lumi, price * want);
+    if (purse === null) return false;
+    const bag = addToBag(this.inventory, def, want);
+    if (bag.moved !== want) return false;
+    // A LOAF IS BOUGHT FRESH (パン屋 MVP): its nights go in the same commit
+    // as the loaf and the money, so none of the three can land alone.
+    const fresh = def.bread
+      ? addLoaves(this.getBreadFreshness(), def.itemId, want, def.bread.freshness)
+      : null;
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag.inventory },
+        { key: LUMI_KEY, value: purse },
+        ...(fresh ? [{ key: BREAD_FRESHNESS_KEY, value: fresh }] : []),
+      ],
+    });
+    this.inventory = bag.inventory;
+    this.lumi = purse;
+    if (fresh) this.breadFreshness = fresh;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * Goods out, money in — together or not at all.
+   *
+   * A KEY ITEM IS NEVER SOLD, whatever price is offered and whichever
+   * category it is filed under: that is what the flag is for, and an
+   * override cannot buy its way past it. Nor is something worth nought
+   * — a shop that took a pretty acorn and paid nothing for it would be
+   * taking it.
+   *
+   * The offer is optional, because selling to somebody with nothing on
+   * their board still pays what the thing is worth.
+   */
+  async sellItem(itemId: string, quantity: number, offer?: ShopOffer): Promise<number> {
+    const def = itemDef(itemId);
+    const want = Math.floor(quantity);
+    if (!def || !Number.isFinite(want) || want <= 0) return 0;
+    if (def.isKeyItem) return 0;
+    const unit = sellPriceOf(def, offer);
+    if (unit <= 0) return 0;
+    const bag = removeFromBag(this.inventory, itemId, want);
+    if (bag.moved !== want) return 0;
+    const paid = unit * want;
+    const purse = addLumi(this.lumi, paid);
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag.inventory },
+        { key: LUMI_KEY, value: purse },
+      ],
+    });
+    this.inventory = bag.inventory;
+    this.lumi = purse;
+    this.emit();
+    return paid;
+  }
+
+  /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */
+  async resetWorld(): Promise<void> {
+    await this.store.clearAll();
+    this.events = [];
+    this.clock = INITIAL_CLOCK;
+    this.characters = { ...INITIAL_CHARACTERS };
+    this.seenExperience = new Set();
+    this.experienceLog = { lastSeenDay: {}, order: [] };
+    this.enemyProgress = {};
+    this.enemyIndividuals = [];
+    // A reset world knows nothing, the same as a world nobody has
+    // played: leaving the book filled in while its history was erased
+    // would be a save that disagrees with itself.
+    this.arcana = readArcanaRows({});
+    // Including what it glimpsed. A reset world has never seen
+    // anything it cannot explain, and the once-per-save sight is
+    // available again because it is a new save.
+    this.accidents = {};
+    // And it is carrying nothing and has never been paid.
+    this.inventory = EMPTY_INVENTORY;
+    this.lumi = INITIAL_LUMI;
+    // And nobody has fought anything.
+    this.progression = {};
+    this.claimedRewards = [];
+    // And they are standing in the village, because that is where a
+    // world starts.
+    this.resumeArea = 'HOME';
+    // And they are whole, because a new world has not been in a fight.
+    this.condition = null;
+    // And nobody has named them, they carry what everybody starts with,
+    // and the only fighting music they own is the piece everybody
+    // starts with. Leaving any of these in memory would let a world
+    // that was just erased keep a name, a sword or a song from the one
+    // before it until the next reload.
+    this.heroName = DEFAULT_HERO_NAME;
+    this.heroNamed = false;
+    ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
+    this.unlockedBgm = [...INITIAL_UNLOCKED_BATTLE_BGM];
+    // And it has been nowhere and found nothing.
+    this.rareFinds = {};
+    this.pickupsTaken = [];
+    this.visits = {};
+    this.sekiryugaStage = 'NONE';
+    this.finaleStage = 'NONE';
+    this.readMarkList = [];
+    this.readMarks = new Set();
+    this.breadFreshness = NO_BREAD;
+    this.breadBuff = null;
+    this.tavernTrades = NO_TRADES;
+    this.pickupRegrowth = {};
+    this.musicUnlocks = [];
+    this.villageBgm = null;
+    this.incident = NO_INCIDENT;
+    this.dailyScene = NO_DAILY_SCENE;
+    this.playerKnowledge = {};
+    this.emit();
+  }
+
+  /**
+   * DEV ONLY — winds the STORY back without emptying the player's
+   * pockets.
+   *
+   * A world reset is the right thing for a player who wants a new
+   * world, and it is untouched. It is the wrong thing for the job a
+   * developer actually does twenty times an hour: put the story at a
+   * known point and go and look at something. Doing that through a
+   * reset took the bag, the purse and the levels with it, so every
+   * test of the economy began by rebuilding the economy.
+   *
+   * WHAT GOES is everything the story is made of — what happened, who
+   * is where, what has been seen, what the book knows, what day it is.
+   * WHAT STAYS is everything the player accumulated that the story
+   * does not depend on: LUMI, the bag, levels, and the ledger of
+   * fights already paid for.
+   *
+   * THE LEDGER STAYS ON PURPOSE. Clearing it would let the same fight
+   * be paid for twice across a reset, which is the exact hole the
+   * ledger exists to close — and a developer tool that can mint money
+   * is a developer tool that will eventually be blamed for a balance
+   * problem it caused.
+   *
+   * Never reachable from the game: nothing in `src/ui` calls this, and
+   * the only caller is the dev panel.
+   */
+  async devResetScenario(): Promise<void> {
+    const kept: WorldStateRow[] = [
+      { key: INVENTORY_KEY, value: this.inventory },
+      { key: LUMI_KEY, value: this.lumi },
+      { key: PROGRESSION_KEY, value: this.progression },
+      { key: CLAIMED_REWARDS_KEY, value: this.claimedRewards },
+      // The loaves in the bag stay, and so does how old they are.
+      { key: BREAD_FRESHNESS_KEY, value: this.getBreadFreshness() },
+      // The music heard and the village's piece are the player's, like the bag.
+      { key: MUSIC_UNLOCKS_KEY, value: this.musicUnlocks },
+      { key: VILLAGE_BGM_KEY, value: this.villageBgm },
+    ];
+    await this.store.clearAll();
+    // Written back in one commit, immediately: a crash between the
+    // clear and this would be a developer losing their test world,
+    // which is the thing this method exists to stop.
+    await this.store.commit({ putState: kept });
+    this.events = [];
+    this.clock = INITIAL_CLOCK;
+    this.characters = { ...INITIAL_CHARACTERS };
+    this.seenExperience = new Set();
+    this.experienceLog = { lastSeenDay: {}, order: [] };
+    this.enemyProgress = {};
+    this.enemyIndividuals = [];
+    this.arcana = readArcanaRows({});
+    this.accidents = {};
+    this.resumeArea = 'HOME';
+    // Wound the story back, and the party's wounds with it: a fight
+    // that has not happened yet cannot have cost them anything.
+    this.condition = null;
+    // The rows went with the clear above; memory follows them, so the
+    // screen never shows a find the save no longer has.
+    this.rareFinds = {};
+    this.pickupsTaken = [];
+    this.visits = {};
+    this.sekiryugaStage = 'NONE';
+    this.finaleStage = 'NONE';
+    this.readMarkList = [];
+    this.readMarks = new Set();
+    this.breadFreshness = this.getBreadFreshness();
+    this.breadBuff = null;
+    this.tavernTrades = NO_TRADES;
+    this.pickupRegrowth = {};
+    this.incident = NO_INCIDENT;
+    this.dailyScene = NO_DAILY_SCENE;
+    this.playerKnowledge = {};
+    this.emit();
+  }
+}
+
+/** The meta rows a save keeps about itself, rather than about the world. */
+const SAVE_VERSION_META_KEY = 'saveSchemaVersion';
+const BACKUP_META_KEY = 'worldBackup';
+/**
+ * Where a save that could not be read is kept.
+ *
+ * Nothing is ever thrown away here. A save that was recovered from a
+ * backup left rows behind that this build could not understand, and
+ * those rows are the only evidence of what went wrong — for a repair
+ * tool that does not exist yet, or for somebody reporting a bug.
+ */
+const DAMAGED_META_KEY = 'worldDamaged';
+
+/** How a swap at the tavern went. */
+export type TradeOutcome = 'OK' | 'SHORT' | 'FULL' | 'DONE';
+
+/** What eating a loaf did (パン屋 MVP). */
+export interface BreadEatResult {
+  ok: boolean;
+  /** NONE_LEFT: none in the bag. STALE: every one left has gone stale. */
+  refusal: 'NONE_LEFT' | 'STALE' | null;
+  name: string;
+  /** Health given back to the front rank (nought when already whole). */
+  given: number;
+  /** The lift now in effect. */
+  buff: BreadBuff | null;
+}
+
+/** What using something out of the bag did, or why it did not. */
+export interface BagUseResult {
+  ok: boolean;
+  refusal: ItemRefusal | null;
+  /** How much actually went back — never more than there was room for. */
+  given: number;
+  stat: 'HP' | 'MP';
+  name: string;
+  /** Who it went to. Chosen by the caller, or by what the item fills. */
+  targetId: string;
+  /** How many are left afterwards. */
+  held: number;
+}
+
+/**
+ * The stored condition row, before it is judged against a ceiling.
+ *
+ * Kept raw on purpose: the ceiling comes from the levels, and the
+ * levels are read in the same pass as this. Clamping happens at every
+ * read instead, which is the only version that survives a level gained
+ * between one session and the next.
+ */
+function readStoredCondition(raw: unknown): StoredParty | null {
+  if (!raw || typeof raw !== 'object') return null;
+  // LAST ROUND'S SHAPE, which anybody who played that build has on
+  // disk. It is not discarded and not guessed at: the health it holds
+  // was the front rank's and the magic was hers, so that is where the
+  // two numbers go.
+  const legacy = readLegacyShared(raw);
+  if (legacy) return legacy;
+  const out: StoredParty = {};
+  for (const [id, row] of Object.entries(raw as Record<string, unknown>)) {
+    if (!row || typeof row !== 'object') continue;
+    const held = row as { hp?: unknown; mp?: unknown };
+    const hp = Math.floor(Number(held.hp));
+    const mp = Math.floor(Number(held.mp));
+    if (!Number.isFinite(hp) && !Number.isFinite(mp)) continue;
+    out[id] = {
+      hp: Number.isFinite(hp) ? hp : Number.POSITIVE_INFINITY,
+      mp: Number.isFinite(mp) ? mp : Number.POSITIVE_INFINITY,
+    };
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** What was found in a save that could not be read, kept for looking at. */
+export interface DamagedSave {
+  /** When the damage was noticed, not when it happened. */
+  savedAt: string;
+  /** The rows that were not the kind of thing they should have been. */
+  unreadableKeys: string[];
+  /** Everything the save held at that moment, damage included. */
+  rows: WorldStateRow[];
+}
+
+function readDamaged(raw: unknown): DamagedSave | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const held = raw as Partial<DamagedSave>;
+  if (!Array.isArray(held.rows)) return null;
+  return {
+    savedAt: typeof held.savedAt === 'string' ? held.savedAt : '',
+    unreadableKeys: Array.isArray(held.unreadableKeys)
+      ? held.unreadableKeys.filter((k): k is string => typeof k === 'string')
+      : [],
+    rows: held.rows.filter(
+      (row): row is WorldStateRow =>
+        !!row && typeof row === 'object' && typeof (row as WorldStateRow).key === 'string',
+    ),
+  };
+}
+
+/** Everything the world is restored from, once the reading is done. */
+interface WorldFields {
+  clock: WorldClock;
+  characters: Record<string, CharacterState>;
+  seenExperience: string[];
+  experienceLog: ExperienceLog;
+  enemyProgress: Record<string, EnemyProgress>;
+  enemyIndividuals: EnemyIndividual[];
+  arcana: Record<string, ArcanaRecord>;
+  accidents: Record<string, AccidentRecord>;
+  inventory: Inventory;
+  lumi: number;
+  progression: Record<string, LevelProgress>;
+  claimedRewards: string[];
+  resumeArea: ResumeArea;
+  condition: StoredParty | null;
+  /** The display name only. `hero` is still the id everywhere. */
+  heroName: string;
+  /**
+   * Whether the row was actually there.
+   *
+   * Absent is NOT the same as 「主人公」 chosen: a save from before
+   * naming existed shows the default without ever having been asked,
+   * and this is what tells the two apart without a second stored flag.
+   */
+  heroNamed: boolean;
+  equipment: EquipmentTable;
+  ownedEquipment: OwnedTable;
+  /**
+   * Whether the equipment row existed at all.
+   *
+   * Absent means a world that predates equipment, and such a world is
+   * given its starting kit on first read rather than being left
+   * empty-handed — which is different from a world that has one and
+   * has deliberately taken everything off.
+   */
+  equipmentStarted: boolean;
+  unlockedBgm: BattleBgmId[];
+  rareFinds: RareFindTable;
+  pickupsTaken: string[];
+  visits: VisitTable;
+  sekiryugaStage: SekiryugaStage;
+  finaleStage: FinaleStage;
+  readMarks: string[];
+  breadFreshness: BreadFreshness;
+  breadBuff: BreadBuff | null;
+  tavernTrades: TavernTradesRow;
+  pickupRegrowth: RegrowthRow;
+  musicUnlocks: BgmId[];
+  villageBgm: BgmId | null;
+  incident: IncidentRow;
+  dailyScene: DailySceneRow;
+  playerKnowledge: PlayerKnowledgeRow;
+}
+
+/** What reading a save had to say about it. */
+export interface SaveHealth {
+  version: number;
+  health: RowHealth;
+  /** Rows that were the right kind of thing with something wrong inside. */
+  repairedKeys: string[];
+  /** Rows that were not that kind of thing at all. */
+  unreadableKeys: string[];
+  migrationsApplied: string[];
+  recoveredFromBackup: boolean;
+  /** The save says it was written by a later build than this one. */
+  fromTheFuture: boolean;
+}
+
+function versionOf(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return Math.floor(raw);
+}
+
+interface StoredBackup {
+  rows: WorldStateRow[];
+}
+
+/** A stored backup, or null if there is not one worth the name. */
+function readBackup(raw: unknown): StoredBackup | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const rows = (raw as { rows?: unknown }).rows;
+  if (!Array.isArray(rows)) return null;
+  const clean = rows.filter(
+    (row): row is WorldStateRow =>
+      !!row && typeof row === 'object' && typeof (row as WorldStateRow).key === 'string',
+  );
+  return clean.length > 0 ? { rows: clean } : null;
+}
+
+/** Whether two sets of rows say the same thing, order aside. */
+function sameRows(a: readonly WorldStateRow[], b: readonly WorldStateRow[]): boolean {
+  if (a.length !== b.length) return false;
+  const key = (rows: readonly WorldStateRow[]) =>
+    JSON.stringify(
+      [...rows].sort((x, y) => x.key.localeCompare(y.key)).map((row) => [row.key, row.value]),
+    );
+  return key(a) === key(b);
+}
+
+/**
+ * The unlocked music out of a save, repaired.
+ *
+ * NEVER FAILS and never returns nothing: an unreadable row is the
+ * starting set, because a world that cannot choose its battle music
+ * must still be able to play a fight. Ids this build does not know are
+ * dropped rather than kept — unlike a possession, an unknown piece
+ * cannot be played, so holding onto it would only let it be chosen and
+ * then fall back.
+ */
+/** What every world carries before anybody has changed anything. */
+function startingKit(): { equipment: EquipmentTable; owned: OwnedTable } {
+  const equipment = structuredClone(INITIAL_EQUIPMENT) as EquipmentTable;
+  const owned: OwnedTable = {};
+  for (const slots of Object.values(INITIAL_EQUIPMENT)) {
+    for (const id of Object.values(slots)) owned[id] = 1;
+  }
+  return { equipment, owned };
+}
+
+function readUnlockedBgm(raw: unknown): { value: BattleBgmId[]; health: 'ok' | 'repaired' } {
+  const initial = [...INITIAL_UNLOCKED_BATTLE_BGM];
+  if (raw === undefined) return { value: initial, health: 'ok' };
+  if (!Array.isArray(raw)) return { value: initial, health: 'repaired' };
+  const kept: BattleBgmId[] = [];
+  let changed = false;
+  for (const id of raw) {
+    if (isBattleBgm(id)) {
+      if (!kept.includes(id)) kept.push(id);
+      else changed = true;
+    } else changed = true;
+  }
+  // The starting piece is always in: it is what a fight falls back to.
+  for (const id of INITIAL_UNLOCKED_BATTLE_BGM) {
+    if (!kept.includes(id)) {
+      kept.unshift(id);
+      changed = true;
+    }
+  }
+  return { value: kept, health: changed ? 'repaired' : 'ok' };
+}
+
+/**
+ * Reads one stored row, repaired, and says whether it had to change.
+ *
+ * The one place that knows which reader belongs to which key. A key
+ * this build has never heard of is returned exactly as it was: it
+ * belongs to a newer build, and an older one has no business deciding
+ * what it should look like.
+ */
+function repairSavedRow(key: string, value: unknown): { value: unknown; changed: boolean } {
+  const settle = <T>(read: ReadRow<T>): { value: unknown; changed: boolean } => ({
+    value: read.value,
+    changed: read.health !== 'ok',
+  });
+  if (key.startsWith('character_')) {
+    const id = key.slice('character_'.length);
+    const initial = INITIAL_CHARACTERS[id];
+    // Somebody this build does not have. Left alone rather than reset
+    // to a default that does not exist.
+    if (!initial) return { value, changed: false };
+    return settle(readCharacterState(value, initial));
+  }
+  switch (key) {
+    case CLOCK_KEY:
+      return settle(readClock(value));
+    case SEEN_EXPERIENCE_KEY:
+      return settle(readIdList(value));
+    case EXPERIENCE_LOG_KEY:
+      return settle(readExperienceLog(value));
+    case ENEMY_PROGRESS_KEY:
+      return settle(readEnemyProgressTable(value));
+    case ENEMY_INDIVIDUALS_KEY:
+      return settle(readEnemyIndividuals(value));
+    case INVENTORY_KEY:
+      return settle(readBag(value));
+    case LUMI_KEY:
+      return settle(readPurse(value));
+    case PROGRESSION_KEY:
+      return settle(readGrowth(value));
+    case CLAIMED_REWARDS_KEY:
+      return settle(readClaimedRewards(value));
+    case HERO_NAME_KEY:
+      return settle(readHeroName(value));
+    case EQUIPMENT_KEY:
+      return settle(readEquipment(value));
+    case OWNED_EQUIPMENT_KEY:
+      return settle(readOwned(value));
+    case UNLOCKED_BGM_KEY:
+      return settle(readUnlockedBgm(value));
+    case RARE_FINDS_KEY:
+      return settle(readRareFinds(value));
+    case PICKUPS_KEY:
+      return settle(readPickupsTaken(value));
+    case VISITS_KEY:
+      return settle(readVisits(value));
+    case SEKIRYUGA_ARC_KEY:
+      return settle(readSekiryugaStage(value));
+    case FINALE_KEY:
+      return settle(readFinaleStage(value));
+    case READ_MARKS_KEY:
+      return settle(readReadMarks(value));
+    case BREAD_FRESHNESS_KEY:
+      return settle(readBreadFreshness(value));
+    case BREAD_BUFF_KEY:
+      return settle(readBreadBuff(value));
+    case REGROWTH_KEY:
+      return settle(readRegrowth(value));
+    case TAVERN_TRADES_KEY:
+      return settle(readTavernTrades(value));
+    case MUSIC_UNLOCKS_KEY:
+      return settle(readMusicUnlocks(value));
+    case VILLAGE_BGM_KEY:
+      return settle(readVillageBgm(value));
+    case INCIDENT_KEY:
+      return settle(readIncident(value));
+    case DAILY_SCENE_KEY:
+      return settle(readDailyScene(value));
+    case PLAYER_KNOWLEDGE_KEY:
+      return settle(readPlayerKnowledge(value));
+    case SESSION_KEY: {
+      // The one row where being wrong costs nothing: the worst a
+      // damaged session can do is put the player in the village.
+      const area = readResumeArea(value);
+      const same =
+        !!value && typeof value === 'object' && (value as { screen?: unknown }).screen === area;
+      return same ? { value, changed: false } : { value: { screen: area }, changed: true };
+    }
+    default:
+      return { value, changed: false };
+  }
+}
+
+interface ReadWorld {
+  fields: WorldFields;
+  repairedKeys: string[];
+  unreadableKeys: string[];
+}
+
+/**
+ * Turns a set of stored rows into the world they describe.
+ *
+ * Every key is read through a validating reader, and the two lists
+ * coming back are what the recovery upstream decides on: `repaired`
+ * means something inside a row was wrong and has been fixed downward;
+ * `unreadable` means the row was not that kind of thing at all.
+ */
+function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
+  const byKey = new Map(rows.map((row) => [row.key, row.value]));
+  const repairedKeys: string[] = [];
+  const unreadableKeys: string[] = [];
+  const take = <T>(key: string, read: ReadRow<T>): T => {
+    if (read.health === 'repaired') repairedKeys.push(key);
+    if (read.health === 'unreadable') unreadableKeys.push(key);
+    return read.value;
+  };
+
+  const characters: Record<string, CharacterState> = {};
+  for (const [id, initial] of Object.entries(INITIAL_CHARACTERS)) {
+    const key = characterKey(id);
+    characters[id] = take(key, readCharacterState(byKey.get(key), initial));
+  }
+
+  const log = take(EXPERIENCE_LOG_KEY, readExperienceLog(byKey.get(EXPERIENCE_LOG_KEY)));
+  const claimed = take(CLAIMED_REWARDS_KEY, readClaimedRewards(byKey.get(CLAIMED_REWARDS_KEY)));
+  const arcanaRaw = byKey.get(ARCANA_KEY);
+
+  return {
+    fields: {
+      clock: take(CLOCK_KEY, readClock(byKey.get(CLOCK_KEY))),
+      characters,
+      seenExperience: take(SEEN_EXPERIENCE_KEY, readIdList(byKey.get(SEEN_EXPERIENCE_KEY))),
+      experienceLog: { lastSeenDay: { ...log.lastSeenDay }, order: [...log.order] },
+      enemyProgress: take(
+        ENEMY_PROGRESS_KEY,
+        readEnemyProgressTable(byKey.get(ENEMY_PROGRESS_KEY)),
+      ),
+      enemyIndividuals: take(
+        ENEMY_INDIVIDUALS_KEY,
+        readEnemyIndividuals(byKey.get(ENEMY_INDIVIDUALS_KEY)),
+      ),
+      // These two have carried their own repair since they were written,
+      // and both already treat anything they do not understand as an
+      // empty page rather than as damage.
+      arcana: readArcanaRows(
+        arcanaRaw && typeof arcanaRaw === 'object' && !Array.isArray(arcanaRaw)
+          ? (arcanaRaw as Record<string, unknown>)
+          : {},
+      ),
+      accidents: readAccidentRows(byKey.get(ACCIDENTS_KEY)),
+      inventory: take(INVENTORY_KEY, readBag(byKey.get(INVENTORY_KEY))),
+      lumi: take(LUMI_KEY, readPurse(byKey.get(LUMI_KEY))),
+      progression: take(PROGRESSION_KEY, readGrowth(byKey.get(PROGRESSION_KEY))),
+      claimedRewards: claimed.slice(-CLAIMED_REWARDS_KEPT),
+      resumeArea: readResumeArea(byKey.get(SESSION_KEY)),
+      condition: readStoredCondition(byKey.get(CONDITION_KEY)),
+      heroName: take(HERO_NAME_KEY, readHeroName(byKey.get(HERO_NAME_KEY))),
+      heroNamed: byKey.get(HERO_NAME_KEY) !== undefined,
+      equipment: take(EQUIPMENT_KEY, readEquipment(byKey.get(EQUIPMENT_KEY))),
+      ownedEquipment: take(OWNED_EQUIPMENT_KEY, readOwned(byKey.get(OWNED_EQUIPMENT_KEY))),
+      equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
+      unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
+      rareFinds: take(RARE_FINDS_KEY, readRareFinds(byKey.get(RARE_FINDS_KEY))),
+      pickupsTaken: take(PICKUPS_KEY, readPickupsTaken(byKey.get(PICKUPS_KEY))),
+      visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
+      sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
+      finaleStage: take(FINALE_KEY, readFinaleStage(byKey.get(FINALE_KEY))),
+      readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),
+      breadFreshness: take(BREAD_FRESHNESS_KEY, readBreadFreshness(byKey.get(BREAD_FRESHNESS_KEY))),
+      breadBuff: take(BREAD_BUFF_KEY, readBreadBuff(byKey.get(BREAD_BUFF_KEY))),
+      tavernTrades: take(TAVERN_TRADES_KEY, readTavernTrades(byKey.get(TAVERN_TRADES_KEY))),
+      pickupRegrowth: take(REGROWTH_KEY, readRegrowth(byKey.get(REGROWTH_KEY))),
+      musicUnlocks: take(MUSIC_UNLOCKS_KEY, readMusicUnlocks(byKey.get(MUSIC_UNLOCKS_KEY))),
+      villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
+      incident: take(INCIDENT_KEY, readIncident(byKey.get(INCIDENT_KEY))),
+      dailyScene: take(DAILY_SCENE_KEY, readDailyScene(byKey.get(DAILY_SCENE_KEY))),
+      playerKnowledge: take(PLAYER_KNOWLEDGE_KEY, readPlayerKnowledge(byKey.get(PLAYER_KNOWLEDGE_KEY))),
+    },
+    repairedKeys,
+    unreadableKeys,
+  };
+}
+
+/**
+ * Every page, restored from whatever the save happens to hold.
+ *
+ * Pages the save has never heard of come back empty rather than
+ * missing, so every reader downstream can assume a record exists.
+ */
+function readArcanaRows(raw: Record<string, unknown>): Record<string, ArcanaRecord> {
+  const rows: Record<string, ArcanaRecord> = {};
+  for (const def of ARCANA_DEFS) {
+    rows[def.arcanaId] = readArcanaRecord(def, raw[def.arcanaId]);
+  }
+  return rows;
+}
+
+
+/**
+ * Where the player stands with each thing that can cross, restored
+ * from whatever the save happens to hold.
+ *
+ * Two shapes are accepted. The current one is a map of records. The
+ * other is the flat list of ids an earlier build of this feature
+ * wrote, which is read as "seen once, at a time nobody wrote down" —
+ * a save must never be made worthless by the shape of its own
+ * bookkeeping changing.
+ */
+function readAccidentRows(raw: unknown): Record<string, AccidentRecord> {
+  const rows: Record<string, AccidentRecord> = {};
+  if (Array.isArray(raw)) {
+    for (const id of raw) {
+      if (typeof id !== 'string') continue;
+      rows[id] = { accidentId: id, state: 'OBSERVED', timesObserved: 1, lastObservedDay: null };
+    }
+    return rows;
+  }
+  if (!raw || typeof raw !== 'object') return rows;
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const row = value as Partial<AccidentRecord> | null;
+    if (!row || typeof row !== 'object') continue;
+    const state = row.state;
+    rows[id] = {
+      accidentId: id,
+      state:
+        state === 'OBSERVED' || state === 'IDENTIFIED' || state === 'ACQUIRED' ? state : 'UNSEEN',
+      timesObserved: Number.isFinite(row.timesObserved) ? Math.max(0, Number(row.timesObserved)) : 0,
+      lastObservedDay: Number.isFinite(row.lastObservedDay) ? Number(row.lastObservedDay) : null,
+    };
+  }
+  return rows;
+}

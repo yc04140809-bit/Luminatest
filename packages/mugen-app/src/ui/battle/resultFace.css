@@ -1,0 +1,100 @@
+/* A won fight's result over the fight itself (ResultFace.tsx `ResultOver`, 作者 2026-10-30 v2):
+   the fight blurred and dimmed behind; her bust large on the left, unframed; the small panel on the right;
+   her line and his answer in one band at the foot. */
+.result-over {
+  --ro-band: 42px;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(var(--ro-band) + max(6px, env(safe-area-inset-bottom)))
+    max(16px, env(safe-area-inset-left));
+  pointer-events: auto;
+}
+/* The fight behind: blurred, and dark enough for the words over it. */
+.ro-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 18, 0.5);
+  -webkit-backdrop-filter: blur(7px) brightness(0.72);
+  backdrop-filter: blur(7px) brightness(0.72);
+}
+.result-over > :not(.ro-veil) { position: relative; z-index: 1; }
+
+/* Her bust: the left half, from near the top down to the band, no frame — her foot fading into the scene. */
+.ro-bust {
+  position: absolute !important;
+  left: max(2vw, env(safe-area-inset-left));
+  bottom: var(--ro-band);
+  height: calc(100% - var(--ro-band) - 4px);
+  max-width: 50%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+  pointer-events: none;
+}
+.ro-bust img { position: absolute; max-width: none; }
+
+/* The panel: half the old one, on the right beside her (in the middle when she is not there). */
+.ro-panel { width: min(300px, 42vw); }
+.result-over.with-kaos { justify-content: flex-end; }
+.result-over.with-kaos .ro-panel { margin-right: 4vw; }
+
+/* Her line and his answer: one line, in a band across the foot. */
+.ro-line {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  height: calc(var(--ro-band) - 6px);
+  margin: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 14px;
+  border-top: 1px solid rgba(200, 214, 255, 0.28);
+  border-bottom: 1px solid rgba(200, 214, 255, 0.28);
+  background: linear-gradient(90deg, rgba(10, 14, 34, 0), rgba(10, 14, 34, 0.82) 12%, rgba(10, 14, 34, 0.82) 88%, rgba(10, 14, 34, 0));
+  color: #fbf6ea;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ro-who { margin-left: 10px; color: #f0d995; font-size: 12px; letter-spacing: 0.06em; }
+.ro-who:first-child { margin-left: 0; }
+.ro-who.hero { color: #bcd2ff; }
+@media (max-width: 700px) {
+  .ro-line { font-size: 12px; }
+}
+
+/* The fight of one's numbers, in the small panel: each level on its own line (the slash only for a reader). */
+.result-over .result-paper { width: 100%; background: none; }
+.result-over .result-sheet { width: 100%; padding: 8px 14px 10px; }
+.result-over .result-sheet .place { font-size: 20px; margin: 2px 0 4px; white-space: nowrap; }
+@media (max-width: 700px) {
+  .result-over .result-sheet .place { font-size: 16px; letter-spacing: 0.08em; }
+}
+.result-over .result-sheet .row { font-size: 15px; line-height: 1.55; }
+.result-over .result-level { display: block; }
+.result-over .result-level-sep { display: none; }
+
+/* The three's 「勝利！」 and つぎへ, in the same small panel (no longer pinned to the corner). */
+.result-over .pb-result {
+  position: relative;
+  inset: auto;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px 14px;
+  background: rgba(10, 14, 34, 0.86);
+  border: 1px solid rgba(200, 214, 255, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+.result-over .pb-result b { font-size: 24px; letter-spacing: 0.12em; }
+.result-over .pb-result .pb-list-btn { min-width: 140px; justify-content: center; text-align: center; }
+.result-over .ro-panel:has(.pb-result) { width: min(240px, 34vw); }

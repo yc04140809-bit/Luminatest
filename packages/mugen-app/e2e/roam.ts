@@ -1,0 +1,171 @@
+import { expect, type Page } from '@playwright/test';
+
+/**
+ * WALKING ABOUT IN A PLACE BY TOUCH — for the two-dimensional walk's spec.
+ *
+ * Everything is read off the scene's own attributes, in the painting's
+ * fractions: where he stands (`data-hero`), the camera and the painting
+ * (`data-view`), and the things there to look at (`data-things`), so a
+ * touch can be aimed at a spot in the painting the way a finger would.
+ */
+
+const scene = (page: Page) => page.getByTestId('walk-scene');
+
+export interface P {
+  x: number;
+  y: number;
+}
+
+export interface RoamThing {
+  kind: 'point' | 'find' | 'pickup';
+  id: string;
+  stand: P;
+  mark: P;
+  grade: 'NORMAL' | 'RARE' | 'RAINBOW';
+}
+
+const pair = (s: string): P => {
+  const [x, y] = s.split(',').map(Number);
+  return { x, y };
+};
+
+export async function settled(page: Page) {
+  await expect(scene(page)).toHaveAttribute('data-walking', 'no', { timeout: 20_000 });
+}
+
+export async function hero(page: Page): Promise<P> {
+  return pair((await scene(page).getAttribute('data-hero'))!);
+}
+
+export async function kaos(page: Page): Promise<P> {
+  return pair((await scene(page).getAttribute('data-kaos'))!);
+}
+
+export async function scale(page: Page, who: 'hero' | 'kaos' = 'hero'): Promise<number> {
+  return Number(await scene(page).getAttribute(who === 'hero' ? 'data-scale' : 'data-kaos-scale'));
+}
+
+export async function things(page: Page): Promise<RoamThing[]> {
+  const raw = (await scene(page).getAttribute('data-things')) ?? '';
+  return raw
+    .split(' ')
+    .filter(Boolean)
+    .map((s) => {
+      const [kind, id, stand, mark, grade] = s.split(':');
+      return { kind: kind as RoamThing['kind'], id, stand: pair(stand), mark: pair(mark), grade: grade as RoamThing['grade'] };
+    });
+}
+
+export async function noticed(page: Page): Promise<string[]> {
+  return ((await scene(page).getAttribute('data-noticed')) ?? '').split(' ').filter(Boolean);
+}
+
+/** As the eye measures, in painting widths. */
+export const dist = (a: P, b: P) => Math.hypot(a.x - b.x, ((a.y - b.y) * 941) / 1672);
+
+/** Where a painting point is on screen right now. */
+export async function onScreen(page: Page, p: P): Promise<P> {
+  const [cam, w, top, h] = ((await scene(page).getAttribute('data-view')) ?? '').split(',').map(Number);
+  return { x: p.x * w + cam, y: top + p.y * h };
+}
+
+/** Touch the painting at this point (kept on the screen), and wait until they stop. */
+export async function touch(page: Page, p: P, wait = true) {
+  const vp = page.viewportSize()!;
+  const s = await onScreen(page, p);
+  await page.mouse.click(Math.min(vp.width - 4, Math.max(4, s.x)), Math.min(vp.height - 4, Math.max(4, s.y)));
+  if (wait) {
+    await page.waitForTimeout(80);
+    await settled(page);
+  }
+}
+
+/** Whether a touch at this painting point would land on a button over the walk (an event, the way out). */
+async function underAButton(page: Page, p: P): Promise<boolean> {
+  const vp = page.viewportSize()!;
+  const s = await onScreen(page, p);
+  const at = [Math.min(vp.width - 4, Math.max(4, s.x)), Math.min(vp.height - 4, Math.max(4, s.y))];
+  return page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('button, a, [role="button"]'), at);
+}
+
+/** Beside a thing, still near enough that a touch there is taken for it (the walk snaps to a thing within 0.08). */
+const BESIDE: readonly (readonly [number, number])[] = [
+  [0, -0.06],
+  [0.05, -0.04],
+  [0.06, 0],
+  [0.04, -0.08],
+  [-0.05, -0.06],
+  // Further round it — on a small screen a button covers more of the painting (dist's y counts 941/1672).
+  [-0.06, 0],
+  [0, 0.1],
+  [0, -0.12],
+  [0.05, 0.08],
+  [-0.05, 0.08],
+  [-0.04, -0.1],
+];
+
+/**
+ * Walk to where a thing is looked at from (touching the thing itself, as a player would). A thing
+ * that happens to lie under a button (a find appears anywhere — under 「人影がこちらを見ている」 the
+ * touch opened ガルド instead): touched just beside it, as a player would, clear of the button.
+ */
+export async function goTo(page: Page, id: string) {
+  for (let i = 0; i < 3; i++) {
+    const t = (await things(page)).find((x) => x.id === id)!;
+    let at: P | undefined;
+    for (const [dx, dy] of [[0, 0] as const, ...BESIDE]) {
+      const q = { x: t.mark.x + dx, y: t.mark.y + dy };
+      if (!(await underAButton(page, q))) {
+        at = q;
+        break;
+      }
+    }
+    // Every spot round it under a button: never press the button instead (the caller's own check says so).
+    if (!at) return;
+    await touch(page, at);
+    if (dist(await hero(page), t.stand) < 0.01) return;
+  }
+}
+
+/** A spot on open floor at height y, out of notice of every thing there. */
+export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.78, 0.48, 0.85, 0.4, 0.3]): Promise<P> {
+  const ts = await things(page);
+  // A pickup shows its 「！」 only when stood at, and is walked to only by touching its glint.
+  const clearOf = (q: P) =>
+    ts.every((t) =>
+      t.kind === 'pickup'
+        ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05
+        : // A small find only matters to a touch that would be taken for it (SNAP 0.08); one lying
+          // about is no reason to rule a whole height out.
+          dist(q, t.stand) > (t.kind === 'find' ? 0.1 : 0.2),
+    );
+  const p = xs.map((x) => ({ x, y })).find(clearOf);
+  // Every spot asked for has something lying near it (small finds turn up anywhere): further along the
+  // same height, in small steps, the first that is clear — across the whole floor's width; and if a find
+  // has closed the one gap the place's own things leave at that height, a step above or below it.
+  const sweep = (at: number) => Array.from({ length: 27 }, (_, i) => ({ x: 0.15 + i * 0.03, y: at })).find((q) => clearOf(q));
+  const along = p ?? [y, y - 0.03, y + 0.03, y - 0.06, y + 0.06].map(sweep).find((q) => q !== undefined);
+  expect(along, `open floor at ${y}`).toBeTruthy();
+  return along!;
+}
+
+/**
+ * A spot on the floor from which this thing is in notice but not in
+ * reach — and that no touch would take for any thing at all.
+ */
+export async function inNoticeOf(page: Page, id: string): Promise<P> {
+  const all = await things(page);
+  const t = all.find((x) => x.id === id)!;
+  // Clear of everything if it can be; else clear of the place's own things
+  // (a small find lies wherever it turned up).
+  for (const ts of [all, all.filter((x) => x.kind === 'point')]) {
+    for (let r = 0.1; r <= 0.14; r += 0.01) {
+      for (let a = 0; a < 36; a++) {
+        const q = { x: t.stand.x + r * Math.cos((a * Math.PI) / 18), y: t.stand.y + ((r * Math.sin((a * Math.PI) / 18)) * 1672) / 941 };
+        if (q.y < 0.55 || q.y > 0.74 || q.x < 0.05 || q.x > 0.95) continue;
+        if (ts.every((o) => dist(q, o.stand) > 0.09 && dist(q, o.mark) > 0.09)) return q;
+      }
+    }
+  }
+  throw new Error(`no spot in notice of ${id}`);
+}

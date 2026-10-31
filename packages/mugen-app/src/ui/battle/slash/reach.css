@@ -1,0 +1,60 @@
+/* HIS WALK TO THE CREATURE AND BACK, AND THE SWING BETWEEN — v18's
+   `playAttack` motion, in CSS.
+
+   `.bp-reach` carries him (the travel: approach and return, measured to
+   stop just short of the creature), `.bp-swing` tilts him (v18's windup,
+   contact and follow-through poses: translate3d(10px,-3px) rotate(5deg),
+   then (-24px,1px) rotate(-11deg), then (-13px,0) rotate(-6deg)). Both
+   are drawn only when the enhanced swing is asked for; the step lengths
+   come from slashTiming.ts through `--reach-ms`. */
+
+.bp-reach {
+  --reach-ms: 340ms;
+  --reach-x: 0px;
+  --reach-y: 0px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transform: translate3d(0, 0, 0);
+}
+.bp-reach[data-phase='approach'],
+.bp-reach[data-phase='windup'],
+.bp-reach[data-phase='strike'],
+.bp-reach[data-phase='recover'] {
+  transform: translate3d(var(--reach-x), var(--reach-y), 0);
+}
+.bp-reach[data-phase='approach'] {
+  transition: transform var(--reach-ms) cubic-bezier(.24,.76,.23,1);
+}
+.bp-reach[data-phase='return'] {
+  transition: transform var(--reach-ms) cubic-bezier(.33,.01,.24,1);
+}
+
+.bp-swing {
+  position: relative;
+  transform-origin: 50% 80%;
+}
+.bp-reach[data-phase='windup'] .bp-swing {
+  transform: translate3d(10px, -3px, 0) rotate(5deg);
+  transition: transform var(--reach-ms) ease-out;
+}
+.bp-reach[data-phase='strike'] .bp-swing {
+  transform: translate3d(-13px, 0, 0) rotate(-6deg);
+  animation: bp-reach-swing var(--reach-ms) cubic-bezier(.18,.78,.2,1) both;
+}
+.bp-reach[data-phase='recover'] .bp-swing {
+  transform: translate3d(0, 0, 0) rotate(0deg);
+  transition: transform var(--reach-ms) ease-out;
+}
+@keyframes bp-reach-swing {
+  0% { transform: translate3d(10px, -3px, 0) rotate(5deg); }
+  43% { transform: translate3d(-24px, 1px, 0) rotate(-11deg); }
+  100% { transform: translate3d(-13px, 0, 0) rotate(-6deg); }
+}
+
+/* Less motion: he still goes and comes back, without the tilt. */
+@media (prefers-reduced-motion: reduce) {
+  .bp-swing { transform: none !important; animation: none !important; }
+}
+:root[data-reduced-motion='on'] .bp-swing { transform: none !important; animation: none !important; }

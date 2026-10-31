@@ -1,0 +1,998 @@
+// AudioManager — THE APP'S COPY.
+//
+// Taken from mugen-artifact/src/platform/audio.ts unchanged in
+// behaviour. It depends only on @mugen/assets and @mugen/content, both
+// shared, so it moved without a single edit to what it does.
+//
+// A COPY RATHER THAN A SHARED MODULE, and deliberately for now. Sharing
+// it would mean moving the Artifact's file and changing its imports,
+// which is a structural change to a package this round does not touch.
+// Two copies can drift; the day the Artifact is retired or consolidated,
+// this becomes the only one and the question answers itself. Until then
+// a change to how audio PLAYS should be made in both.
+//
+// Every slot may be empty: a missing asset is silence, never a crash.
+// Mobile browsers block autoplay, so nothing sounds until the player
+// has touched the page.
+
+import {
+  BGM_ASSETS,
+  MUSIC_ASSETS,
+  SE_ASSETS,
+  type BgmId,
+  type SeId,
+} from '@mugen/assets/music';
+import {
+  SFX_GAIN,
+  SFX_PRELOAD,
+  SFX_RETRIGGER_MS,
+  type SfxId,
+} from '@mugen/content/audio/sfx';
+// The delivered sound files, read from the folder they were put in.
+// The artifact aliases this module to an empty one; see sfxNone.ts.
+import { SFX_FILES } from '@mugen/assets/sfx';
+// The App's own pieces (the winnings, セキリュウガ, フウミミ), 2026-10-11.
+import { APP_BGM_ASSETS, APP_BGM_FALLBACK } from '@mugen/assets/appMusic';
+// Their voices: a line's id to its file (2026-10-30 タスクD).
+import { voiceGainOf, voicePlan, voiceSpeakerOf } from './voice';
+
+/** A piece's file: the App's own first, then the shared table, then the piece it borrows. */
+function bgmSrc(id: BgmId): string | null {
+  const own = APP_BGM_ASSETS[id] ?? BGM_ASSETS[id];
+  if (own) return own;
+  const borrowed = APP_BGM_FALLBACK[id];
+  return borrowed ? (APP_BGM_ASSETS[borrowed] ?? BGM_ASSETS[borrowed]) : null;
+}
+import { SFX_TUNING, sfxRateFor, sfxRingMs, sfxSourceOf } from '@mugen/content/audio/sfxTuning';
+
+/** How loud a sound plays relative to the SFX slider: its tuning, else the shared table. */
+function sfxGain(id: SfxId): number {
+  return SFX_TUNING[id]?.gain ?? SFX_GAIN[id] ?? 1;
+}
+
+/** The fade at the end of a sound cut short (`maxMs`). */
+const SFX_FADE_MS = 140;
+
+/** How one playing of a sound may differ: the fight's speed shortens a long one. */
+export interface SfxOptions {
+  speed?: number;
+}
+
+/**
+ * How long the opening theme takes to get out of the way.
+ *
+ * Short enough that SKIP feels like it did something immediately, long
+ * enough that it is not a cut. One number, here, rather than a literal
+ * inside a handler.
+ */
+export const OPENING_FADE_MS = 500;
+/** Between two lines said one after the other (a page's three, his word then hers). */
+export const VOICE_GAP_MS = 180;
+/** Whose mouth a line is said by: the party's side, or the one they fight. */
+export type VoiceMouth = 'party' | 'foe';
+/** How often the fade steps. Smooth enough at this length. */
+const OPENING_FADE_STEP_MS = 40;
+
+/**
+ * How long one piece of music takes to become another.
+ *
+ * A cut between two loops is the single most noticeable thing a game's
+ * audio can do wrong: the player hears the SOFTWARE rather than the
+ * place. Half a second is long enough not to be a cut and short enough
+ * that walking into the forest still feels like arriving.
+ */
+export const BGM_FADE_MS = 500;
+/** The same step as the opening's. One clock for all fading. */
+const BGM_FADE_STEP_MS = 40;
+
+/**
+ * How long the opening waits before it starts.
+ *
+ * A second, and only the opening: every other piece begins the moment
+ * the player walks into the room it belongs to. The title is not a
+ * room. It is a picture somebody has just arrived at, and music that
+ * arrives at the same instant arrives ON TOP of that rather than with
+ * it — the beat of quiet is what makes the first note land.
+ *
+ * It is a DELAY, not a schedule: whatever else happens in that second
+ * — the player taps through to the prologue, the music is turned off,
+ * a different piece is asked for — wins, because the timer checks
+ * what the game is currently asking for rather than replaying what it
+ * asked for a second ago.
+ */
+export const OPENING_START_DELAY_MS = 1000;
+
+/** Volumes are a browser API and it throws outside nought and one. */
+function clampVolume(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
+export class AudioManager {
+  /**
+   * Matches the Artifact's DEFAULT_SETTINGS.bgmVolume. The App has no
+   * settings screen yet, so this default IS its volume until one exists.
+   */
+  private bgmVolume = 0.35;
+  /**
+   * The piece now sounding, and the one on its way out.
+   *
+   * Two elements for the length of a crossfade and never three: a
+   * third track arriving mid-fade ends the outgoing one at once rather
+   * than stacking, because a player who walks quickly through three
+   * rooms must not end up listening to three pieces of music.
+   */
+  private bgmFade: ReturnType<typeof setInterval> | null = null;
+  private bgmDelay: ReturnType<typeof setTimeout> | null = null;
+  private bgmOut: HTMLAudioElement | null = null;
+  private gestureListening = false;
+  /**
+   * THE EFFECTS BUS, AFTER MASTER.
+   *
+   * One field, not two. There were briefly a `seVolume` and an
+   * `sfxVolume` holding the same number, from the days when SE and SFX
+   * were different words for the one slider. The panel has four buses
+   * now and every one of them is a real number the player set, so the
+   * duplicate went.
+   */
+  private sfxVolume = 0.8;
+  /** MASTER, as last set. Kept only so the buses can be recomputed. */
+  private masterVolume = 1;
+  /**
+   * The voice bus (2026-10-30 タスクD): what a spoken line plays at — its own, neither
+   * the music's nor the sounds'. MASTER folded in, as the others.
+   */
+  private voiceVolume = 0.8;
+  /**
+   * Who is speaking, one mouth each side (2026-10-30 第3便): the party's (主人公, ケイオス — one at a time between
+   * them) and the one they fight (ガルド). A foe's 「おらっ！」 and his 「くっ……」 are two people and are heard
+   * together; two lines of the same side never are. For each: the line being spoken, which run of lines it is
+   * (a new run, or a stop, ends the one before and what was to follow), and what is still to follow in it.
+   */
+  private voices: Record<VoiceMouth, { audio: HTMLAudioElement | null; chain: number; queue: string[] }> = {
+    party: { audio: null, chain: 0, queue: [] },
+    foe: { audio: null, chain: 0, queue: [] },
+  };
+  /** When each sound last played, for the retrigger guard. */
+  private sfxLastAt = new Map<SfxId, number>();
+  /** Fetched and decoded on the first touch; see `primeSfx`. */
+  private sfxPrimed = new Map<SfxId, HTMLAudioElement>();
+  private unlocked = false;
+  private currentBgmId: BgmId | null = null;
+  /** What was on before it. Reported, never used to decide. */
+  private previousBgmId: BgmId | null = null;
+  private bgm: HTMLAudioElement | null = null;
+  /**
+   * The opening theme, while it is playing.
+   *
+   * Exactly one, ever: every entry point checks this first, so a second
+   * tap, a re-render or a remount cannot start a second copy over the
+   * top of the first. That is the whole of "no double playback".
+   */
+  private opening: HTMLAudioElement | null = null;
+  private openingFade: ReturnType<typeof setInterval> | null = null;
+  /** Called once when the theme stops, however it stopped. */
+  private openingDone: (() => void) | null = null;
+  /**
+   * THE OPENING PIECE LET GO FOR A MOMENT (the opening's power off, until the
+   * funny face — App's hush): when it is asked for again it comes straight
+   * back, without the beat of quiet its first start waits (TIGS 2026-10-23:
+   * the power off is the quiet; another second after it was a gap).
+   */
+  private openingLetGo = false;
+  private watchingVisibility = false;
+
+  /**
+   * The four buses, as the player has them.
+   *
+   * MASTER is folded in here and nowhere else: every field below is
+   * the level a sound ACTUALLY plays at, so the rest of the manager
+   * goes on reading one number per bus and there is no second place
+   * that could forget to apply it. MASTER at zero is silence by the
+   * same route as BGM at zero, which is the route already written.
+   *
+   * `master` and `voice` default so that the many callers who only
+   * ever cared about music and effects still read correctly.
+   */
+  setVolumes(bgmVolume: number, sfxVolume: number, masterVolume = 1, voiceVolume = 0.8): void {
+    this.masterVolume = clampVolume(masterVolume);
+    bgmVolume = clampVolume(this.masterVolume * bgmVolume);
+    this.bgmVolume = bgmVolume;
+    this.sfxVolume = clampVolume(this.masterVolume * sfxVolume);
+    this.voiceVolume = clampVolume(this.masterVolume * voiceVolume);
+    for (const m of Object.values(this.voices)) if (m.audio) m.audio.volume = this.voiceVolume;
+    // Not while a crossfade owns it: its volume is being driven on
+    // purpose, and the fade sets the final level when it lands.
+    if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(bgmVolume);
+    // TURNED DOWN TO NOTHING: HELD, NOT THROWN AWAY.
+    //
+    // It used to release the element, and that was a mid-track restart
+    // with a slider in front of it: a player who dragged BGM through
+    // zero and back came back to the top of the piece rather than to
+    // the bar they were on. The element is paused instead — silent by
+    // the same measure, since a paused element makes no sound — and
+    // picked back up where it was when the slider comes off nought.
+    if (bgmVolume <= 0) {
+      this.endBgmFade();
+      this.bgm?.pause();
+    } else if (this.bgm) {
+      // Turned back on: the same bar of the same piece.
+      this.resumeHeld();
+    } else if (this.currentBgmId) {
+      // Nothing held — the scene asked while the music was off, or a
+      // resume failed. Start what the scene says belongs here.
+      this.startBgm(this.currentBgmId, { fade: true });
+    }
+    // The opening follows the same slider as everything else — there is
+    // no second volume for it — but not while it is fading out, where
+    // its volume is being driven towards zero on purpose.
+    if (this.opening && !this.openingFade) this.opening.volume = bgmVolume;
+    // Turned the music off mid-song: stop, do not merely go quiet.
+    if (this.opening && bgmVolume <= 0) this.stopOpeningTheme();
+  }
+
+  /**
+   * THE MUSIC TURNED DOWN FOR A MOMENT (the opening's flashes and 「じゃ。」,
+   * 2026-10-16): the piece playing now, at `share` of its level — the
+   * player's own volume untouched. 1 brings it back. Only the piece now
+   * sounding; a piece started later plays at its level.
+   */
+  duckBgm(share: number): void {
+    this.endDuckFade();
+    if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(this.bgmVolume * clampVolume(share));
+  }
+
+  private duckFade: ReturnType<typeof setInterval> | null = null;
+  private endDuckFade(): void {
+    if (this.duckFade) clearInterval(this.duckFade);
+    this.duckFade = null;
+  }
+
+  /**
+   * THE SAME, GRADUALLY (作者「無料強化メモ②」: BGMが引く): the piece now sounding eased to
+   * `share` of its level over `ms` — a scene's music falling away before something wakes, and
+   * coming back. A crossfade or a new piece takes it over (the new piece at its own level).
+   */
+  duckBgmTo(share: number, ms = 600): void {
+    this.endDuckFade();
+    const el = this.bgm;
+    if (!el || this.bgmFade || this.bgmVolume <= 0 || ms <= 0) return this.duckBgm(share);
+    const from = clampVolume(el.volume / this.bgmVolume);
+    const to = clampVolume(share);
+    const steps = Math.max(1, Math.round(ms / 40));
+    let i = 0;
+    this.duckFade = setInterval(() => {
+      i++;
+      if (this.bgm !== el || this.bgmFade) return this.endDuckFade();
+      el.volume = clampVolume(this.bgmVolume * (from + (to - from) * Math.min(1, i / steps)));
+      if (i >= steps) this.endDuckFade();
+    }, 40);
+  }
+
+  /**
+   * The four buses as they actually come out, MASTER already folded in.
+   *
+   * For looking at — a settings screen showing what a slider will do,
+   * and the tests that check MASTER really is over the top of the
+   * other three. Nothing in the game decides anything from it.
+   */
+  volumes(): { master: number; bgm: number; sfx: number; voice: number } {
+    return {
+      master: this.masterVolume,
+      bgm: this.bgmVolume,
+      sfx: this.sfxVolume,
+      voice: this.voiceVolume,
+    };
+  }
+
+  /** Whether music is allowed to make a sound at all. */
+  private musicIsOn(): boolean {
+    return this.unlocked && this.bgmVolume > 0;
+  }
+
+  /** Whether the opening theme is sounding right now. */
+  isOpeningPlaying(): boolean {
+    return this.opening !== null;
+  }
+
+  /**
+   * Starts the opening theme, once.
+   *
+   * Returns whether anything actually began, so the caller can put its
+   * SKIP control on screen only when there is something to skip. It
+   * comes back false, quietly, for every ordinary reason: no song in
+   * the slot yet, the music turned off, the page not yet touched, or
+   * the theme already playing. None of those are errors.
+   *
+   * `onDone` fires exactly once — whether the song ended by itself, was
+   * skipped, or was stopped by leaving the screen — so the thing that
+   * happens next happens once. That is the same handler for the natural
+   * end and for SKIP on purpose: two paths into one exit cannot
+   * double-advance.
+   */
+  playOpeningTheme(onDone?: () => void): boolean {
+    if (this.opening) return false;
+    const src = MUSIC_ASSETS.OPENING_THEME;
+    if (!src || !this.musicIsOn()) return false;
+    try {
+      const audio = new Audio(src);
+      audio.loop = false;
+      audio.volume = this.bgmVolume;
+      audio.addEventListener('ended', () => this.finishOpening());
+      // A browser that refuses to play is not a failure state: the
+      // opening is simply silent, and the game carries on. No retry
+      // loop, no second attempt, no muted-autoplay trick.
+      void audio.play().catch(() => this.finishOpening());
+      this.opening = audio;
+      this.openingDone = onDone ?? null;
+      this.watchVisibility();
+      return true;
+    } catch {
+      this.opening = null;
+      return false;
+    }
+  }
+
+  /**
+   * SKIP: down over half a second, then gone.
+   *
+   * Calling it twice is calling it once — the fade owns the element
+   * from here, and the second call finds one already running.
+   */
+  fadeOutOpeningTheme(ms: number = OPENING_FADE_MS): void {
+    const audio = this.opening;
+    if (!audio) return;
+    if (this.openingFade) return;
+    const steps = Math.max(1, Math.round(ms / OPENING_FADE_STEP_MS));
+    const from = audio.volume;
+    let step = 0;
+    this.openingFade = setInterval(() => {
+      step++;
+      const next = from * (1 - step / steps);
+      audio.volume = Math.max(0, Math.min(1, next));
+      if (step >= steps) this.finishOpening();
+    }, OPENING_FADE_STEP_MS);
+  }
+
+  /** Immediately: leaving the screen, turning the music off, unmount. */
+  stopOpeningTheme(): void {
+    this.finishOpening();
+  }
+
+  /**
+   * The one exit. Everything that ends the opening comes through here,
+   * so the callback runs once and the element is always released.
+   */
+  private finishOpening(): void {
+    if (this.openingFade) {
+      clearInterval(this.openingFade);
+      this.openingFade = null;
+    }
+    const audio = this.opening;
+    const done = this.openingDone;
+    this.opening = null;
+    this.openingDone = null;
+    this.release(audio);
+    done?.();
+    // The song is over, so the room it was played over may be heard.
+    // Whatever screen the player is on by now asked for its music while
+    // the theme held the room; this is that request, arriving late.
+    if (this.currentBgmId && !this.bgm) this.startBgm(this.currentBgmId, { fade: true });
+  }
+
+  /**
+   * A phone that has been put away stops singing, and sings again when
+   * it is picked back up.
+   *
+   * Paused rather than stopped, so coming back is the same piece from
+   * the same place rather than a song starting over. What comes back is
+   * whatever the game is asking for NOW — `resumeIfSilent` reads the
+   * current answer, so a player who took a call in the forest and came
+   * back to a fight comes back to the fight's music, not the forest's.
+   *
+   * The opening theme is deliberately not resumed. It is a song the
+   * game waits on, and one that restarts itself halfway through after
+   * an interruption is worse than one that quietly ends.
+   */
+  private watchVisibility(): void {
+    if (this.watchingVisibility || typeof document === 'undefined') return;
+    this.watchingVisibility = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.opening?.pause();
+        this.bgm?.pause();
+        return;
+      }
+      // AND BACK AGAIN — which is the half that was missing, and the
+      // reason "the music never comes back" was reported as a bug in
+      // the exploration BGM. The scene had restored it perfectly; the
+      // ELEMENT was paused, by this handler or by the phone's own media
+      // policy, and nothing ever asked it to play again.
+      //
+      // Only the room's own music: the opening theme is a song the game
+      // waits for, and a song that resumes itself in the middle after a
+      // phone call is worse than one that does not.
+      this.resumeIfSilent();
+    });
+  }
+
+  /**
+   * Whether the piece we are holding is actually making a sound.
+   *
+   * NOT "is there an element". An element that exists and is paused is
+   * silence, and every guard in here used to accept it as music — so a
+   * page that had been hidden, a browser that suspended its media, or a
+   * `play()` the autoplay policy refused left the game silent for the
+   * rest of the session, with an element sitting there satisfying the
+   * check. A fade counts as sounding: the incoming element is a tick
+   * away from playing and must not be started twice.
+   */
+  private bgmIsSounding(): boolean {
+    if (this.bgmFade || this.bgmDelay) return true;
+    return !!this.bgm && !this.bgm.paused;
+  }
+
+  /**
+   * Ask again for whatever the game is currently asking for.
+   *
+   * The scene is the truth about what should be playing, so there is
+   * nothing to remember and nothing to restore FROM: this simply puts
+   * the current answer back on the air if it is not on it. Safe to call
+   * as often as anything likes — it does nothing at all when the music
+   * is already sounding, is deliberately off, or is mid-fade.
+   */
+  resumeIfSilent(): void {
+    if (!this.currentBgmId || !this.musicIsOn()) return;
+    if (this.bgmIsSounding()) return;
+    // THE PIECE WE ARE HOLDING IS PICKED BACK UP, NOT PLAYED AGAIN.
+    if (this.resumeHeld()) return;
+    this.startBgm(this.currentBgmId, { fade: false });
+  }
+
+  /**
+   * Carry on with the piece already in hand, from the bar it is on.
+   *
+   * THIS IS THE DIFFERENCE BETWEEN RESUMING AND RESTARTING, and it is
+   * the whole of a bug that was reported as "the music cuts off partway
+   * and goes back to the top". A phone that is put away, locked, or
+   * interrupted by a call pauses the element; every route back used to
+   * build a NEW one, which is the same piece of music from nought —
+   * so a player who glanced at a message two minutes into the forest
+   * came back to the first bar of it.
+   *
+   * Returns whether there was something to carry on with, so the
+   * caller knows whether it still has to start one.
+   *
+   * A `play()` the browser refuses DROPS the element rather than
+   * leaving it held: the refusal usually means this element is no
+   * longer usable, and one that stays held would be resumed again and
+   * again forever. Letting it go means the next ask builds a fresh one,
+   * which is the old behaviour and the right fallback.
+   */
+  private resumeHeld(): boolean {
+    const held = this.bgm;
+    if (!held || !held.src || held.ended) return false;
+    if (!held.paused) return true;
+    try {
+      void Promise.resolve(held.play()).catch(() => {
+        if (this.bgm === held) {
+          this.release(held);
+          this.bgm = null;
+        }
+      });
+    } catch {
+      this.release(held);
+      this.bgm = null;
+      return false;
+    }
+    return true;
+  }
+
+  /** Called from a real user gesture; only then may audio start. */
+  unlock(): void {
+    if (this.unlocked) return;
+    this.unlocked = true;
+    // The fight's noises, fetched now rather than mid-swing.
+    this.primeSfx();
+    // Whatever the game asked for while it could not be heard starts
+    // now. This is what makes the title's music begin on the very tap
+    // that leaves the title, rather than a screen later.
+    if (this.currentBgmId) this.startBgm(this.currentBgmId, { fade: false });
+  }
+
+  /**
+   * ANY first touch of the page unlocks, not only the two buttons that
+   * used to call `unlock()` by hand.
+   *
+   * A phone will not make a sound until the person has done something,
+   * and "something" is any pointer or key — not specifically the button
+   * whose handler somebody remembered to wire. Listening once, at the
+   * document, for the first of them is what makes the music reliably
+   * start on a real device rather than only on the two routes somebody
+   * remembered to wire.
+   * The listeners remove themselves; there is nothing to clean up.
+   */
+  listenForFirstGesture(): void {
+    if (typeof document === 'undefined') return;
+    // BEFORE the gesture guard, and before the unlocked one: a page
+    // that is already unlocked still gets put away and picked back up,
+    // and that is exactly the case where the music would otherwise stay
+    // paused for the rest of the session.
+    this.watchVisibility();
+    if (this.gestureListening || this.unlocked) return;
+    this.gestureListening = true;
+    const wake = () => {
+      for (const type of ['pointerdown', 'touchstart', 'keydown'] as const) {
+        document.removeEventListener(type, wake);
+      }
+      this.unlock();
+    };
+    for (const type of ['pointerdown', 'touchstart', 'keydown'] as const) {
+      document.addEventListener(type, wake, { passive: true });
+    }
+  }
+
+  /** Which piece the game has asked for, playing or waiting to. */
+  currentBgm(): BgmId | null {
+    return this.currentBgmId;
+  }
+
+  /**
+   * What is on, what was on before it, and whether it is really
+   * sounding.
+   *
+   * FOR LOOKING AT, NOT FOR DECIDING WITH. `previous` is a record of
+   * what happened, and nothing reads it to work out what should play:
+   * the scene is the truth about that, which is why coming out of a
+   * fight needs nothing remembered — the player is back in the forest,
+   * so the forest is what belongs there. A restore driven by a
+   * remembered value is a second answer that can disagree with the
+   * first, and the first is the one on screen.
+   */
+  bgmState(): { current: BgmId | null; previous: BgmId | null; sounding: boolean } {
+    return {
+      current: this.currentBgmId,
+      previous: this.previousBgmId,
+      sounding: this.bgmIsSounding(),
+    };
+  }
+
+  /**
+   * Put this piece on, and leave it alone if it is already on.
+   *
+   * THE SECOND HALF OF THAT SENTENCE IS THE IMPORTANT ONE. A screen
+   * asks for its music on every render, and React renders a screen
+   * whenever anything at all about it changes — so a `playBgm` that
+   * started a fresh element each time would restart the forest from
+   * the top every time a leaf moved, and two of them would overlap for
+   * as long as the fade. Asking for what is already playing is not an
+   * event; it is the normal case, and it does nothing.
+   */
+  playBgm(id: BgmId): void {
+    // SOUNDING, not merely existing — see `bgmIsSounding`. A paused
+    // element used to satisfy this, and the music never came back.
+    if (this.currentBgmId === id && (this.bgmIsSounding() || !this.unlocked)) return;
+    // ASKED FOR AGAIN WHILE IT IS MERELY PAUSED — a screen that
+    // re-rendered while the page was in the background, say. That is
+    // not a scene change and must not sound like one: the piece we are
+    // holding carries on rather than starting over.
+    if (this.currentBgmId === id && this.musicIsOn() && this.resumeHeld()) return;
+    if (this.currentBgmId !== id) this.previousBgmId = this.currentBgmId;
+    this.currentBgmId = id;
+    this.startBgm(id, { fade: true, wait: true });
+  }
+
+  /**
+   * Actually put an element on the air, fading the last one out.
+   *
+   * Separate from `playBgm` because `unlock()` needs to start what was
+   * already asked for WITHOUT the no-op guard above — at that moment
+   * the id is already current and nothing is playing, which is exactly
+   * the case the guard exists to swallow.
+   */
+  private startBgm(id: BgmId, { fade, wait = false }: { fade: boolean; wait?: boolean }): void {
+    // A pending opening is cancelled by anything at all: this is the
+    // next request arriving, and the one that was waiting is no longer
+    // what the game wants.
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
+    /**
+     * THE OPENING, AND ONLY THE OPENING, WAITS A BEAT.
+     *
+     * `wait` is passed rather than worked out, and that is the whole
+     * of why this is correct: the first version asked "is this the
+     * opening, and is nothing playing?" — which is still true a second
+     * later when the timer re-enters, so it set another timer, and the
+     * music never started at all. A caller says whether it is asking
+     * for the wait; the timer asks without it.
+     *
+     * It is a DELAY, not a schedule. A second later the game may want
+     * something else entirely — the player tapped through to the
+     * prologue, the music was turned off — so the timer checks what is
+     * being asked for NOW rather than replaying what was asked for
+     * then.
+     */
+    const backAfterHush = this.openingLetGo;
+    this.openingLetGo = false;
+    if (wait && id === 'OPENING' && !backAfterHush) {
+      this.retireCurrentBgm(false);
+      this.bgmDelay = setTimeout(() => {
+        this.bgmDelay = null;
+        if (this.currentBgmId === 'OPENING' && !this.bgm) {
+          this.startBgm('OPENING', { fade: true, wait: false });
+        }
+      }, OPENING_START_DELAY_MS);
+      return;
+    }
+    const src = bgmSrc(id);
+    // Whatever was playing stops either way: a scene with no music yet
+    // is SILENT, not "the last room, still going".
+    this.retireCurrentBgm(fade && !!src);
+    // THE OPENING THEME GETS THE ROOM TO ITSELF. It is a song the game
+    // waits for rather than room tone, and the title screen's own piece
+    // would otherwise play underneath it — two pieces of music at once,
+    // on the first screen anybody sees. The scene's music is not
+    // cancelled, only held: `finishOpening` starts whatever the game
+    // has asked for by the time the song is over.
+    if (this.opening) return;
+    if (!src || !this.musicIsOn()) return; // silence, not an error
+    try {
+      const audio = new Audio(src);
+      audio.loop = true;
+      audio.volume = fade ? 0 : this.bgmVolume;
+      void audio.play().catch(() => {
+        /* autoplay refused — stay silent */
+      });
+      this.bgm = audio;
+      if (fade) this.runBgmFade();
+      return;
+    } catch {
+      this.bgm = null;
+    }
+  }
+
+  /**
+   * The outgoing piece: faded if there is something to fade into,
+   * stopped outright otherwise.
+   *
+   * A fade already running is ended rather than joined — the element it
+   * was lowering is dropped at once — because two overlapping fades is
+   * how three pieces of music end up sounding at the same time.
+   */
+  private retireCurrentBgm(fade: boolean): void {
+    if (this.bgmFade) {
+      clearInterval(this.bgmFade);
+      this.bgmFade = null;
+      this.release(this.bgmOut);
+      this.bgmOut = null;
+    }
+    const going = this.bgm;
+    this.bgm = null;
+    if (!going) return;
+    if (!fade) {
+      this.release(going);
+      return;
+    }
+    this.bgmOut = going;
+  }
+
+  /** One timer, moving the outgoing piece down and the incoming up. */
+  private runBgmFade(): void {
+    const steps = Math.max(1, Math.round(BGM_FADE_MS / BGM_FADE_STEP_MS));
+    const out = this.bgmOut;
+    const outFrom = out?.volume ?? 0;
+    const inTo = this.bgmVolume;
+    let step = 0;
+    this.bgmFade = setInterval(() => {
+      step++;
+      const through = Math.min(1, step / steps);
+      if (out) out.volume = clampVolume(outFrom * (1 - through));
+      if (this.bgm) this.bgm.volume = clampVolume(inTo * through);
+      if (step >= steps) this.endBgmFade();
+    }, BGM_FADE_STEP_MS);
+  }
+
+  private endBgmFade(): void {
+    if (this.bgmFade) {
+      clearInterval(this.bgmFade);
+      this.bgmFade = null;
+    }
+    this.release(this.bgmOut);
+    this.bgmOut = null;
+    if (this.bgm) this.bgm.volume = clampVolume(this.bgmVolume);
+  }
+
+  /** Let go of an element for good. Never throws. */
+  private release(audio: HTMLAudioElement | null): void {
+    if (!audio) return;
+    try {
+      audio.pause();
+      audio.src = '';
+    } catch {
+      /* already gone */
+    }
+  }
+
+  /**
+   * THE MUSIC LET DOWN TO NOTHING over a fade's length, and left off — a
+   * held breath before something, not a cut. The next `playBgm` brings
+   * the scene's piece back in as any other change would.
+   */
+  fadeOutBgm(): void {
+    this.openingLetGo = this.currentBgmId === 'OPENING';
+    if (this.currentBgmId) this.previousBgmId = this.currentBgmId;
+    this.currentBgmId = null;
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
+    if (!this.bgm) return;
+    this.retireCurrentBgm(true);
+    this.runBgmFade();
+  }
+
+  stopBgm(): void {
+    if (this.currentBgmId) this.previousBgmId = this.currentBgmId;
+    this.currentBgmId = null;
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
+    this.endBgmFade();
+    this.release(this.bgm);
+    this.bgm = null;
+  }
+
+  playSe(id: SeId): void {
+    const src = SE_ASSETS[id];
+    if (!src || !this.unlocked) return;
+    try {
+      const audio = new Audio(src);
+      audio.volume = this.sfxVolume;
+      void audio.play().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * A SOUND, BY THE NAME OF THE MOMENT IT BELONGS TO.
+   *
+   * `playSfx('battle_slash_hit')`, from anywhere, and never
+   * `new Audio(...)` in a component: one door, so "what can the game
+   * make a noise about" has one answer, every sound goes through one
+   * volume, and the day there is a MASTER / BGM / SFX / VOICE panel it
+   * is wired here and nowhere else.
+   *
+   * Silence is the normal case today — no sounds are bundled — and it
+   * is not an error. The asking is real from the first day, so the day
+   * the files arrive nothing but the map changes.
+   *
+   * FIRED AND FORGOTTEN. A sound effect is not a piece of music: it is
+   * not held, not tracked, not stopped, and a second one over the top
+   * of the first is usually right. The one thing held back is the SAME
+   * sound arriving again inside `SFX_RETRIGGER_MS`, because a fight at
+   * twice speed asks for the same blow twice as often and the ear has
+   * already heard it.
+   */
+  playSfx(id: SfxId, options: SfxOptions = {}): void {
+    const src = sfxSrc(id);
+    if (!src || !this.unlocked || this.sfxVolume <= 0) return;
+    const now = Date.now();
+    const last = this.sfxLastAt.get(id) ?? 0;
+    if (now - last < SFX_RETRIGGER_MS) return;
+    this.sfxLastAt.set(id, now);
+    try {
+      /**
+       * THE PRIMED ELEMENT FIRST, IF IT IS FREE.
+       *
+       * A primed element has already been fetched and decoded, so it
+       * starts on the frame it is asked for rather than whenever the
+       * file arrives — which is the whole point of priming, because a
+       * swing is drawn on the frame its noise belongs to.
+       *
+       * ONLY IF IT IS FREE. Two blows landing together are two
+       * noises, and rewinding the one that is still sounding would
+       * turn them into one. So the second one builds an element of
+       * its own: overlap is normal for sound effects and only the
+       * FIRST of a burst needs to be prompt.
+       */
+      const primed = this.sfxPrimed.get(id);
+      const audio = primed && (primed.paused || primed.ended) ? primed : new Audio(src);
+      audio.currentTime = 0;
+      const volume = clampVolume(this.sfxVolume * sfxGain(id));
+      audio.volume = volume;
+      // Pitch with speed: a small drift, or the moment's own fixed pitch.
+      const rate = sfxRateFor(id);
+      (audio as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = false;
+      audio.playbackRate = rate;
+      void audio.play().catch(() => {
+        /* refused, or no device — a sound effect is never worth an error */
+      });
+      // A long one rings only so long — shorter at ×2 — then fades.
+      const ring = sfxRingMs(id, options.speed ?? 1);
+      if (ring !== null) {
+        const fadeAt = Math.max(0, ring - SFX_FADE_MS);
+        window.setTimeout(() => {
+          const t0 = performance.now();
+          const step = () => {
+            const k = Math.min(1, (performance.now() - t0) / SFX_FADE_MS);
+            audio.volume = clampVolume(volume * (1 - k));
+            if (k < 1) requestAnimationFrame(step);
+            else {
+              audio.pause();
+              audio.volume = volume;
+            }
+          };
+          requestAnimationFrame(step);
+        }, fadeAt);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * A LINE, SPOKEN — by its id (platform/voice.ts: `battle.soukyoku_rinkai`, `op.op_01_intro_comic`,
+   * `battle.hero.start`), or several, one after the other (`['battle.hero.start', 'battle.kaos.start']`: his word,
+   * then hers). A page of three lines says them in turn; a line of two takes says the next. One voice at a time:
+   * a new line stops the one before (and what was still to follow it). An id with no file, a page not yet
+   * touched, the voice turned down, a browser that refuses — each is silence, and none is an error.
+   */
+  playVoice(
+    id: string | readonly (string | null | undefined)[] | null | undefined,
+    { wait = false, mouth = 'party' }: { wait?: boolean; mouth?: VoiceMouth } = {},
+  ): void {
+    const ids = Array.isArray(id) ? id : [id];
+    const urls = ids.flatMap((one) => voicePlan(one));
+    if (urls.length === 0 || !this.unlocked || this.voiceVolume <= 0) return;
+    const m = this.voices[mouth];
+    // A line of the party's own while the foe's mouth is saying one of theirs (the opening exchange — 「……行くか」
+    // after his taunt): theirs now, and the rest of the exchange let go — never one of them twice at once.
+    if (mouth === 'party') {
+      const other = this.voices.foe.audio;
+      const who = other && !other.paused ? voiceSpeakerOf(other.src) : null;
+      if (who === 'HERO' || who === 'KAOS') this.stopVoice('foe');
+    }
+    // `wait`: after what is being said (a won fight's words wait for the finisher's last line), not over it.
+    if (wait && m.audio && !m.audio.paused) {
+      m.queue.push(...urls);
+      return;
+    }
+    this.stopVoice(mouth);
+    const chain = ++m.chain;
+    const queue = [...urls];
+    m.queue = queue;
+    const say = (n: number) => {
+      if (chain !== m.chain || n >= queue.length) return;
+      try {
+        const audio = new Audio(queue[n]);
+        audio.volume = this.voiceVolume;
+        // A quiet take made louder than its element can go (リゼル's whispered win and fall).
+        const gain = voiceGainOf(queue[n]);
+        if (gain > 1) this.boostVoice(audio, gain);
+        audio.addEventListener('ended', () => {
+          if (m.audio !== audio) return;
+          m.audio = null;
+          // The next of them, after a breath.
+          setTimeout(() => say(n + 1), VOICE_GAP_MS);
+        });
+        m.audio = audio;
+        void audio.play().catch(() => {
+          if (m.audio === audio) m.audio = null;
+        });
+      } catch {
+        m.audio = null;
+      }
+    };
+    say(0);
+  }
+
+  /**
+   * LOUDER THAN RECORDED: an element plays at most as loud as its file, so a quiet take is passed through a gain
+   * (Web Audio) on its way out. Where there is no Web Audio it is simply heard as recorded.
+   */
+  private voiceContext: AudioContext | null = null;
+  private boostVoice(audio: HTMLAudioElement, gain: number): void {
+    try {
+      if (typeof window === 'undefined') return;
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      this.voiceContext ??= new Ctx();
+      const ctx = this.voiceContext;
+      const amp = ctx.createGain();
+      amp.gain.value = gain;
+      ctx.createMediaElementSource(audio).connect(amp).connect(ctx.destination);
+      void ctx.resume?.().catch(() => {});
+    } catch {
+      /* heard as recorded */
+    }
+  }
+
+  /** What one side is saying, cut off (its scene left, the next line come) — and any still to follow it. Both, unasked. */
+  stopVoice(mouth?: VoiceMouth): void {
+    for (const which of mouth ? [mouth] : (Object.keys(this.voices) as VoiceMouth[])) {
+      const m = this.voices[which];
+      m.chain++;
+      const audio = m.audio;
+      m.audio = null;
+      if (!audio) continue;
+      try {
+        audio.pause();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  /** The line being spoken on a side (the party's, unasked), if any — for a test and the debug panel. */
+  speaking(mouth: VoiceMouth = 'party'): string | null {
+    const audio = this.voices[mouth].audio;
+    return audio && !audio.paused ? audio.currentSrc || audio.src : null;
+  }
+
+  /**
+   * FETCH AND DECODE THE FIGHT'S NOISES WHILE NOTHING IS HAPPENING.
+   *
+   * Called from `unlock`, which is the player's first touch: the game
+   * is on the title or the theme screen, nothing is being timed, and
+   * the five short files this wants are the ones that would otherwise
+   * each be late exactly once — on the first swing, the first hit, the
+   * first spell of the first fight.
+   *
+   * Every part of it is optional. A sound with no file is skipped, a
+   * browser that refuses to preload simply plays it late the first
+   * time, and nothing here can fail in a way the game notices.
+   */
+  private primeSfx(): void {
+    if (this.sfxPrimed.size > 0) return;
+    for (const id of SFX_PRELOAD) {
+      const src = sfxSrc(id);
+      if (!src) continue;
+      try {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.volume = clampVolume(this.sfxVolume * sfxGain(id));
+        audio.load();
+        this.sfxPrimed.set(id, audio);
+      } catch {
+        /* a sound that will not preload is a sound that plays late once */
+      }
+    }
+  }
+}
+
+/**
+ * The file for a sound, or null when none has been delivered.
+ *
+ * An id IS a filename here — that is the arrangement the assets
+ * package makes, and it is why a delivered sound needs no line of
+ * code anywhere. Null is silence and never an error.
+ */
+function sfxSrc(id: SfxId): string | null {
+  // A moment with no file of its own borrows the one its tuning names.
+  return SFX_FILES[id] ?? SFX_FILES[sfxSourceOf(id)] ?? null;
+}
+
+export const audioManager = new AudioManager();
+
+/**
+ * One sound, by the name of the moment it belongs to.
+ *
+ * The free function every screen actually calls, so that nothing in
+ * the UI has to know there is a manager — `playSfx('ui_confirm')` is
+ * the whole of the interface, and there is exactly one implementation
+ * of it behind that name.
+ */
+export function playSfx(id: SfxId, options?: SfxOptions): void {
+  audioManager.playSfx(id, options);
+}
+
+/** One line, by its id (platform/voice.ts), or several one after another — silent where there is no file. */
+export function playVoice(
+  id: string | readonly (string | null | undefined)[] | null | undefined,
+  options?: { wait?: boolean; mouth?: VoiceMouth },
+): void {
+  audioManager.playVoice(id, options);
+}

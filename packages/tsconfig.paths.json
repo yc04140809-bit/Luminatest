@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@mugen/core/*": [
+        "./mugen-core/core/*"
+      ],
+      "@mugen/game/*": [
+        "./mugen-core/game/*"
+      ],
+      "@mugen/content/*": [
+        "./mugen-core/content/*"
+      ],
+      "@mugen/assets": [
+        "./mugen-assets/src/manifest.ts"
+      ],
+      "@mugen/assets/files/*": [
+        "./mugen-assets/files/*"
+      ],
+      "@mugen/assets/keys": [
+        "./mugen-assets/src/keys.ts"
+      ],
+      "@mugen/assets/music": [
+        "./mugen-assets/src/music.ts"
+      ],
+      "@mugen/assets/battleBackgrounds": [
+        "./mugen-assets/src/battleBackgrounds.ts"
+      ]
+    },
+    "resolveJsonModule": true
+  }
+}

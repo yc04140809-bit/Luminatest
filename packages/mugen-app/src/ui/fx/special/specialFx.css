@@ -1,0 +1,222 @@
+/* EACH CHARACTER'S OWN EFFECTS (specialFx.ts) — CSS only, each layer timed by --a (start) and --d (length),
+   both in ms, after the effect's --sx-delay and at its speed --sx-k (0.5 at ×2). Nothing here is left
+   behind: every layer ends at opacity 0. Pictures: specialFxArt.ts. */
+
+.sx { position: absolute; pointer-events: none; z-index: 7; --sx-w: 230px; }
+.sx-l {
+  position: absolute;
+  display: block;
+  opacity: 0;
+  scale: var(--sx-flip, 1) 1;
+  animation-duration: calc(var(--d) * var(--sx-k, 1) * 1ms);
+  animation-delay: calc((var(--sx-delay, 0) + var(--a) * var(--sx-k, 1)) * 1ms);
+  animation-fill-mode: both;
+  animation-timing-function: ease-out;
+}
+img.sx-l { max-width: none; object-fit: contain; }
+
+/* Where it stands. */
+.sx-ground { left: 50%; bottom: 0; width: var(--sx-w); height: var(--sx-w); transform: translateX(-50%); }
+.sx-body { left: 50%; top: 46%; width: 200px; height: 200px; transform: translate(-50%, -50%); }
+.sx-back { left: 50%; top: 40%; height: 125%; aspect-ratio: 3 / 2; transform: translate(-50%, -50%); z-index: -1; }
+.sx-screen { inset: 0; }
+.sx.giant { --sx-w: 360px; }
+.sx-ground.giant { left: 62%; bottom: 14%; }
+.sx-body { width: 170px; height: 170px; }
+.sx-body.giant { left: 70%; top: 44%; width: 240px; height: 240px; }
+/* ケイオス's wings open wide behind her (her shoulders), the moon arc of 月影 stays close behind him. */
+.sx-back.kaos_twin_wings, .sx-back.kaos_twin_wings_light { top: 34%; height: 240%; }
+.sx-back.protagonist_counter_moon, .sx-back.protagonist_counter_release { top: 40%; height: 105%; }
+
+/* ── グレイヴ: 重撃 — straight down, blue-gold, the ground breaking ── */
+.gj-bolt { left: 0; bottom: 0; width: 100%; height: 100%; object-position: 50% 100%; transform-origin: 50% 100%; animation-name: sx-gj-bolt; filter: drop-shadow(0 0 10px rgba(80, 140, 255, 0.55)); }
+.gj-flash { left: 50%; bottom: 6%; width: 70%; height: 40%; margin-left: -35%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(140, 190, 255, 0.7) 45%, rgba(255, 210, 110, 0) 75%); animation-name: sx-flash; }
+.gj-crack, .gd-crack {
+  bottom: -3%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 30' preserveAspectRatio='none'%3E%3Cg fill='none' stroke-linejoin='bevel'%3E%3Cpath d='M100 15 L88 12 L80 17 L70 13 L58 18 L46 12 L34 16 L22 11 L10 15 L0 13 M100 15 L112 18 L121 13 L133 17 L145 12 L157 17 L170 13 L183 16 L200 14 M70 13 L66 4 M133 17 L138 27 M46 12 L42 23 M157 17 L162 5 M88 12 L90 3 M121 13 L118 25' stroke='%23140d06' stroke-width='3.2' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M100 15 L88 12 L80 17 L70 13 L58 18 L46 12 L34 16 L22 11 L10 15 L0 13 M100 15 L112 18 L121 13 L133 17 L145 12 L157 17 L170 13 L183 16 L200 14 M70 13 L66 4 M133 17 L138 27 M46 12 L42 23 M157 17 L162 5 M88 12 L90 3 M121 13 L118 25' stroke='%23ffd77a' stroke-width='1.1' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 3px rgba(255, 200, 90, 0.9)) drop-shadow(0 0 6px rgba(70, 130, 255, 0.8));
+  animation-name: sx-crack;
+}
+.gj-crack { left: -35%; width: 170%; height: 22%; }
+.gj-shards { left: 50%; bottom: 8%; width: 0; height: 0; opacity: 1; animation-name: sx-keep; }
+.gj-shards b {
+  position: absolute;
+  width: 10px;
+  height: 8px;
+  background: linear-gradient(160deg, #6b5840, #2a2017);
+  clip-path: polygon(0 30%, 40% 0, 100% 20%, 85% 100%, 20% 85%);
+  filter: drop-shadow(0 0 2px rgba(255, 205, 100, 0.9));
+  animation: sx-shard calc(var(--d) * var(--sx-k, 1) * 1ms) cubic-bezier(0.2, 0.7, 0.4, 1) both;
+  animation-delay: inherit;
+}
+.gj-shards b:nth-child(3n) { width: 6px; height: 6px; }
+.gj-dust { left: -10%; bottom: -4%; width: 120%; height: 34%; border-radius: 50%; background: radial-gradient(closest-side, rgba(130, 105, 78, 0.6), rgba(110, 90, 70, 0.25) 60%, transparent); animation-name: sx-dust; }
+.gj-glow, .gd-glow { left: 15%; bottom: -2%; width: 70%; height: 30%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 220, 130, 0.55), rgba(70, 120, 255, 0.35) 55%, transparent); animation-name: sx-glow; }
+.gd-glow { left: -10%; width: 120%; }
+
+/* ── グレイヴ: 豪断 — the blade gathers its lightning, then cleaves across (from the right, down to the left) ── */
+.gc-aura { inset: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 215, 110, 0) 38%, rgba(255, 215, 110, 0.35) 52%, rgba(80, 140, 255, 0.5) 64%, transparent 76%); animation-name: sx-flicker; }
+.gc-bolts, .gd-bolts {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke-linejoin='bevel'%3E%3Cpath d='M20 8 L30 26 L22 30 L36 52 M80 12 L70 30 L78 34 L62 58 M12 70 L28 66 L24 78 L44 84 M90 66 L74 70 L80 80 L58 88' stroke='%23ffe39a' stroke-width='1.6' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M20 8 L30 26 L22 30 L36 52 M80 12 L70 30 L78 34 L62 58 M12 70 L28 66 L24 78 L44 84 M90 66 L74 70 L80 80 L58 88' stroke='%23ffffff' stroke-width='0.6' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 3px rgba(90, 150, 255, 0.95));
+  animation-name: sx-flicker;
+}
+.gc-bolts { inset: 8%; }
+/* The cleave: one great arc from high on the right down through the creature to the ground on the
+   left (a ring centred off the box's lower right, so its arc crosses the middle), swung through. */
+.gd-slash, .gd-core {
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
+  transform-origin: 100% 100%;
+  animation-name: sx-gd-slash;
+}
+.gd-slash { background: radial-gradient(ellipse 100% 100% at 100% 100%, transparent 63.5%, rgba(40, 80, 230, 0.55) 65%, rgba(120, 175, 255, 0.95) 67%, rgba(255, 232, 150, 0.98) 69.6%, rgba(120, 175, 255, 0.9) 72.2%, rgba(30, 60, 200, 0.5) 74%, transparent 75.6%); filter: drop-shadow(0 0 10px rgba(80, 140, 255, 0.95)); }
+.gd-core { background: radial-gradient(ellipse 100% 100% at 100% 100%, transparent 68.8%, #fff 69.4%, rgba(255, 245, 210, 0.95) 70.2%, transparent 70.9%); }
+.gd-wave { left: -30%; bottom: -8%; width: 160%; height: 26%; border-radius: 50%; border: 3px solid rgba(255, 222, 135, 0.9); box-shadow: 0 0 12px rgba(80, 140, 255, 0.85), inset 0 0 10px rgba(80, 140, 255, 0.6); animation-name: sx-wave; }
+.gd-crack { left: -80%; width: 260%; height: 24%; animation-name: sx-crack-live; }
+.gd-bolts { left: -50%; bottom: -4%; width: 200%; height: 36%; }
+
+/* ── 主人公: the red moon — a cut, an afterglow, thin sparks ── */
+.rm-line { inset: 6%; border-radius: 50%; border-left: 2px solid rgba(255, 70, 80, 0.98); box-shadow: -4px 0 10px -4px rgba(255, 0, 30, 0.9); animation-name: sx-rm-line; }
+.rm-crescent, .cs-crescent { left: -12%; top: -12%; width: 124%; height: 124%; filter: drop-shadow(0 0 6px rgba(255, 0, 30, 0.55)); animation-name: sx-crescent; }
+.cs-crescent { animation-name: sx-cs-crescent; }
+.rm-sparks {
+  inset: 12%;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 7deg, rgba(25, 0, 5, 0.95) 0 0.8deg, transparent 0.8deg 29deg),
+    repeating-conic-gradient(rgba(255, 45, 60, 0.98) 0 1.1deg, transparent 1.1deg 17deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 22%, #000 34%, #000 58%, transparent 76%);
+  mask: radial-gradient(closest-side, transparent 22%, #000 34%, #000 58%, transparent 76%);
+  animation-name: sx-sparks;
+}
+.rm-glow { inset: 18%; border-radius: 50%; background: radial-gradient(closest-side, rgba(200, 0, 25, 0.45), rgba(60, 0, 8, 0.3) 55%, transparent); animation-name: sx-glow; }
+
+/* 零閃・天衝 — over the whole picture: it goes still and dark, a thin arc, the crescent, the cut up through it. */
+.zt-dim { inset: 0; background: radial-gradient(ellipse at 45% 50%, rgba(25, 0, 5, 0.3), rgba(8, 0, 2, 0.82) 72%); animation-name: sx-zt-dim; }
+.zt-line { left: 12%; top: 16%; width: 66%; height: 68%; border-radius: 50%; border-left: 3px solid #ff3a48; box-shadow: -8px 0 16px -6px rgba(255, 0, 30, 0.9); animation-name: sx-rm-line; }
+.zt-crescent { left: 16%; top: 4%; height: 92%; width: auto; aspect-ratio: 1; filter: drop-shadow(0 0 10px rgba(255, 0, 30, 0.6)); animation-name: sx-crescent; }
+.zt-rise { left: 28%; top: 0; height: 100%; width: auto; aspect-ratio: 1; filter: drop-shadow(0 0 10px rgba(255, 0, 30, 0.6)); animation-name: sx-zt-rise; }
+.zt-split { left: 50%; top: 0; width: 3px; height: 100%; background: linear-gradient(transparent, #fff 28%, #ff2236 62%, transparent); box-shadow: 0 0 14px #ff1a2e; transform-origin: 50% 100%; animation-name: sx-split; }
+.sx-screen .rm-sparks { left: 30%; right: 30%; top: 20%; bottom: 20%; }
+.zt-glow { inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(170, 0, 25, 0.35), transparent 60%); animation-name: sx-glow; }
+
+/* 月影の構え — a moon arc behind him, his blade's line held in front; then a quiet stance (.sx-stance). */
+.cm-arc { inset: 0; width: 100%; height: 100%; filter: brightness(0.8) saturate(1.2); animation-name: sx-cm-arc; }
+.cm-edge { left: -30%; top: 52%; width: 70%; height: 2px; background: linear-gradient(to left, transparent, #ff2b3b 35%, #fff 50%, #ff2b3b 65%, transparent); box-shadow: 0 0 8px #d0001a; transform-origin: 100% 50%; animation-name: sx-cm-edge; }
+.cm-ring { left: 22%; top: 88%; width: 56%; height: 14%; border-radius: 50%; border: 2px solid rgba(210, 25, 45, 0.9); box-shadow: 0 0 8px rgba(255, 20, 40, 0.6); animation-name: sx-wave; }
+.cr-flare { inset: 0; width: 100%; height: 100%; animation-name: sx-cr-flare; }
+/* The dodge: his outline, left where he was. */
+.sx.protagonist_evade { inset: 0; width: auto; height: auto; transform: none; }
+.ev-outline { left: 0; top: 0; height: 100%; width: auto; filter: brightness(0) drop-shadow(0 0 1.5px #ff2a3a) drop-shadow(0 0 4px #c0001a); animation-name: sx-ev; }
+/* While 月影の構え holds: a faint red-black arc on the ground at his feet, barely breathing. */
+.sx-stance {
+  position: absolute;
+  left: 50%;
+  bottom: -3%;
+  width: 120%;
+  height: 22%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 2px solid rgba(220, 30, 50, 0.75);
+  box-shadow: 0 -5px 12px -5px rgba(255, 30, 50, 0.7);
+  pointer-events: none;
+  z-index: -1;
+  animation: sx-stance 2600ms ease-in-out infinite alternate;
+}
+/* …and his blade's line held in front of him, a faint red edge (「今触ると危ない」). */
+.sx-stance::after {
+  content: '';
+  position: absolute;
+  left: -38%;
+  bottom: 260%;
+  width: 60%;
+  height: 2px;
+  background: linear-gradient(to left, rgba(255, 40, 60, 0.9), rgba(255, 40, 60, 0));
+  box-shadow: 0 0 6px rgba(220, 0, 30, 0.8);
+  transform: rotate(-14deg);
+  transform-origin: 100% 50%;
+}
+
+/* 十二方向 / 彼岸花 — samples for skills to come. */
+.ms-cross, .ms-x { inset: 0; background: linear-gradient(transparent 49.2%, #ff2a3a 49.5%, #fff 50%, #ff2a3a 50.5%, transparent 50.8%), linear-gradient(90deg, transparent 49.2%, #ff2a3a 49.5%, #fff 50%, #ff2a3a 50.5%, transparent 50.8%); filter: drop-shadow(0 0 4px #e0001e); animation-name: sx-ms; }
+.ms-x { rotate: 45deg; }
+.ms-burst, .hb-bloom { left: -18%; top: -18%; width: 136%; height: 136%; animation-name: sx-burst; }
+.hb-bloom { animation-name: sx-bloom; }
+
+/* ── ケイオス: the twin wings open behind her ── */
+.kw-halo { left: -40%; top: -40%; width: 180%; height: 180%; border-radius: 50%; background: radial-gradient(closest-side, rgba(12, 8, 0, 0.5), rgba(12, 8, 0, 0.22) 50%, transparent 72%); animation-name: sx-halo; }
+.kw-wings { inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 236, 190, 0.45)); animation-name: sx-kw; animation-timing-function: linear; }
+.kw-wings.light { inset: 5%; width: 90%; height: 90%; }
+.kw-flash { left: 38%; top: 28%; width: 24%; height: 44%; border-radius: 50%; background: radial-gradient(closest-side, #fff, rgba(255, 232, 170, 0.75) 45%, transparent 75%); animation-name: sx-flash; }
+.kw-motes { left: 50%; top: 50%; width: 0; height: 0; opacity: 1; animation-name: sx-keep; }
+.kw-motes b { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; animation: sx-mote calc(var(--d) * var(--sx-k, 1) * 1ms) ease-out both; animation-delay: inherit; }
+.kw-motes b:nth-child(2n) { background: #ffd779; box-shadow: 0 0 6px #ffcf5a; }
+
+@keyframes sx-keep { from { opacity: 1; } to { opacity: 1; } }
+@keyframes sx-gj-bolt {
+  0% { opacity: 0; transform: translateY(-40%) scale(0.7, 1.4); }
+  10% { opacity: 1; transform: translateY(0) scale(0.95, 1.08); }
+  16% { transform: scale(1.04, 0.94); }
+  24% { transform: none; }
+  60% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.03, 0.98); }
+}
+@keyframes sx-flash { 0% { opacity: 0; transform: scale(0.5); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes sx-crack { 0% { opacity: 1; clip-path: inset(0 50%); } 18% { clip-path: inset(0 0); } 75% { opacity: 1; } 100% { opacity: 0; clip-path: inset(0 0); } }
+@keyframes sx-crack-live {
+  0% { opacity: 1; clip-path: inset(0 50%); filter: drop-shadow(0 0 3px rgba(255, 200, 90, 0.9)) drop-shadow(0 0 8px rgba(70, 130, 255, 1)); }
+  16% { clip-path: inset(0 0); }
+  30%, 50% { filter: drop-shadow(0 0 2px rgba(255, 200, 90, 0.7)) drop-shadow(0 0 4px rgba(70, 130, 255, 0.6)); }
+  40% { filter: drop-shadow(0 0 4px rgba(255, 220, 120, 1)) drop-shadow(0 0 10px rgba(90, 150, 255, 1)); }
+  78% { opacity: 1; }
+  100% { opacity: 0; clip-path: inset(0 0); }
+}
+@keyframes sx-shard {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  3% { opacity: 1; }
+  45% { transform: translate(calc(var(--dx) * 0.65px), calc(var(--dy) * 1px)) rotate(calc(var(--r) * 0.5deg)); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1px), 14px) rotate(calc(var(--r) * 1deg)); }
+}
+@keyframes sx-dust { 0% { opacity: 0; transform: scaleX(0.6); } 25% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-14%) scaleX(1.25); } }
+@keyframes sx-glow { 0% { opacity: 0; } 8% { opacity: 0.85; } 100% { opacity: 0; } }
+@keyframes sx-flicker { 0% { opacity: 0; } 15% { opacity: 1; } 30% { opacity: 0.35; } 45% { opacity: 1; } 62% { opacity: 0.5; } 78% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes sx-gd-slash { 0% { opacity: 0; transform: rotate(-38deg); } 20% { opacity: 1; transform: rotate(2deg); } 32% { transform: rotate(-1deg); } 70% { opacity: 0.85; } 100% { opacity: 0; transform: rotate(4deg); } }
+@keyframes sx-wave { 0% { opacity: 0; transform: scale(0.2); } 5% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
+@keyframes sx-rm-line { 0% { opacity: 0; transform: rotate(60deg); } 40% { opacity: 1; transform: rotate(10deg); } 100% { opacity: 0; transform: rotate(-12deg); } }
+@keyframes sx-crescent { 0% { opacity: 0; transform: translateX(36%) rotate(-14deg) scale(0.82); } 28% { opacity: 1; transform: translateX(0) rotate(0) scale(1); } 70% { opacity: 0.9; } 100% { opacity: 0; transform: translateX(-24%) rotate(4deg) scale(1.06); } }
+@keyframes sx-cs-crescent { 0% { opacity: 0; transform: translateX(80%) scale(0.7); } 30% { opacity: 1; transform: translateX(0) scale(1); } 100% { opacity: 0; transform: translateX(-26%) scale(1.04); } }
+@keyframes sx-sparks { 0% { opacity: 0; transform: scale(0.4); } 22% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3) rotate(8deg); } }
+@keyframes sx-zt-dim { 0% { opacity: 0; } 10% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes sx-zt-rise { 0% { opacity: 0; transform: translateY(35%) rotate(-80deg) scale(0.8); } 28% { opacity: 1; transform: translateY(0) rotate(-80deg) scale(1); } 100% { opacity: 0; transform: translateY(-42%) rotate(-84deg) scale(1.05); } }
+@keyframes sx-split { 0% { opacity: 0; transform: scaleY(0); } 30% { opacity: 1; transform: scaleY(1); } 100% { opacity: 0; transform: scaleY(1); } }
+@keyframes sx-cm-arc { 0% { opacity: 0; transform: scale(0.8) rotate(-25deg); } 30% { opacity: 0.55; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.02); } }
+@keyframes sx-cm-edge { 0% { opacity: 0; transform: scaleX(0); } 25% { opacity: 1; transform: scaleX(1); } 70% { opacity: 0.8; } 100% { opacity: 0; transform: scaleX(1); } }
+@keyframes sx-cr-flare { 0% { opacity: 0; transform: scale(0.9); filter: brightness(1); } 30% { opacity: 1; transform: scale(1.05); filter: brightness(1.6); } 100% { opacity: 0; transform: translateX(-60%) scale(0.9); filter: brightness(1.2); } }
+@keyframes sx-ev { 0% { opacity: 0; transform: translateX(0); } 5% { opacity: 0.85; } 100% { opacity: 0; transform: translateX(16px); } }
+@keyframes sx-stance { from { opacity: 0.45; } to { opacity: 0.9; } }
+@keyframes sx-ms { 0% { opacity: 0; transform: scale(0.2); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
+@keyframes sx-burst { 0% { opacity: 0; transform: scale(0.3) rotate(-10deg); } 35% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.06) rotate(4deg); } }
+@keyframes sx-bloom { 0% { opacity: 0; transform: scale(0.15) rotate(-40deg); } 40% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.08) rotate(6deg); } }
+@keyframes sx-halo { 0% { opacity: 0; } 20% { opacity: 1; } 70% { opacity: 0.8; } 100% { opacity: 0; } }
+/* 作者の指定: 0 → 0.08s (0.65, 1.00) → 0.16s (1, 1.06) → 0.24s (0.85, 1.00) → 0.35–0.55s 薄く. */
+@keyframes sx-kw {
+  0% { opacity: 0; transform: scale(0.88); }
+  14% { opacity: 0.65; transform: scale(1); }
+  29% { opacity: 1; transform: scale(1.06); }
+  43% { opacity: 0.85; transform: scale(1); }
+  63% { opacity: 0.75; transform: scale(1.01); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+@keyframes sx-mote { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--dx) * 1.6px), calc(var(--dy) * 1.4px - 12px)); } }
+@keyframes sx-fade-only { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Less motion asked for: each layer only fades in and out where it stands; nothing flies or spins. */
+@media (prefers-reduced-motion: reduce) {
+  .sx-l { animation-name: sx-fade-only; }
+  .gj-shards, .kw-motes, .ev-outline { display: none; }
+  .sx-stance { animation: none; opacity: 0.55; }
+}
