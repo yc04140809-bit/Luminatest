@@ -86,9 +86,9 @@ describe('the table', () => {
       expect(voiceUrl(id), id).not.toBeNull();
   });
 
-  it('第4〜9便 too, every file in it and found: リナ 5, ミレイ 6, レヴィ 9, アリア 9, グレイヴ 13, リゼル 11', () => {
+  it('第4〜9便 too, every file in it and found: リナ 5, ミレイ 6, レヴィ 12, アリア 12, グレイヴ 13, リゼル 11', () => {
     const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
-    for (const [prefix, n] of [['v_lina_', 5], ['v_mirei_', 6], ['v_levi_', 9], ['v_aria_', 9], ['v_grave_', 13], ['v_rizel_', 11]] as const)
+    for (const [prefix, n] of [['v_lina_', 5], ['v_mirei_', 6], ['v_levi_', 12], ['v_aria_', 12], ['v_grave_', 13], ['v_rizel_', 11]] as const)
       expect(files.filter((f) => f.startsWith(prefix)), prefix).toHaveLength(n);
     for (const id of Object.keys(VOICE_LINES).filter((k) => VOICE_LINES[k].files.every((f) => /^v_/.test(f)))) expect(voiceUrl(id), id).not.toBeNull();
     // Who fights with a voice: the three now; レヴィ, アリア, リゼル the moment they join (their lines are here).
@@ -107,6 +107,8 @@ describe('the table', () => {
     expect(voiceGainOf(voiceUrl('battle.rizel.down')!)).toBeCloseTo(10 ** (11 / 20), 3);
     expect(voiceGainOf(voiceUrl('battle.rizel.start')!)).toBe(1);
     expect(voiceGainOf(voiceUrl('event.rizel.daily05')!)).toBeCloseTo(10 ** (9 / 20), 3);
+    expect(voiceGainOf(voiceUrl('event.aria.daily02')!)).toBeCloseTo(10 ** (6 / 20), 3);
+    expect(voiceGainOf(voiceUrl('event.aria.daily01')!)).toBe(1);
   });
 
   it('the opening in the order of its panels: three on the first page, three on the second, then one a page', () => {

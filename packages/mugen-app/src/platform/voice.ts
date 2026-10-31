@@ -164,6 +164,14 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'event.rizel.daily03': rizel(['v_rizel_daily03.mp3'], '怪我してない？ ちゃんと見せて'),
   'event.rizel.daily04': rizel(['v_rizel_daily04.mp3'], 'よかった、無事で……本当に心配したんだから'),
   'event.rizel.daily05': rizel(['v_rizel_daily05.mp3'], 'あ、ありがとう。……えへへ', { gainDb: 9 }),
+  // ---- 会話（レヴィ — 第6便 日常追加版。登録のみ：第2章の会話で使う想定） ----
+  'event.levi.daily01': levi(['v_levi_daily01.mp3'], 'なんだ。……別に待ってたわけじゃない'),
+  'event.levi.daily02': levi(['v_levi_daily02.mp3'], '礼は言わない。……だが、悪くなかった'),
+  'event.levi.daily03': levi(['v_levi_daily03.mp3'], '海の音がする。……悪くない場所だ'),
+  // ---- 会話（アリア — 第7便 日常追加版。登録のみ。daily02 は小さめのテイク：+6dB） ----
+  'event.aria.daily01': aria(['v_aria_daily01.mp3'], 'おはようございます。今日も、よろしくお願いします'),
+  'event.aria.daily02': aria(['v_aria_daily02.mp3'], 'あ、矢の数……数え間違えました', { gainDb: 6 }),
+  'event.aria.daily03': aria(['v_aria_daily03.mp3'], '空が綺麗です。……少し、休みませんか？'),
   // リナ — イベント用（発火条件は今後）。
   'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
   // ---- イベント（村の小さな出来事。未納品） ----
