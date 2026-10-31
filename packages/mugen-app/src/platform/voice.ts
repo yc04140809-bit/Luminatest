@@ -150,15 +150,15 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'shop.ALDEN_ITEM_SHOP.thanks': mirei(['v_mirei_thanks01.mp3'], '毎度あり。また来てね'),
   'shop.ALDEN_ITEM_SHOP.touch': mirei(['v_mirei_touch01.mp3', 'v_mirei_touch02.mp3'], 'あら、なあに？／ふふ、買ってくれるなら許すわ', { play: 'RANDOM' }),
   // ---- 酒場（グレイヴ — 第8便 日常追加版）：話しかけたときの反応、会話の中身に合わせて ----
-  // His plain greeting, as it begins.
+  // His plain greeting, as it begins (会話開始).
   'talk.grave.greeting': grave(['v_grave_daily01.mp3'], 'おう、よく来たな'),
-  // The village's trouble (aldenIncident), as he speaks of it: his worry for them.
-  'talk.grave.incident': grave(['v_grave_daily02.mp3'], '無理すんなよ。飯は食ったか？'),
+  // The same, but 主人公 comes in hurt (half his health or under): his worry instead (作者 2026-10-31).
+  'talk.grave.hurt': grave(['v_grave_daily02.mp3'], '無理すんなよ。飯は食ったか？'),
   // After セキリュウガ was stopped, told to its end: his laugh.
   'talk.grave.after_sekiryuga': grave(['v_grave_daily03.mp3'], 'はっはっは、それでこそだ'),
   // The old greatsword (his own past), told to its end.
   'talk.grave.greatsword': grave(['v_grave_daily04.mp3'], '……昔の話だ。気にするな'),
-  // ---- 村（リゼル — 第9便 日常追加版）：登録のみ（口調の確認待ち）。daily05 は小声のテイク：+9dB ----
+  // ---- 村（リゼル — 第9便 日常追加版）：ガルドの四択の後だけ（ui/audio/rizelVoices.ts）。daily05 は小声：+9dB ----
   'event.rizel.daily01': rizel(['v_rizel_daily01.mp3'], 'こんにちは！ 今日は森に行くの？'),
   'event.rizel.daily02': rizel(['v_rizel_daily02.mp3'], '私も剣の練習、頑張ってるんだ。……まだまだだけど'),
   'event.rizel.daily03': rizel(['v_rizel_daily03.mp3'], '怪我してない？ ちゃんと見せて'),

@@ -169,6 +169,7 @@ export function TavernScreen({
   hub,
   incidentTalk = null,
   dailyTalk = null,
+  heroHurt = false,
 }: {
   /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
@@ -206,6 +207,8 @@ export function TavernScreen({
    * `onHeard` when read to its end.
    */
   dailyTalk?: { id?: string; lines: readonly DialogueLine[]; onHeard: () => void } | null;
+  /** 主人公 at half his health or under: his greeting is a word of worry (ボイス daily02). */
+  heroHurt?: boolean;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -312,8 +315,6 @@ export function TavernScreen({
     setAt(0);
     // His plain greeting only (met, nothing of the route in it): the incident's word instead, once.
     if (incidentTalk && metBefore && lines === base) {
-      // His worry for them, in his own voice, as he speaks of the village's trouble.
-      playVoice('talk.grave.incident');
       setTalk({ lines: incidentTalk.lines, rumor: false, incident: true });
       return;
     }
@@ -321,8 +322,9 @@ export function TavernScreen({
       setTalk({ lines: dailyTalk.lines, rumor: false, daily: true });
       return;
     }
-    // His plain greeting (met before, nothing of the route in it): 「おう、よく来たな」 as it begins.
-    if (metBefore && lines === base) playVoice('talk.grave.greeting');
+    // His plain greeting (met before, nothing of the route in it): 「おう、よく来たな」 as it begins — or, if he
+    // comes in hurt, 「無理すんなよ。飯は食ったか？」 (作者 2026-10-31).
+    if (metBefore && lines === base) playVoice(heroHurt ? 'talk.grave.hurt' : 'talk.grave.greeting');
     setTalk({ lines, rumor, first: !metBefore });
   };
   /** Tonight's stranger: their few lines, their silhouette. Records nothing. */

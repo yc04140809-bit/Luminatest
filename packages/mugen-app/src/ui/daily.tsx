@@ -7,6 +7,7 @@ import type { FaceBox } from "../assets/kaosFaces";
 import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
 import { audioManager, playVoice } from "../platform/audio";
+import { rizelSceneVoice } from "./audio/rizelVoices";
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
@@ -17,6 +18,10 @@ import { audioManager, playVoice } from "../platform/audio";
  * nothing — every door on the square stays where it was — and it is seen
  * when read to its end; left half way, it is there next time.
  */
+/** The line last given its voice, and when: the same line drawn again within this is not said again. */
+const VOICED_AGAIN_MS = 3000;
+let voicedLine: { key: string; at: number } = { key: '', at: -Infinity };
+
 export function DailyAside({
   world,
   scene,
@@ -42,7 +47,14 @@ export function DailyAside({
   // the next comes or the box closes. Silent where it has no file.
   useEffect(() => {
     audioManager.stopVoice();
-    if (!done) playVoice(`daily.${scene.id}.${Math.min(at, scene.lines.length - 1) + 1}`);
+    if (done) return;
+    const n = Math.min(at, scene.lines.length - 1);
+    // Once a line, however often the box is drawn afresh while it is shown.
+    const key = `${scene.id}:${n}`;
+    if (voicedLine.key === key && performance.now() - voicedLine.at < VOICED_AGAIN_MS) return;
+    voicedLine = { key, at: performance.now() };
+    // リゼル's own line where one fits and it is hers yet (after the four answers about Gald: ui/audio/rizelVoices).
+    playVoice(rizelSceneVoice(scene.id, n, world.getGaldLifeChoice()) ?? `daily.${scene.id}.${n + 1}`);
   }, [scene.id, at, done]);
   useEffect(() => () => audioManager.stopVoice(), []);
   if (done) return null;

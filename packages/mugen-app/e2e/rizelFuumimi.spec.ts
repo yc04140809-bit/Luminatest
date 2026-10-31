@@ -122,6 +122,18 @@ test.describe.configure({ timeout: 240_000 });
 test('リゼル: the wooden sword (her name only once she gives it), then her answer to what was done about Gald, then バルド, then first aid — a day each', async ({
   page,
 }) => {
+  // Her voice (ボイス第9便 日常, 作者 2026-10-31): every voice played, from before the page loads.
+  await page.addInitScript(() => {
+    const heard: string[] = [];
+    (window as unknown as { __heard: string[] }).__heard = heard;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      const file = (this.src.split('/').pop() ?? '').split('?')[0];
+      if (this instanceof HTMLAudioElement && /^v_rizel_/.test(file)) heard.push(file);
+      return play.call(this);
+    };
+  });
+  const rizelHeard = () => page.evaluate(() => (window as unknown as { __heard: string[] }).__heard.slice());
   await settledVillage(page, 'CAPTURE');
   await outAndBack(page);
   await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'RIZEL_WOODEN_SWORD');
@@ -151,12 +163,17 @@ test('リゼル: the wooden sword (her name only once she gives it), then her an
   await rest(page);
   await outAndBack(page);
   await expect(page.getByTestId('daily-scene')).toHaveCount(0);
+  // Nothing of her everyday voice in the scenes before (their words are hers as she is).
+  expect(await rizelHeard()).toEqual([]);
   await toPhase1(page);
   await rest(page);
   await outAndBack(page);
   await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'RIZEL_FIRST_AID');
+  // After the four answers, kneeling to the child: 「怪我してない？ ちゃんと見せて」 as the scene opens — once.
+  await expect.poll(rizelHeard).toEqual(['v_rizel_daily03.mp3']);
   const aid = (await readThrough(page, 'daily-line', 'daily-next')).map((l) => l.said);
   expect(aid).toContain('「だけ、は余計。」');
+  expect(await rizelHeard()).toEqual(['v_rizel_daily03.mp3']);
 });
 
 // 作者 2026-10-20 (「リゼルの会話縦読みで縦2行でめちゃくちゃ読みにくい」): in the village's left panel her

@@ -125,6 +125,9 @@ import {
   type RuinsPhase,
 } from './ui/ruins';
 
+/** At or under this share of his health, グレイヴ greets him with worry (ボイス daily02, 作者 2026-10-31). */
+const GRAVE_WORRY_SHARE = 0.5;
+
 /**
  * MUGEN ZERO — APP ALPHA.
  *
@@ -925,6 +928,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             }}
             onLeave={() => setTavern(false)}
             heroName={world.getHeroName()}
+            heroHurt={(() => {
+              const hero = world.getPartyCondition().hero;
+              return !!hero && hero.maxHp > 0 && hero.currentHp <= hero.maxHp * GRAVE_WORRY_SHARE;
+            })()}
             guest={tonightsGuestTalk(toAbsoluteDay(world.getClock()))}
             incidentTalk={
               world.getIncidentPhase() >= INCIDENT_GRAVE_FROM && !world.isRead(INCIDENT_GRAVE_MARK)
