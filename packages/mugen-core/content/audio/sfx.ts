@@ -146,6 +146,10 @@ export const SFX_IDS = [
   'story_memory_written',
   // The ground, low, before something is seen (the way in to セキリュウガ).
   'story_rumble',
+  // A night passing (休息の時計 2026-10-31 タスクH): the hands' small tick, and a soft bell as the new
+  // day is set. No file yet — silent until story_time_tick.mp3 / story_time_bell.mp3 are put in the folder.
+  'story_time_tick',
+  'story_time_bell',
 ] as const;
 
 export type SfxId = (typeof SFX_IDS)[number];

@@ -49,6 +49,7 @@ import {
 import { battleBgmChoice, hasBattleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { DebugEntry } from './dev/DebugEntry';
 import { ThemeIntro, themeIntroSkipped } from './ui/themeIntro';
+import { useTimePass } from './ui/timePass/TimePass';
 import { resultFaceFor } from './ui/battle/resultFace';
 import { SHOP_VOICE_SPOTS, useShopVoices } from './ui/audio/shopVoices';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
@@ -675,6 +676,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * the world because it is this screen that can fire twice.
    */
   const [resting, setResting] = useState(false);
+  // 時が流れる (タスクH): the clock over the screen while a night passes — every way a day goes by, through here.
+  const timePass = useTimePass();
 
   /**
    * HE IS BEATEN, AND THAT IS NOT A REWARD.
@@ -775,6 +778,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       {/* ハイタッチ: a first find, a rare one, a first handwork — over whatever is on screen, gone with it.
           Its own key: two siblings with one key are not both remounted when the screen changes. */}
       <CelebrateHost key={`celebrate:${noticeScope}`} />
+      {timePass.overlay}
     </>
   );
 
@@ -1086,30 +1090,33 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onRest={() => {
             if (resting) return;
             setResting(true);
-            void world
-              .advanceDay()
-              .then(() => world.restoreParty())
-              // A night's rest ages every loaf by one and ends a loaf's lift (パン屋 MVP).
-              .then(() => world.restBread())
-              // ALDEN INCIDENT: a night's rest after a day out is a step.
-              .then(() => world.addIncident('REST'))
-              // A night in the village after the first time back at the
-              // ruins: the next morning, the cry from the ruins is talked
-              // about (噂話). Once; nothing else about the night changes.
-              .then(() =>
-                world.isRead(SEKIRYUGA_REVISIT_MARK) && !world.isRead(RUINS_CRY_MARK)
-                  ? world.markRead([RUINS_CRY_MARK])
-                  : undefined,
-              )
-              // 第1章終盤: the signs at their heaviest — this night is the night before.
-              // Otherwise, morning: anything the village is talking about (✉ アルデン通信).
-              .then(() =>
-                eveDue({ phase: world.getIncidentPhase(), stage: world.getFinaleStage() })
-                  ? setFinale(true)
-                  : setHomeNews(newsFor(world)),
-              )
-              .catch((e) => console.error('The night did not pass', e))
-              .finally(() => setResting(false));
+            const before = world.getClock();
+            const night = () =>
+              world
+                .advanceDay()
+                .then(() => world.restoreParty())
+                // A night's rest ages every loaf by one and ends a loaf's lift (パン屋 MVP).
+                .then(() => world.restBread())
+                // ALDEN INCIDENT: a night's rest after a day out is a step.
+                .then(() => world.addIncident('REST'))
+                // A night in the village after the first time back at the
+                // ruins: the next morning, the cry from the ruins is talked
+                // about (噂話). Once; nothing else about the night changes.
+                .then(() =>
+                  world.isRead(SEKIRYUGA_REVISIT_MARK) && !world.isRead(RUINS_CRY_MARK)
+                    ? world.markRead([RUINS_CRY_MARK])
+                    : undefined,
+                )
+                // 第1章終盤: the signs at their heaviest — this night is the night before.
+                // Otherwise, morning: anything the village is talking about (✉ アルデン通信).
+                .then(() =>
+                  eveDue({ phase: world.getIncidentPhase(), stage: world.getFinaleStage() })
+                    ? setFinale(true)
+                    : setHomeNews(newsFor(world)),
+                )
+                .catch((e) => console.error('The night did not pass', e))
+                .finally(() => setResting(false));
+            timePass.run(before, 1, () => night().then(() => world.getClock()));
           }}
         />
       );

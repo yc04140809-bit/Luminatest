@@ -19,8 +19,13 @@ export default defineConfig({
     launchOptions: { executablePath: '/opt/pw-browsers/chromium' },
     // Every test starts at the title, as before 「また、ここで。」 was put in front of it (2026-10-30 タスクC,
     // ui/themeIntro.tsx `themeIntroSkipped`, dev server only). Its own tests (e2e/themeIntro.spec.ts) clear this.
+    // Likewise a rest goes straight on, without the clock (2026-10-31 タスクH, ui/timePass `timePassOff`);
+    // its own tests (e2e/timePass.spec.ts) keep the clock.
     storageState: {
-      cookies: [{ name: 'mugen_dev_theme_intro', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }],
+      cookies: [
+        { name: 'mugen_dev_theme_intro', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
+        { name: 'mugen_dev_time_pass', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
+      ],
       origins: [],
     },
   },
