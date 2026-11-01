@@ -17,9 +17,9 @@ import { throughTheOpening, pastTheIntro } from './opening';
 
 type Route = 'SPARE' | 'HELP' | 'CAPTURE' | 'KILL';
 const ROUTES: { choice: Route; file: string; site: string }[] = [
-  // SPARE (見逃す) is ROUTE D since 2026-10-20: outside the village, no
-  // picture yet and no place — its own test is below.
-  { choice: 'SPARE', file: '', site: '' },
+  // SPARE (見逃す) is ROUTE D since 2026-10-20: outside the village and no
+  // place; the look ahead shows a possibility, the roadside healer (作者 2026-11-01).
+  { choice: 'SPARE', file: 'gald-healer', site: '' },
   // The bakery route (TIGS2027 STEP ①): the look ahead shows him at the bakery.
   { choice: 'HELP', file: 'gald-baker', site: 'GREENWOOD_WAYSTATION' },
   { choice: 'CAPTURE', file: 'gald-worker', site: 'ALDEN_WORKYARD' },
@@ -97,17 +97,19 @@ function expectWhole(d: Awaited<ReturnType<typeof drawn>>) {
   expect(d.bottom).toBeLessThanOrEqual(d.vh);
 }
 
-test('TIME SHIFT, SPARE: no picture is borrowed — her, 「3年後」, and only that he left', async ({ page }) => {
+test('TIME SHIFT, SPARE: a possibility, still a picture — the roadside healer, 「3年後」, that he left and what he could come to', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await freshVillage(page);
   await answerAndContinue(page, 'SPARE');
   await page.getByTestId('future-vision-next').click();
   await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'SEE');
-  await expect(page.getByTestId('future-vision-cg')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision-cg')).toHaveCount(1);
+  expect(decodeURIComponent((await page.getByTestId('future-vision-cg').getAttribute('src')) ?? '')).toContain('gald-healer');
   await expect(page.getByTestId('future-vision-years')).toBeVisible();
-  // The list says he left the bandits; what he did with nobody watching is not narrated.
+  // The list says he left the bandits, and the possibility the picture shows; the merchants are not narrated.
   await expect(page.getByTestId('vision-GALD_LEAVES_BANDITS')).toBeVisible();
+  await expect(page.getByTestId('vision-GALD_BECOMES_HEALER')).toHaveText('男は、街道で人の傷を診るようになった');
   await expect(page.locator('[data-testid^="vision-"][data-testid*="MERCHANT"]')).toHaveCount(0);
   await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toHaveCount(0);
   await page.getByTestId('future-vision-next').click();
@@ -116,7 +118,7 @@ test('TIME SHIFT, SPARE: no picture is borrowed — her, 「3年後」, and only
   expect(errors).toEqual([]);
 });
 
-for (const { choice, file } of ROUTES.filter((r) => r.choice !== 'SPARE')) {
+for (const { choice, file } of ROUTES) {
   test(`TIME SHIFT, ${choice}: one picture — ${file} — and no other, and WORLD MEMORY untouched`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));

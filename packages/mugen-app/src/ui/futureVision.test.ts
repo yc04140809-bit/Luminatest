@@ -18,9 +18,9 @@ let n = 0;
 const openWorld = () => World.open(new IdbMemoryStore(`vision-cg-${++n}`));
 
 const EXPECTED: Record<LifeChoiceId, string | undefined> = {
-  // ROUTE D (作者 2026-10-20): outside the village, and there is no picture of
-  // that yet — none is borrowed in its place.
-  SPARE: undefined,
+  // ROUTE D (作者 2026-10-20): outside the village, his own years draw nothing —
+  // a possibility is shown instead, the roadside healer (作者 2026-11-01).
+  SPARE: 'GALD_HEALER',
   // The bakery route (TIGS2027 STEP ①): the road no longer comes in the look ahead.
   HELP: 'GALD_BAKER',
   CAPTURE: 'GALD_WORKER',
@@ -60,12 +60,23 @@ describe('the look ahead shows one picture — the chosen route’s', () => {
     expect(visionCgOf(capture.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_WORKER', log: true });
   });
 
-  it('見逃す: no picture, and the list says only that he left — the merchants are not narrated', async () => {
+  it('見逃す: a possibility, still a picture (作者 2026-11-01) — the roadside healer, its line added; the merchants are not narrated', async () => {
     const spare = await openWorld();
     await spare.recordGaldLifeChoice('SPARE');
+    const before = spare.getEvents().length;
     const future = spare.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
     expect(future.map((e) => e.type)).toContain('GALD_SAVES_MERCHANTS');
-    expect(visionCgOf(future)).toBeNull();
+    expect(visionCgOf(future)).toEqual({ key: 'GALD_HEALER', alt: '街道の休憩所で、旅人の腕に包帯を巻く男', log: true, possible: 'GALD_BECOMES_HEALER' });
     expect(visionListOf(future).map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS']);
+    // Shown, not lived: nothing written.
+    expect(spare.getEvents().length).toBe(before);
+  });
+
+  it('every answer shows a picture of him, or of his grave', async () => {
+    for (const choice of ['SPARE', 'HELP', 'CAPTURE', 'KILL'] as LifeChoiceId[]) {
+      const world = await openWorld();
+      await world.recordGaldLifeChoice(choice);
+      expect(visionCgOf(world.previewLifeEvents(GALD_FUTURE_VISION_YEARS)), choice).not.toBeNull();
+    }
   });
 });

@@ -99,10 +99,10 @@ test('はじめから to the three years and back: 見逃す, and the let-go wor
     await page.getByTestId('choice-result-next').click();
   }
 
-  // Kaos shows the three years, once: no picture borrowed, only that he left.
+  // Kaos shows the three years, once: that he left, and a possibility with its picture (the roadside healer, 作者 2026-11-01).
   await page.getByTestId('future-vision-next').click();
   await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'SEE');
-  await expect(page.getByTestId('future-vision-cg')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision-cg')).toHaveCount(1);
   await expect(page.getByTestId('future-vision-years')).toHaveText('――3年後。');
   await expect(page.getByTestId('vision-GALD_LEAVES_BANDITS')).toBeVisible();
   await expect(page.getByTestId('future-vision')).not.toContainText('パン屋');

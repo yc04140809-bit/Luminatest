@@ -10,6 +10,7 @@ import {
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
 import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
 import { OFF_SCREEN_EVENT_INFO, OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
+import { VISION_POSSIBILITIES } from '@mugen/content/events/visionPossibilities';
 import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
@@ -55,10 +56,15 @@ const HER = kaosFigureFor({ speaker: 'ケイオス', text: '' });
  * A route lived off screen has no place on the map; its picture is named
  * by the event it shows (OFF_SCREEN_VISIONS — the bakery route, TIGS2027
  * STEP ①), and it is shown without the list (`log: false`).
+ *
+ * WHATEVER WAS ANSWERED, A PICTURE (作者 2026-11-01: TIME SHIFT は可能性を
+ * 見せる). Where the answer's own years draw nothing (見逃す), the
+ * possibility that follows them is shown instead (VISION_POSSIBILITIES):
+ * its picture, and its line added to the list (`possible`).
  */
 export function visionCgOf(
   future: readonly MemoryEvent[],
-): { key: EventCgKey; alt: string; log: boolean } | null {
+): { key: EventCgKey; alt: string; log: boolean; possible?: MemoryEvent['type'] } | null {
   const types = new Set<string>(future.map((e) => e.type));
   const pictures = [
     ...FUTURE_SITE_DEFS.filter((d) => d.eventCg && types.has(d.requiredMemory)).map((d) => ({
@@ -72,7 +78,10 @@ export function visionCgOf(
       log: v.log,
     })),
   ];
-  return pictures.length === 1 ? pictures[0] : null;
+  if (pictures.length === 1) return pictures[0];
+  if (pictures.length > 1) return null;
+  const could = VISION_POSSIBILITIES.find((p) => types.has(p.after) && !types.has(p.shows));
+  return could ? { key: could.eventCg, alt: could.eventCgAlt, log: true, possible: could.shows } : null;
 }
 
 /**
@@ -163,6 +172,12 @@ export function FutureVisionScreen({
                     <span className="memory-label">{memoryEventLabel(event)}</span>
                   </li>
                 ))}
+                {/* The possibility shown with its picture (見逃す): one more line, in the same words. */}
+                {vision?.possible && (
+                  <li className="memory-row" key="possible" data-testid={`vision-${vision.possible}`} data-possible="yes">
+                    <span className="memory-label">{memoryEventLabel({ type: vision.possible, actors: ['GALD'] })}</span>
+                  </li>
+                )}
               </ul>
             )}
             {/* ONE future, not the future — she says so herself. */}
