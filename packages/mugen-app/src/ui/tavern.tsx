@@ -27,6 +27,7 @@ import { NewBadge } from './common/NewBadge';
 import { graveFaceOf, type GraveFace } from '@mugen/content/characters/graveFaces';
 import { graveFaceSrc } from '../assets/graveFaces';
 import { playVoice } from '../platform/audio';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -279,6 +280,10 @@ export function TavernScreen({
   const talking = steps ? steps[stepAt].lines : (talk?.lines ?? null);
   const raw = talking?.[at];
   const line = raw ? shown(raw, heroName) : undefined;
+  // 主人公's words as they come up (ボイスパック13): the line as written, before his name is put in.
+  useEffect(() => {
+    if (raw) sayKaosLine(`tavern:${stepAt}:${at}:${raw.text}`, raw);
+  }, [raw]);
   // グレイヴの表情 (2026-10-12): while he speaks — a line of his, his small menu, his handwork —
   // he is drawn with the face the line names (NORMAL when it names none), in place of his standing figure.
   const [craftFace, setCraftFace] = useState<GraveFace>('NORMAL');

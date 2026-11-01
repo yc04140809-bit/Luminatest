@@ -48,6 +48,8 @@ describe('what they say in a fight (ボイス第1便・第2便)', () => {
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'hero', kind: 'ATTACK' }), none)).toEqual({ id: 'battle.hero.attack' });
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'TECH', name: '星癒の羽' }), none)).toEqual({ id: 'battle.star_feather' });
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'grave', kind: 'ATTACK' }), none)).toEqual({ id: 'battle.grave.attack' });
+    // 月影の構え: he names it (ボイスパック13).
+    expect(partyBeatVoice(fight(party), fight(party, { actor: 'hero', kind: 'TECH', name: '月影の構え' }), none)).toEqual({ id: 'battle.moon_guard' });
     // A finisher's shout is its cut-in's.
     expect(partyBeatVoice(fight(party), fight(party, { actor: 'kaos', kind: 'SKILL', name: '双極臨界' }), none)).toBeNull();
     const struck = [member('hero', 100), member('kaos', 60), member('grave', 180)];

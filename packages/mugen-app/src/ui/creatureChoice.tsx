@@ -45,6 +45,7 @@ export function CreatureEncounterScreen({
   return (
     <StagedLines
       lines={named(lines, heroName)}
+      voiced={lines}
       backdrop="GREENWOOD"
       figureFor={(line) => kaosFigureFor(line)}
       side="right"
@@ -105,6 +106,7 @@ export function CreatureLifeChoiceScreen({
     return (
       <StagedLines
         lines={named(species.individual.scene, heroName)}
+        voiced={species.individual.scene}
         backdrop="GREENWOOD"
         figureFor={(line) => kaosFigureFor(line)}
         side="right"

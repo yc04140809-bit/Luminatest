@@ -64,7 +64,7 @@ test('ケイオス’s 《双極臨界》: 「双極臨界――吸いなさい�
   expect(ear.errors).toEqual([]);
 });
 
-test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「散れ」 as the lilies open; a won fight: 「……終わったか」 then her line in the band, 「決まったね！ わたしの応援のおかげ♪」', async ({ page }) => {
+test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「散れ」 as the lilies open; a won fight: her line in the band, 「決まったね！ わたしの応援のおかげ♪」, then his answer 「応援してたか？」', async ({ page }) => {
   test.setTimeout(60_000);
   const ear = await listen(page);
   await page.goto('/?preview=party&higanbana=1&enemies=2&weak=1');
@@ -74,8 +74,9 @@ test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「�
   await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 10_000 });
   await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /finisher/.test(f))).toEqual(['v_hero_finisher01.mp3', 'v_hero_finisher02.mp3']);
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 30_000 });
-  // Her line in the result's band is what she says (ボイスパック12), in place of her plain word for a win.
-  await expect.poll(async () => (await ear.files()).filter((f) => /win|v_ch1_/.test(f)), { timeout: 8_000 }).toEqual(['v_hero_win01.mp3', 'v_ch1_chaos152.mp3']);
+  // Her line in the result's band is what she says (ボイスパック12), and his answer after it (ボイスパック13) — in
+  // place of their plain words for a win.
+  await expect.poll(async () => (await ear.files()).filter((f) => /win|v_ch1_/.test(f)), { timeout: 8_000 }).toEqual(['v_ch1_chaos152.mp3', 'v_ch1_hero115.mp3']);
   expect(ear.errors).toEqual([]);
 });
 
@@ -115,7 +116,7 @@ test('the opening: her first page says its three in order — 「……あ！」
   expect(ear.errors).toEqual([]);
 });
 
-test('a line with no file (主人公’s 《瞬断》, not yet recorded): silence, no error, the fight goes on', async ({ page }) => {
+test('主人公’s 《瞬断》 (ボイスパック13): 「瞬断」 with its cut-in; and 月影の構え says its name as he takes it up', async ({ page }) => {
   test.setTimeout(60_000);
   const ear = await listen(page);
   await page.goto('/?preview=party');
@@ -123,8 +124,34 @@ test('a line with no file (主人公’s 《瞬断》, not yet recorded): silenc
   const before = (await ear.heard()).length;
   await use(page, 'shundan');
   await expect(page.getByTestId('cut-in')).toBeVisible();
-  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
-  expect((await ear.files()).slice(before).filter((f) => /hero_battle_shundan|shundan/.test(f))).toEqual([]);
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /v_ch1_hero/.test(f)), { timeout: 10_000 }).toEqual(['v_ch1_hero110.mp3']);
+  await toTurnOf(page, 'hero');
+  const guard = (await ear.heard()).length;
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-moon_guard').click();
+  await expect.poll(async () => (await ear.files()).slice(guard).filter((f) => /v_ch1_hero/.test(f)), { timeout: 10_000 }).toEqual(['v_ch1_hero111.mp3']);
+  expect(ear.errors).toEqual([]);
+});
+
+test('主人公 (ボイスパック13): the bakery’s first talk — his three lines heard as they come up, リナ’s welcome before them', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  await (await placeButton(page, 'bakery-button')).click();
+  await expect(page.getByTestId('bakery-screen')).toBeVisible();
+  const before = (await ear.heard()).length;
+  await page.getByTestId('bakery-talk').click();
+  for (let i = 0; i < 10; i++) {
+    const next = page.getByTestId('bakery-next');
+    const done = (await next.textContent()) === 'もどる';
+    // Each line long enough for its take to begin.
+    await page.waitForTimeout(400);
+    await next.click();
+    if (done) break;
+  }
+  await expect
+    .poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_hero/.test(f)))
+    .toEqual(['063', '064', '065'].map((n) => `v_ch1_hero${n}.mp3`));
   expect(ear.errors).toEqual([]);
 });
 
@@ -275,7 +302,7 @@ test('the tavern: グレイヴ’s 「おう、よく来たな」 as his ordinar
   expect(ear.errors).toEqual([]);
 });
 
-test('第1章のケイオス (ボイスパック12): 第0話 from 回想 — each line of hers heard as it comes up, 「？？？」 before she is named too', async ({ page }) => {
+test('第1章のケイオス (ボイスパック12) and 主人公 (ボイスパック13): 第0話 from 回想 — each line heard as it comes up, 「？？？」 before she is named too, what he only thinks as well', async ({ page }) => {
   test.setTimeout(90_000);
   const ear = await listen(page);
   await page.goto('/');
@@ -293,8 +320,12 @@ test('第1章のケイオス (ボイスパック12): 第0話 from 回想 — eac
   await watchTheIntro(page);
   // Her 「ん？」 has no take of its own (the opening's says 「ん？ どうしたの？」): silent there.
   await expect
-    .poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_/.test(f)))
+    .poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_chaos/.test(f)))
     .toEqual(['003', '004', '005', '006', '007', '008', '009', '010', '011', '012'].map((n) => `v_ch1_chaos${n}.mp3`));
+  // His: every line but his silence 「……。」.
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_hero/.test(f))).toEqual(
+    ['001', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017', '018'].map((n) => `v_ch1_hero${n}.mp3`),
+  );
   expect(ear.errors).toEqual([]);
 });
 

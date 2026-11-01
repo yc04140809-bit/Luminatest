@@ -241,6 +241,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       mood={scene.id === 'EVE' ? 'night' : null}
       face={finaleFaceFor(line)}
       speaker={speaker}
+      voiced={line.speaker}
       text={line.text}
       shake={line.shake ?? null}
       hush={line.hush === true}
@@ -264,6 +265,7 @@ function FinaleScene({
   mood,
   face,
   speaker,
+  voiced,
   text,
   shake,
   hush,
@@ -282,6 +284,8 @@ function FinaleScene({
   mood: 'night' | null;
   face: FinaleFace | null;
   speaker: string | null;
+  /** The speaker as written (`{HERO}` before his name is put in): whose voice it is. */
+  voiced: string | null;
   text: string;
   /** The picture's jolt as this line comes up (SCREEN SHAKE), or none. */
   shake: 'small' | 'medium' | 'large' | null;
@@ -323,7 +327,7 @@ function FinaleScene({
   }, [sceneId, at]);
   // Her words, heard as they come up — after the line's 間, with them (ボイスパック12).
   useEffect(() => {
-    const t = window.setTimeout(() => sayKaosLine(`finale:${sceneId}:${at}`, { speaker, text }), pause);
+    const t = window.setTimeout(() => sayKaosLine(`finale:${sceneId}:${at}`, { speaker: voiced, text }), pause);
     return () => window.clearTimeout(t);
   }, [sceneId, at]);
   // The music falling away (a hushed line; a DROP or a DIP until the scene ends) — eased, and back after.

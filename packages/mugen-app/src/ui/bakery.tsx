@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { sayKaosLine } from './audio/kaosLineVoice';
 import type { World } from '@mugen/core/world/world';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { BAKERY_SHOP_DESCRIPTION } from '@mugen/content/dialogue/bakeryShop';
@@ -110,6 +111,10 @@ export function BakeryScreen({
   // Written breaks run together, as the box always has.
   const line = raw ? { speaker: named(raw.speaker ?? ''), text: named(raw.text).replace(/\n/g, '') } : undefined;
   const last = !!talking && at >= talking.lines.length - 1;
+  // 主人公's words as they come up (ボイスパック13): the line as written, before his name is put in.
+  useEffect(() => {
+    if (raw) sayKaosLine(`bakery:${at}:${raw.text}`, raw);
+  }, [raw]);
 
   const talk = () => {
     setAt(0);

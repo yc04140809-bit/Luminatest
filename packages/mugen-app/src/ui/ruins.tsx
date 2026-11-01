@@ -199,7 +199,7 @@ export function SealApproachScreen({
   const lines = step === 'signs' ? SEKIRYUGA_APPROACH_SIGNS : SEKIRYUGA_APPROACH_KAOS;
   const line = step === 'signs' || step === 'kaos' ? lines[at] : null;
   const quiet = useRef<number | null>(null);
-  // Her words as they come up (ボイスパック12).
+  // Her words as they come up (ボイスパック12), and his (ボイスパック13).
   useEffect(() => {
     if (step === 'kaos') sayKaosLine(`seki-approach:${at}`, line);
   }, [step, at]);
@@ -290,9 +290,9 @@ export function SekiryugaAftermathScreen({ heroName, onDone }: { heroName: strin
   const [at, setAt] = useState(0);
   const line = shown(SEKIRYUGA_AFTERMATH[at], heroName);
   const last = at >= SEKIRYUGA_AFTERMATH.length - 1;
-  // Her words as they come up (ボイスパック12).
+  // Her words as they come up (ボイスパック12), and his (ボイスパック13: the line as written, before his name).
   useEffect(() => {
-    sayKaosLine(`seki-after:${at}`, line);
+    sayKaosLine(`seki-after:${at}`, SEKIRYUGA_AFTERMATH[at]);
   }, [at]);
   // It is down for the first two lines; then it rises — and, from 「だが、
   // セキリュウガはこちらを見ていない。」 on, it is turned away, deeper in.
@@ -357,9 +357,9 @@ export function SekiryugaRevisitScreen({ heroName, onDone }: { heroName: string;
   const beat = SEKIRYUGA_REVISIT[at];
   const line = shown(beat, heroName);
   const last = at >= SEKIRYUGA_REVISIT.length - 1;
-  // Her words as they come up (ボイスパック12; her silence says nothing).
+  // Her words as they come up (ボイスパック12; her silence says nothing), and his (ボイスパック13).
   useEffect(() => {
-    sayKaosLine(`seki-revisit:${at}`, line);
+    sayKaosLine(`seki-revisit:${at}`, beat);
   }, [at]);
   // Which way it is looking: the last beat that said so.
   const look = SEKIRYUGA_REVISIT.slice(0, at + 1).reduce<'party' | 'deeper'>((now, b) => b.look ?? now, 'deeper');
@@ -408,6 +408,10 @@ export function SekiryugaStillScreen({ heroName, onLeave }: { heroName: string; 
   const painting = useRuinsPainting();
   const [looked, setLooked] = useState(-1);
   const said = looked >= 0 ? shown(SEKIRYUGA_STILL_LOOKS[looked % SEKIRYUGA_STILL_LOOKS.length], heroName) : null;
+  // His few words, heard as they come up (ボイスパック13).
+  useEffect(() => {
+    if (looked >= 0) sayKaosLine(`seki-still:${looked}`, SEKIRYUGA_STILL_LOOKS[looked % SEKIRYUGA_STILL_LOOKS.length]);
+  }, [looked]);
   return (
     <div className="screen seal" data-testid="seal-still">
       {painting && <img className="seal-painting" src={painting} alt="" aria-hidden="true" />}

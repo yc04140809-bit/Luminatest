@@ -8,7 +8,7 @@ import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
 import { audioManager, playVoice } from "../platform/audio";
 import { rizelSceneVoice } from "./audio/rizelVoices";
-import { kaosLineVoice } from "../platform/voice";
+import { heroLineVoice, kaosLineVoice } from "../platform/voice";
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
@@ -57,7 +57,8 @@ export function DailyAside({
     // リゼル's own line where one fits and it is hers yet (after the four answers about Gald: ui/audio/rizelVoices).
     // ケイオス's, by what she says (ボイスパック12: one recording per text); else the scene's own line, if any.
     const line = scene.lines[n];
-    const hers = line?.speaker === 'ケイオス' ? kaosLineVoice(line.text) : null;
+    // 主人公's, by what he says too (ボイスパック13).
+    const hers = line?.speaker === 'ケイオス' ? kaosLineVoice(line.text) : line?.speaker === HERO_SPEAKER ? heroLineVoice(line.text) : null;
     playVoice(rizelSceneVoice(scene.id, n, world.getGaldLifeChoice()) ?? hers ?? `daily.${scene.id}.${n + 1}`);
   }, [scene.id, at, done]);
   useEffect(() => () => audioManager.stopVoice(), []);

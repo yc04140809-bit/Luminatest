@@ -29,7 +29,8 @@
  *   daily.<scene id>.<line no.>      a line of a small thing in the village (content/story/dailyScenes.ts), from 1
  *   ch1.<file id>                    ケイオス's words as shown in chapter 1, by what she says (ボイスパック12:
  *                                    platform/kaosLines.ts; `kaosLineVoice(text)`) — one recording per text, wherever
- *                                    it is said (ui/audio/kaosLineVoice.ts plays it as the line comes up)
+ *                                    it is said (ui/audio/kaosLineVoice.ts plays it as the line comes up); 主人公's
+ *                                    likewise (ボイスパック13: platform/heroLines.ts; `heroLineVoice(text)`)
  *
  * A member of the fight speaks where the table has lines for them (`battle.<member id>.start` …): 主人公, ケイオス,
  * グレイヴ now; レヴィ, アリア, リゼル as soon as they fight beside them (their lines are here already). レヴィ's and
@@ -38,6 +39,7 @@
  * Heard at the voice volume, which is its own (platform/audio.ts `voice`): neither the music's nor the sounds'.
  */
 
+import { HERO_CH1_GAIN_DB, HERO_CH1_LINES } from './heroLines';
 import { KAOS_CH1_GAIN_DB, KAOS_CH1_LINES, KAOS_CH1_SPELLS } from './kaosLines';
 
 export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI';
@@ -109,8 +111,9 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   // 《彼岸花》: the cut-in, then — after its stillness — its release.
   'battle.higanbana': hero(['v_hero_finisher01.mp3'], '彼岸花――'),
   'battle.higanbana.release': hero(['v_hero_finisher02.mp3'], '散れ'),
-  // 《瞬断》: none yet (silent).
-  'battle.shundan': hero(['hero_battle_shundan.mp3'], '《瞬断》！'),
+  // 《瞬断》（読みはシュンダン）と月影の構え（ゲツエイノカマエ）：ボイスパック13 の v_ch1_hero110・111。
+  'battle.shundan': hero(['v_ch1_hero110.mp3'], '瞬断'),
+  'battle.moon_guard': hero(['v_ch1_hero111.mp3'], '月影の構え'),
   // ---- 戦闘（ガルド — ボス戦。四択の台詞は未収録） ----
   'battle.gald.start': gald(['v_gard_start01.mp3'], 'へっ、やるってのか'),
   'battle.gald.attack': gald(['v_gard_atk01.mp3'], 'おらっ！'),
@@ -187,7 +190,7 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
   // ---- イベント（村の小さな出来事）。LINA_BURNT_BREAD.4 はボイスパック12 ----
   'daily.LINA_BURNT_BREAD.4': kaos(['daily.LINA_BURNT_BREAD.4.mp3'], 'ん、おいしい♪ 焦げてるとこが一番おいしいかも。'),
-  'daily.LINA_BURNT_BREAD.6': hero(['hero_daily_lina_burnt_bread_6.mp3'], '褒めてる。'),
+  'daily.LINA_BURNT_BREAD.6': hero(['v_ch1_hero019.mp3'], '褒めてる。'),
   // ---- 第1章のケイオス（ボイスパック12）：画面の台詞ごとに1本、魔法は名前を唱える ----
   ...Object.fromEntries(
     Object.entries(KAOS_CH1_LINES).map(([says, file]) => [
@@ -196,11 +199,27 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
     ]),
   ),
   ...Object.fromEntries(Object.entries(KAOS_CH1_SPELLS).map(([spell, { file, says }]) => [`battle.${spell}`, kaos([`${file}.mp3`], says)])),
+  // ---- 第0話＋第1章の主人公（ボイスパック13）：画面の台詞ごとに1本 ----
+  ...Object.fromEntries(
+    Object.entries(HERO_CH1_LINES).map(([says, file]) => [
+      `ch1.${file}`,
+      { who: 'HERO' as const, files: [`${file}.mp3`], says, ...(HERO_CH1_GAIN_DB[file] ? { gainDb: HERO_CH1_GAIN_DB[file] } : {}) },
+    ]),
+  ),
 };
 
 /** ケイオス's line for what she says on screen in chapter 1 (its text as written, `{HERO}` and all), or null. */
 export function kaosLineVoice(text: string): string | null {
   const file = KAOS_CH1_LINES[text];
+  return file ? `ch1.${file}` : null;
+}
+
+/** What the hero's line is looked up by: its text, written breaks run together (some boxes run them together). */
+export const heroLineKey = (text: string): string => text.replace(/\n/g, '');
+
+/** 主人公's line for what he says on screen in 第0話 and chapter 1 (its text as written), or null. */
+export function heroLineVoice(text: string): string | null {
+  const file = HERO_CH1_LINES[heroLineKey(text)];
   return file ? `ch1.${file}` : null;
 }
 

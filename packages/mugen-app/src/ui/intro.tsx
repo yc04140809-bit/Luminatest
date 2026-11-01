@@ -53,9 +53,12 @@ export function IntroScreen({
   const [held, setHeld] = useState(false);
   const beat = OPENING_INTRO[at];
   const last = at >= OPENING_INTRO.length - 1;
-  // Her line, heard as it comes up (ボイスパック12) — before she is named too (「？？？」 is her).
+  // Her line, heard as it comes up (ボイスパック12) — before she is named too (「？？？」 is her). His (ボイスパック13),
+  // what he only thinks as well.
   useEffect(() => {
-    if (phase !== 'beats' || beat.thought || (beat.speaker !== 'ケイオス' && beat.speaker !== '？？？')) return;
+    if (phase !== 'beats') return;
+    if (beat.speaker === INTRO_HERO) return void sayKaosLine(`intro:${at}`, { speaker: INTRO_HERO, text: beat.text });
+    if (beat.thought || (beat.speaker !== 'ケイオス' && beat.speaker !== '？？？')) return;
     sayKaosLine(`intro:${at}`, { speaker: 'ケイオス', text: beat.text });
   }, [phase, at]);
   // Out once, whether the card is tapped or runs out.

@@ -171,8 +171,11 @@ export function StagedLines({
   onLine,
   onDone,
   picture = null,
+  voiced,
 }: {
   lines: readonly DialogueLine[];
+  /** The same lines as written, before the hero's name is put in (their voices are looked up by these). */
+  voiced?: readonly DialogueLine[];
   backdrop: Backdrop;
   figureFor: (line: DialogueLine) => FigureCue | null;
   side?: 'left' | 'right';
@@ -192,8 +195,8 @@ export function StagedLines({
   const last = at >= lines.length - 1;
   useEffect(() => {
     if (line) onLine?.(line);
-    // ケイオス's line, heard as it comes up (ボイスパック12).
-    sayKaosLine(`${lineTestId}:${at}`, line);
+    // ケイオス's line, heard as it comes up (ボイスパック12); 主人公's (ボイスパック13).
+    sayKaosLine(`${lineTestId}:${at}`, voiced ? voiced[at] : line);
     // Only when the line changes.
   }, [at]);
   return (

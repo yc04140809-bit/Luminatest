@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PartyBattleState } from '@mugen/game/battle/partyBattle';
-import { STAR_FEATHER } from '@mugen/content/characters/partyMembers';
+import { MOON_GUARD_TECH, STAR_FEATHER } from '@mugen/content/characters/partyMembers';
 import { playVoice } from '../../platform/audio';
 import { PINCH_SHARE, speaksInFights, VOICE_LINES } from '../../platform/voice';
 import type { Blow } from './blows';
@@ -64,6 +64,8 @@ export function partyBeatVoice(
     const care = beat.target !== beat.actor ? careOf(beat.target) : null;
     if (beat.kind === 'TECH' && beat.actor === 'kaos' && beat.name === STAR_FEATHER.name)
       return { id: `battle.${STAR_FEATHER.id}`, ...(care ? { then: care } : {}) };
+    // 月影の構え: he names it as he takes it up (ボイスパック13).
+    if (beat.kind === 'TECH' && beat.actor === 'hero' && beat.name === MOON_GUARD_TECH.name) return { id: `battle.${MOON_GUARD_TECH.id}` };
     // A heal of theirs that says nothing itself (her 癒しの光): the one healed still answers.
     if (beat.kind === 'MEND' && care) return { id: care };
     return null;

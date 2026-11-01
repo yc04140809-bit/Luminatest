@@ -10,8 +10,9 @@ vi.mock('@mugen/assets/appMusic', () => ({ APP_BGM_ASSETS: {}, APP_BGM_FALLBACK:
 vi.mock('@mugen/assets/sfx', () => ({ SFX_FILES: {} }));
 
 const { AudioManager, VOICE_GAP_MS } = await import('./audio');
-const { VOICE_LINES, kaosLineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
+const { VOICE_LINES, heroLineVoice, kaosLineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
 const { KAOS_CH1_LINES, KAOS_CH1_SPELLS } = await import('./kaosLines');
+const { HERO_CH1_LINES } = await import('./heroLines');
 
 class FakeAudio {
   static made: FakeAudio[] = [];
@@ -61,7 +62,7 @@ describe('the table', () => {
       expect(id).toMatch(/^(battle|op|daily|shop|event|talk|ch1)\./);
       const named = {
         KAOS: /^(v_chaos_|v_op_chaos|v_ch1_chaos|kaos_|op\.op_|daily\.)/,
-        HERO: /^(v_hero_|hero_)/,
+        HERO: /^(v_hero_|hero_|v_ch1_hero)/,
         GALD: /^v_gard_/,
         GRAVE: /^v_grave_/,
         LEVI: /^v_levi_/,
@@ -135,10 +136,10 @@ describe('the table', () => {
     expect(voicePlan('op.op_01_intro_comic')).toHaveLength(3);
   });
 
-  it('a line not in it, or one whose file is not delivered, has none — and asking is not an error', () => {
+  it('a line not in it has none — and asking is not an error; 《瞬断》 is heard now (ボイスパック13)', () => {
     expect(voicePlan('battle.no_such_skill')).toEqual([]);
     expect(voicePlan(undefined)).toEqual([]);
-    expect(voicePlan('battle.shundan')).toEqual([]);
+    expect(voicePlan('battle.shundan')).toHaveLength(1);
   });
 });
 
@@ -258,6 +259,35 @@ describe('第1章のケイオス (ボイスパック12): what she says on screen
     expect(kaosLineVoice('ん？')).toBeNull();
     expect(kaosLineVoice('知らない台詞')).toBeNull();
     expect(VOICE_LINES['battle.starlight_bolt'].says).toBe('星光弾');
+  });
+
+  it('主人公 in 第0話 and chapter 1 (ボイスパック13): 112 takes, every one found; his line found by its text', () => {
+    expect(Object.keys(HERO_CH1_LINES)).toHaveLength(109);
+    const ids = [...Object.values(HERO_CH1_LINES).map((f) => `ch1.${f}`), 'daily.LINA_BURNT_BREAD.6', 'battle.shundan', 'battle.moon_guard'];
+    for (const id of ids) expect(voiceUrl(id), id).not.toBeNull();
+    const files = new Set(ids.map((id) => VOICE_LINES[id].files[0]));
+    expect(files.size).toBe(112);
+    for (const f of files) expect(f).toMatch(/^v_ch1_hero\d{3}\.mp3$/);
+    for (const id of ids) expect(VOICE_LINES[id].who, id).toBe('HERO');
+    expect(heroLineVoice('……この先が、アルデン村か。')).toBe('ch1.v_ch1_hero001');
+    // One take for a text said in several scenes: 「どうした？」 (four places).
+    expect(heroLineVoice('どうした？')).toBe('ch1.v_ch1_hero022');
+    // A written break or not (the tavern's box runs them together): the same take.
+    expect(heroLineVoice('そこまで危険なら、\nどうして倒さなかった？')).toBe('ch1.v_ch1_hero070');
+    expect(heroLineVoice('そこまで危険なら、どうして倒さなかった？')).toBe('ch1.v_ch1_hero070');
+    expect(heroLineVoice('この子、可愛いけど……\nどういう存在なんだ？')).toBe('ch1.v_ch1_hero007');
+    // His silences say nothing; 「褒めてる。」 is the daily scene's own id.
+    expect(heroLineVoice('……。')).toBeNull();
+    expect(heroLineVoice('？')).toBeNull();
+    expect(heroLineVoice('褒めてる。')).toBeNull();
+    expect(VOICE_LINES['daily.LINA_BURNT_BREAD.6'].files).toEqual(['v_ch1_hero019.mp3']);
+    // The result band's answers.
+    expect(heroLineVoice('……二人の、な')).toBe('ch1.v_ch1_hero113');
+    expect(heroLineVoice('声、震えてたぞ')).toBe('ch1.v_ch1_hero114');
+    expect(heroLineVoice('応援してたか？')).toBe('ch1.v_ch1_hero115');
+    // His quiet takes, lifted.
+    expect(voiceGainOf(voiceUrl(heroLineVoice('……いた。'))!)).toBeCloseTo(10 ** (6 / 20), 3);
+    expect(voiceGainOf(voiceUrl(heroLineVoice('どうした？'))!)).toBe(1);
   });
 
   it('the whispered takes played louder (+6dB); the rest as recorded', () => {
