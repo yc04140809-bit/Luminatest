@@ -83,7 +83,16 @@ export function BakeryScreen({
   const [talking, setTalking] = useState<{ lines: readonly DialogueLine[]; onEnd?: () => void; special?: boolean } | null>(null);
   const [at, setAt] = useState(0);
   const [buying, setBuying] = useState(false);
-  const [linaSays, setLinaSays] = useState<string>(BAKERY_LINA_AGAIN[0].text);
+  const [linaSays, setLinaSaysOnly] = useState<string>(BAKERY_LINA_AGAIN[0].text);
+  // Each time she says one over the shelves, heard (ボイスパック19) — the same words twice, twice.
+  const [linaSaid, setLinaSaid] = useState(0);
+  const setLinaSays = (text: string) => {
+    setLinaSaysOnly(text);
+    setLinaSaid((n) => n + 1);
+  };
+  useEffect(() => {
+    if (buying) sayKaosLine(`bakery-say:${linaSaid}`, { speaker: LINA.name, text: linaSays });
+  }, [linaSaid, buying]);
   const [busy, setBusy] = useState(false);
   // Pictures that fail to load are dropped; the words never wait for art.
   const [failed, setFailed] = useState<{ room?: boolean; owner?: boolean; lina?: boolean }>({});
@@ -111,9 +120,10 @@ export function BakeryScreen({
   // Written breaks run together, as the box always has.
   const line = raw ? { speaker: named(raw.speaker ?? ''), text: named(raw.text).replace(/\n/g, '') } : undefined;
   const last = !!talking && at >= talking.lines.length - 1;
-  // 主人公's words as they come up (ボイスパック13): the line as written, before his name is put in.
+  // 主人公's and リナ's words as they come up (ボイスパック13・19): the line as written, before his name is put in —
+  // the first after her welcome, not over it.
   useEffect(() => {
-    if (raw) sayKaosLine(`bakery:${at}:${raw.text}`, raw);
+    if (raw) sayKaosLine(`bakery:${at}:${raw.text}`, raw, { wait: at === 0 });
   }, [raw]);
 
   const talk = () => {

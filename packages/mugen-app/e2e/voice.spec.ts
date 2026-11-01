@@ -185,7 +185,9 @@ test('ガルド (still 「盗賊」 on screen): 「へっ、やるってのか�
     if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
   }
-  await expect.poll(async () => (await ear.files()).slice(before).slice(0, 2), { timeout: 10_000 }).toEqual(['v_gard_start01.mp3', 'v_hero_start01.mp3']);
+  // His two words on the road first (ボイスパック18), then the fight's.
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_gald00[12]/.test(f)), { timeout: 10_000 }).toEqual(['v_ch1_gald001.mp3', 'v_ch1_gald002.mp3']);
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => !/^v_ch1_/.test(f)).slice(0, 2), { timeout: 10_000 }).toEqual(['v_gard_start01.mp3', 'v_hero_start01.mp3']);
   // The name on screen is what the player knows him as.
   await expect(page.getByTestId('battle-screen')).toContainText('盗賊');
   await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), { maxTurns: 200 });
@@ -195,6 +197,39 @@ test('ガルド (still 「盗賊」 on screen): 「へっ、やるってのか�
   expect(said).toContain('v_gard_pinch01.mp3');
   expect(said.filter((f) => f === 'v_gard_pinch01.mp3')).toHaveLength(1);
   expect(said).toContain('v_hero_atk01.mp3');
+  // As he changes (本気・捨て身), each once; beaten, 「……くそ……。」; beside the four, 「……どうするつもりだ……。」.
+  expect(said.filter((f) => f === 'v_ch1_gald006.mp3')).toHaveLength(1);
+  expect(said.filter((f) => f === 'v_ch1_gald008.mp3')).toHaveLength(1);
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_gald010.mp3');
+  await expect.poll(async () => (await ear.files()).slice(before), { timeout: 10_000 }).toContain('v_ch1_gald011.mp3');
+  // 見逃す: his three words after it.
+  const answered = (await ear.heard()).length;
+  await page.getByTestId('choice-SPARE').click();
+  for (let i = 0; i < 3; i++) {
+    await expect(page.getByTestId('choice-result-next')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(300);
+    await page.getByTestId('choice-result-next').click();
+  }
+  await expect
+    .poll(async () => (await ear.files()).slice(answered).filter((f) => /^v_ch1_gald/.test(f)))
+    .toEqual(['v_ch1_gald012.mp3', 'v_ch1_gald013.mp3', 'v_ch1_gald014.mp3']);
+  expect(ear.errors).toEqual([]);
+});
+
+test('リナ (ボイスパック19): the shelves — 「いらっしゃい！ 今日はどれにする？」 as they open, her answer to a loaf asked for', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  await (await placeButton(page, 'bakery-button')).click();
+  await expect(page.getByTestId('bakery-screen')).toBeVisible();
+  const before = (await ear.heard()).length;
+  await page.getByTestId('bakery-buy').click();
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_lina010.mp3');
+  await page.locator('[data-testid^="bakery-buy-"]:not([data-testid="bakery-buy-close"])').first().click();
+  // 「まいどあり！」, or — a new save's purse — 「あ……LUMIがちょっと足りないみたい。」: whichever is shown, in her voice.
+  const shown = (await page.getByTestId('bakery-say').textContent()) ?? '';
+  const take = shown.includes('まいどあり') ? 'v_ch1_lina013.mp3' : shown.includes('足りない') ? 'v_ch1_lina014.mp3' : 'v_ch1_lina015.mp3';
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain(take);
   expect(ear.errors).toEqual([]);
 });
 

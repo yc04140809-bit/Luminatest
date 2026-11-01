@@ -100,6 +100,7 @@ export function useBattleVoices({
   foe,
   foeHp,
   foeMaxHp,
+  foePhase = null,
 }: {
   beat: string;
   blows: readonly Blow[];
@@ -111,7 +112,13 @@ export function useBattleVoices({
   foe: string;
   foeHp: number;
   foeMaxHp: number;
+  /** The phase the one they fight is in (ガルド's 本気・捨て身), or null. */
+  foePhase?: string | null;
 }) {
+  // His word as he changes (ボイスパック18 — `battle.<foe>.phase.<id>`), after what he is saying, never over it.
+  useEffect(() => {
+    if (foePhase) playVoice(`battle.${foe}.phase.${foePhase}`, { mouth: 'foe', wait: true });
+  }, [foePhase]);
   // Once, even where an effect is run twice.
   const opened = useRef(false);
   useEffect(() => {

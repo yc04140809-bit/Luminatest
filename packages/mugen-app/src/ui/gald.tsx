@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { sayKaosLine } from './audio/kaosLineVoice';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import {
@@ -42,6 +43,10 @@ function Scene({
   const [at, setAt] = useState(0);
   const last = at >= lines.length - 1;
   const line = lines[at];
+  // His words in it, heard as they come up (ボイスパック18) — the answer given, his question is cut off by them.
+  useEffect(() => {
+    sayKaosLine(`${testId}:${at}`, line);
+  }, [at]);
   return (
     <>
       {last && atEnd}
@@ -98,6 +103,10 @@ export function LifeChoiceScreen({
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18), after his fall's word.
+  useEffect(() => {
+    sayKaosLine('life-choice', { speaker: '盗賊 ガルド', text: GALD_LIFE_CHOICE_LINE }, { wait: true });
+  }, []);
 
   const choose = (choice: LifeChoiceId) => {
     if (saving) return;

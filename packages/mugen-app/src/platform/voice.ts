@@ -42,11 +42,22 @@
  */
 
 import { HERO_CH1_GAIN_DB, HERO_CH1_LINES } from './heroLines';
-import { GRAVE_CH1_LINES, MIREI_CH1_LINES, NPC_CH1_GAIN_DB, RIZEL_CH1_LINES } from './npcLines';
+import {
+  ARIA_CH1_LINES,
+  BALDO_CH1_LINES,
+  GALD_CH1_LINES,
+  GRAVE_CH1_LINES,
+  LEVI_CH1_LINES,
+  LINA_CH1_LINES,
+  MIREI_CH1_LINES,
+  NPC_CH1_GAIN_DB,
+  NPC_CH1_GAIN_DB_2,
+  RIZEL_CH1_LINES,
+} from './npcLines';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { KAOS_CH1_GAIN_DB, KAOS_CH1_LINES, KAOS_CH1_SPELLS } from './kaosLines';
 
-export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI';
+export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI' | 'BALDO';
 
 export interface VoiceLine {
   who: VoiceSpeaker;
@@ -124,6 +135,9 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'battle.gald.hurt': gald(['v_gard_dmg01.mp3'], 'ぐっ……！'),
   'battle.gald.pinch': gald(['v_gard_pinch01.mp3'], 'エルナが……待ってるんだ……！'),
   'battle.gald.down': gald(['v_gard_down01.mp3'], 'エルナ……すま、ねぇ……'),
+  // His word as he changes, from the fight's own message (ボイスパック18): 本気（SERIOUS）、捨て身（DESPERATE）.
+  'battle.gald.phase.SERIOUS': gald(['v_ch1_gald006.mp3'], '……やるじゃねえか'),
+  'battle.gald.phase.DESPERATE': gald(['v_ch1_gald008.mp3'], 'ここで退けねえんだよ！'),
   // ---- 戦闘（グレイヴ — 第8便） ----
   'battle.grave.start': grave(['v_grave_start01.mp3'], '（戦闘開始）'),
   'battle.grave.attack': grave(['v_grave_atk01.mp3', 'v_grave_atk02.mp3'], '（通常攻撃 1・2）', { play: 'ALTERNATE' }),
@@ -204,18 +218,23 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
     ]),
   ),
   ...Object.fromEntries(Object.entries(KAOS_CH1_SPELLS).map(([spell, { file, says }]) => [`battle.${spell}`, kaos([`${file}.mp3`], says)])),
-  // ---- 第1章のグレイヴ・ミレイ・リゼル（ボイスパック14〜16）：画面の台詞ごとに1本 ----
+  // ---- 第1章のグレイヴ・ミレイ・リゼル（ボイスパック14〜16）、ガルド・リナ・バルド・レヴィ・アリア（18〜22） ----
   ...Object.fromEntries(
     (
       [
         ['GRAVE', GRAVE_CH1_LINES],
         ['MIREI', MIREI_CH1_LINES],
         ['RIZEL', RIZEL_CH1_LINES],
+        ['GALD', GALD_CH1_LINES],
+        ['LINA', LINA_CH1_LINES],
+        ['BALDO', BALDO_CH1_LINES],
+        ['LEVI', LEVI_CH1_LINES],
+        ['ARIA', ARIA_CH1_LINES],
       ] as const
     ).flatMap(([who, lines]) =>
       Object.entries(lines).map(([says, file]) => [
         `ch1.${file}`,
-        { who, files: [`${file}.mp3`], says, ...(NPC_CH1_GAIN_DB[file] ? { gainDb: NPC_CH1_GAIN_DB[file] } : {}) },
+        { who, files: [`${file}.mp3`], says, ...((NPC_CH1_GAIN_DB[file] ?? NPC_CH1_GAIN_DB_2[file]) ? { gainDb: NPC_CH1_GAIN_DB[file] ?? NPC_CH1_GAIN_DB_2[file] } : {}) },
       ]),
     ),
   ),
@@ -243,12 +262,20 @@ export function heroLineVoice(text: string): string | null {
   return file ? `ch1.${file}` : null;
 }
 
-/** グレイヴ (「マスター」 before he gives his name), ミレイ, リゼル: their chapter-1 lines (ボイスパック14〜16). */
+/** グレイヴ (「マスター」 before he gives his name), ミレイ, リゼル (ボイスパック14〜16); ガルド, リナ, バルド, レヴィ, アリア (18〜22). */
 const OTHERS_CH1: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   グレイヴ: GRAVE_CH1_LINES,
   マスター: GRAVE_CH1_LINES,
   ミレイ: MIREI_CH1_LINES,
   リゼル: RIZEL_CH1_LINES,
+  // ガルド: 「盗賊 ガルド」 as he is shown in the forest, 「盗賊」 after the answer.
+  '盗賊 ガルド': GALD_CH1_LINES,
+  盗賊: GALD_CH1_LINES,
+  ガルド: GALD_CH1_LINES,
+  リナ: LINA_CH1_LINES,
+  バルド: BALDO_CH1_LINES,
+  レヴィ: LEVI_CH1_LINES,
+  アリア: ARIA_CH1_LINES,
 };
 
 /**

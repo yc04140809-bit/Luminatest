@@ -164,3 +164,84 @@ export const NPC_CH1_GAIN_DB: Readonly<Record<string, number>> = {
   v_ch1_mirei035: 6,
   v_ch1_rizel004: 6,
 };
+
+// ---- ボイスパック18〜22（2026-11-01）：ガルド・リナ・バルド・レヴィ・アリア ----
+// ガルドの 006・008（ボス戦の「本気」「捨て身」の一言）はここではなく battle.gald.phase.<id>（platform/voice.ts）。
+export const GALD_CH1_LINES: Readonly<Record<string, string>> = {
+  "……止まれ。": 'v_ch1_gald001',
+  "金を置いていけ。命までは取らねぇ。": 'v_ch1_gald002',
+  "……くそ……。": 'v_ch1_gald010',
+  "……どうするつもりだ……。": 'v_ch1_gald011',
+  "……俺は、お前を襲ったんだぞ。": 'v_ch1_gald012',
+  "それでも見逃すのか？": 'v_ch1_gald013',
+  "……馬鹿じゃねぇのか。": 'v_ch1_gald014',
+  "……なんのつもりだ。": 'v_ch1_gald015',
+};
+
+export const LINA_CH1_LINES: Readonly<Record<string, string>> = {
+  "いらっしゃい！": 'v_ch1_lina005',
+  "今日も焼きたてだよ！": 'v_ch1_lina006',
+  "でしょ？": 'v_ch1_lina007',
+  "ちゃんと旅にも持っていけるよ！": 'v_ch1_lina008',
+  "……ちゃんと！": 'v_ch1_lina009',
+  "いらっしゃい！ 今日はどれにする？": 'v_ch1_lina010',
+  "硬焼きパンは日持ちするから、遠出のときにおすすめだよ。": 'v_ch1_lina011',
+  "焼きたては、焼きたてのうちに食べてね！": 'v_ch1_lina012',
+  "まいどあり！": 'v_ch1_lina013',
+  "あ……LUMIがちょっと足りないみたい。": 'v_ch1_lina014',
+  "もう持ちきれないよ？": 'v_ch1_lina015',
+  "あっ、ちょうどいいところに！": 'v_ch1_lina016',
+  "これ、焼き損じちゃったの。お店には出せないから……食べてみて？": 'v_ch1_lina017',
+  "でしょ！ ……って、それ褒めてる？": 'v_ch1_lina018',
+  "えへへ。お父さんには内緒ね。": 'v_ch1_lina019',
+  "あ……これ？ たいしたことないの。": 'v_ch1_lina020',
+  "この前の夕方ね、お父さんに頼まれて、森の入口までコケモモを摘みに行ったの。": 'v_ch1_lina021',
+  "そしたら茂みから魔物が出てきて……もう駄目だって思った。": 'v_ch1_lina022',
+  "でも、知らない男の人が前に立ってくれたの。体じゅう包帯だらけだったのに。": 'v_ch1_lina023',
+  "うん。その人の方がずっとひどい怪我だったのに、「下がってろ」って。": 'v_ch1_lina024',
+  "ちゃんとお礼、言えてないんだ。……言いたいな。": 'v_ch1_lina025',
+  "これね、エルナって子に書いたの。会ったこと、ないんだけど。": 'v_ch1_lina026',
+  "店の奥の人の妹さん。私と同い年なんだって。": 'v_ch1_lina027',
+  "ずっと寝てるって聞いたから……少しでも、楽しいこと書けたらなって。": 'v_ch1_lina028',
+  "ないしょ！ ……パンの話とか、村の話とか。": 'v_ch1_lina029',
+  "返事、来るといいな。": 'v_ch1_lina030',
+  "うん！": 'v_ch1_lina031',
+  "お父さん、こっちの火、消えたよ！": 'v_ch1_lina032',
+  "誰かいますかー！ ……いないね。よかった。": 'v_ch1_lina033',
+  "よかった……ほんとに、よかった……！": 'v_ch1_lina034',
+  "お父さん……。": 'v_ch1_lina035',
+  "パン、焼けないけど、硬いのならあるよ！ みんな食べて！": 'v_ch1_lina036',
+};
+
+export const BALDO_CH1_LINES: Readonly<Record<string, string>> = {
+  "まさか。剣じゃ腹はふくれないぞって、親切に教えてやってるんだ。": 'v_ch1_baldo001',
+  "……で、そっちは？ 商会のバルドだ。用があるなら、親父に言ってくれ。": 'v_ch1_baldo002',
+  "……うるさいな。": 'v_ch1_baldo003',
+};
+
+export const LEVI_CH1_LINES: Readonly<Record<string, string>> = {
+  "派手にやられたな。": 'v_ch1_levi001',
+  "で、来てみたらこれだ。": 'v_ch1_levi002',
+  "それに――こいつを一人で放っておくと、ろくなことにならなそうだ。": 'v_ch1_levi003',
+  "そういうこった。よろしくな、人間。": 'v_ch1_levi004',
+  "へいへい。": 'v_ch1_levi005',
+};
+
+export const ARIA_CH1_LINES: Readonly<Record<string, string>> = {
+  "久しぶりね、ケイオス。": 'v_ch1_aria001',
+  "しばらく前から、このあたりの異変を調べていたの。": 'v_ch1_aria002',
+  "……この人間が、あなたの言っていた人？": 'v_ch1_aria003',
+  "そう。": 'v_ch1_aria004',
+  "ケイオスが動けないなら、代わりに私たちが行く。この件の真相も、追わなきゃいけないし。": 'v_ch1_aria005',
+  "勘違いしないで。人間を信用したわけじゃない。": 'v_ch1_aria006',
+  "ケイオスが信じたものを、自分の目で確かめたいだけ。": 'v_ch1_aria007',
+  "……見張っておくだけよ。": 'v_ch1_aria008',
+};
+
+/** Quiet takes of packs 18〜22 (mean ≥ 6 dB under the others of the same voice). リナ's 「お父さん……。」 is far under: +12. */
+export const NPC_CH1_GAIN_DB_2: Readonly<Record<string, number>> = {
+  v_ch1_baldo003: 6,
+  v_ch1_lina019: 6,
+  v_ch1_lina034: 6,
+  v_ch1_lina035: 12,
+};

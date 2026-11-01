@@ -13,7 +13,7 @@ const { AudioManager, VOICE_GAP_MS } = await import('./audio');
 const { VOICE_LINES, heroLineVoice, kaosLineVoice, lineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
 const { KAOS_CH1_LINES, KAOS_CH1_SPELLS } = await import('./kaosLines');
 const { HERO_CH1_LINES } = await import('./heroLines');
-const { GRAVE_CH1_LINES, MIREI_CH1_LINES, RIZEL_CH1_LINES } = await import('./npcLines');
+const { ARIA_CH1_LINES, BALDO_CH1_LINES, GALD_CH1_LINES, GRAVE_CH1_LINES, LEVI_CH1_LINES, LINA_CH1_LINES, MIREI_CH1_LINES, RIZEL_CH1_LINES } = await import('./npcLines');
 
 class FakeAudio {
   static made: FakeAudio[] = [];
@@ -64,13 +64,14 @@ describe('the table', () => {
       const named = {
         KAOS: /^(v_chaos_|v_op_chaos|v_ch1_chaos|kaos_|op\.op_|daily\.)/,
         HERO: /^(v_hero_|hero_|v_ch1_hero)/,
-        GALD: /^v_gard_/,
+        GALD: /^(v_gard_|v_ch1_gald)/,
         GRAVE: /^(v_grave_|v_ch1_grave)/,
-        LEVI: /^v_levi_/,
-        ARIA: /^v_aria_/,
+        LEVI: /^(v_levi_|v_ch1_levi)/,
+        ARIA: /^(v_aria_|v_ch1_aria)/,
         RIZEL: /^(v_rizel_|v_ch1_rizel)/,
-        LINA: /^v_lina_/,
+        LINA: /^(v_lina_|v_ch1_lina)/,
         MIREI: /^(v_mirei_|v_ch1_mirei)/,
+        BALDO: /^(v_baldo_|v_ch1_baldo)/,
       }[line.who];
       for (const f of line.files) expect(f).toMatch(named);
       // 主人公 is the player's to name: no name of his is written here.
@@ -334,9 +335,30 @@ describe('第1章のケイオス (ボイスパック12): what she says on screen
     expect(lineVoice('ミレイ', 'いらっしゃい。今日は何を探してるの？')).toBe('ch1.v_ch1_mirei001');
     expect(lineVoice('リゼル', 'リゼル。……覚えなくていい。')).toBe('ch1.v_ch1_rizel001');
     expect(lineVoice('ケイオス', 'ただいまー。')).toBe('ch1.v_ch1_chaos042');
-    expect(lineVoice('リナ', 'まいどあり！')).toBeNull();
     expect(lineVoice(null, 'どうした。')).toBeNull();
     expect(voiceGainOf(voiceUrl('ch1.v_ch1_grave043')!)).toBeCloseTo(10 ** (6 / 20), 3);
+  });
+
+  it('ガルド 10, リナ 32, バルド 3, レヴィ 5, アリア 8 (ボイスパック18〜22): every take found, by who says it', () => {
+    const tables = [['GALD', GALD_CH1_LINES, 8], ['LINA', LINA_CH1_LINES, 32], ['BALDO', BALDO_CH1_LINES, 3], ['LEVI', LEVI_CH1_LINES, 5], ['ARIA', ARIA_CH1_LINES, 8]] as const;
+    for (const [who, lines, n] of tables) {
+      expect(Object.keys(lines), who).toHaveLength(n);
+      for (const file of Object.values(lines)) {
+        expect(voiceUrl(`ch1.${file}`), file).not.toBeNull();
+        expect(VOICE_LINES[`ch1.${file}`].who).toBe(who);
+      }
+    }
+    // His word as he changes in the fight: by its phase.
+    expect(voiceUrl('battle.gald.phase.SERIOUS')).not.toBeNull();
+    expect(voiceUrl('battle.gald.phase.DESPERATE')).not.toBeNull();
+    // Shown as 「盗賊 ガルド」 in the forest, 「盗賊」 after the answer: him either way.
+    expect(lineVoice('盗賊 ガルド', '……止まれ。')).toBe('ch1.v_ch1_gald001');
+    expect(lineVoice('盗賊', '……なんのつもりだ。')).toBe('ch1.v_ch1_gald015');
+    expect(lineVoice('リナ', 'まいどあり！')).toBe('ch1.v_ch1_lina013');
+    expect(lineVoice('バルド', '……うるさいな。')).toBe('ch1.v_ch1_baldo003');
+    expect(lineVoice('レヴィ', 'へいへい。')).toBe('ch1.v_ch1_levi005');
+    expect(lineVoice('アリア', '久しぶりね、ケイオス。')).toBe('ch1.v_ch1_aria001');
+    expect(voiceGainOf(voiceUrl('ch1.v_ch1_lina035')!)).toBeCloseTo(10 ** (12 / 20), 3);
   });
 
   it('the whispered takes played louder (+6dB); the rest as recorded', () => {
