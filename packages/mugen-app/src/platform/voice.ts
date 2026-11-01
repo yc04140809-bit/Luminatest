@@ -30,7 +30,9 @@
  *   ch1.<file id>                    ケイオス's words as shown in chapter 1, by what she says (ボイスパック12:
  *                                    platform/kaosLines.ts; `kaosLineVoice(text)`) — one recording per text, wherever
  *                                    it is said (ui/audio/kaosLineVoice.ts plays it as the line comes up); 主人公's
- *                                    likewise (ボイスパック13: platform/heroLines.ts; `heroLineVoice(text)`)
+ *                                    likewise (ボイスパック13: platform/heroLines.ts; `heroLineVoice(text)`), and
+ *                                    グレイヴ's, ミレイ's, リゼル's (ボイスパック14〜16: platform/npcLines.ts) — any of
+ *                                    them by who says it and what (`lineVoice(speaker, text)`)
  *
  * A member of the fight speaks where the table has lines for them (`battle.<member id>.start` …): 主人公, ケイオス,
  * グレイヴ now; レヴィ, アリア, リゼル as soon as they fight beside them (their lines are here already). レヴィ's and
@@ -40,6 +42,8 @@
  */
 
 import { HERO_CH1_GAIN_DB, HERO_CH1_LINES } from './heroLines';
+import { GRAVE_CH1_LINES, MIREI_CH1_LINES, NPC_CH1_GAIN_DB, RIZEL_CH1_LINES } from './npcLines';
+import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { KAOS_CH1_GAIN_DB, KAOS_CH1_LINES, KAOS_CH1_SPELLS } from './kaosLines';
 
 export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI';
@@ -128,7 +132,8 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'battle.grave.down': grave(['v_grave_down01.mp3'], '（戦闘不能）'),
   'battle.grave.win': grave(['v_grave_win01.mp3'], '（勝利）'),
   // 重撃・豪断: its cut-in, then — as its blow comes down — its release.
-  'battle.goudan': grave(['v_grave_finisher01.mp3'], '（必殺カットイン）'),
+  // 重撃・豪断: its name (ボイスパック14、読みはジュウゲキ・ゴウダン), then his line for the cut-in.
+  'battle.goudan': grave(['v_ch1_grave074.mp3', 'v_grave_finisher01.mp3'], '重撃・豪断／本気を出すのは何年ぶりかね', { play: 'SEQUENCE' }),
   'battle.goudan.release': grave(['v_grave_finisher02.mp3'], '（必殺・放出）'),
   // ---- 戦闘（レヴィ — 第6便。第2章で加入：それまで鳴らない） ----
   'battle.levi.start': levi(['v_levi_start01.mp3'], '退くなら今のうちだ'),
@@ -199,6 +204,21 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
     ]),
   ),
   ...Object.fromEntries(Object.entries(KAOS_CH1_SPELLS).map(([spell, { file, says }]) => [`battle.${spell}`, kaos([`${file}.mp3`], says)])),
+  // ---- 第1章のグレイヴ・ミレイ・リゼル（ボイスパック14〜16）：画面の台詞ごとに1本 ----
+  ...Object.fromEntries(
+    (
+      [
+        ['GRAVE', GRAVE_CH1_LINES],
+        ['MIREI', MIREI_CH1_LINES],
+        ['RIZEL', RIZEL_CH1_LINES],
+      ] as const
+    ).flatMap(([who, lines]) =>
+      Object.entries(lines).map(([says, file]) => [
+        `ch1.${file}`,
+        { who, files: [`${file}.mp3`], says, ...(NPC_CH1_GAIN_DB[file] ? { gainDb: NPC_CH1_GAIN_DB[file] } : {}) },
+      ]),
+    ),
+  ),
   // ---- 第0話＋第1章の主人公（ボイスパック13）：画面の台詞ごとに1本 ----
   ...Object.fromEntries(
     Object.entries(HERO_CH1_LINES).map(([says, file]) => [
@@ -220,6 +240,25 @@ export const heroLineKey = (text: string): string => text.replace(/\n/g, '');
 /** 主人公's line for what he says on screen in 第0話 and chapter 1 (its text as written), or null. */
 export function heroLineVoice(text: string): string | null {
   const file = HERO_CH1_LINES[heroLineKey(text)];
+  return file ? `ch1.${file}` : null;
+}
+
+/** グレイヴ (「マスター」 before he gives his name), ミレイ, リゼル: their chapter-1 lines (ボイスパック14〜16). */
+const OTHERS_CH1: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  グレイヴ: GRAVE_CH1_LINES,
+  マスター: GRAVE_CH1_LINES,
+  ミレイ: MIREI_CH1_LINES,
+  リゼル: RIZEL_CH1_LINES,
+};
+
+/**
+ * The line id for what is said on screen, by who says it (as written: the hero as `{HERO}`) and what — ケイオス,
+ * 主人公, グレイヴ, ミレイ, リゼル — or null: someone else, a silence, a line with no take.
+ */
+export function lineVoice(speaker: string | null | undefined, text: string): string | null {
+  if (speaker === 'ケイオス') return kaosLineVoice(text);
+  if (speaker === HERO_SPEAKER) return heroLineVoice(text);
+  const file = speaker ? OTHERS_CH1[speaker]?.[heroLineKey(text)] : undefined;
   return file ? `ch1.${file}` : null;
 }
 

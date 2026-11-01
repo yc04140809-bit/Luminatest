@@ -247,6 +247,8 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   expect(rest.join('')).not.toContain('{HERO}');
   // …and in his own voice (ボイスパック13), the line written over two as well: 「そこまで危険なら、どうして倒さなかった？」.
   for (const take of ['v_ch1_hero066', 'v_ch1_hero070', 'v_ch1_hero076']) await expect.poll(() => heard(page, take), { message: take }).toBe(true);
+  // His in his (ボイスパック14): 「……遺跡だと？」「セキリュウガ。」「無理なら逃げろ。」.
+  for (const take of ['v_ch1_grave011', 'v_ch1_grave017', 'v_ch1_grave037']) await expect.poll(() => heard(page, take), { message: take }).toBe(true);
   await expect.poll(() => stage(page)).toBe('TOLD');
   // Told once: the next talk is his greeting, ending on a word of caution.
   await talkToMaster(page);

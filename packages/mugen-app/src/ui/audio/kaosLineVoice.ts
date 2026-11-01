@@ -1,5 +1,4 @@
-import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
-import { heroLineVoice, kaosLineVoice } from '../../platform/voice';
+import { lineVoice } from '../../platform/voice';
 import { playVoice } from '../../platform/audio';
 
 /**
@@ -12,11 +11,10 @@ import { playVoice } from '../../platform/audio';
  *
  * 主人公's words too (ボイスパック13), the same way: a line whose speaker is the hero as written (`{HERO}` — the
  * line before his name is put in) is looked up by its text (platform/heroLines.ts). His silences (「……。」「？」)
- * say nothing.
+ * say nothing. グレイヴ's, ミレイ's and リゼル's too (ボイスパック14〜16): every line goes through `lineVoice`.
  *
  * Once per `key` — the screen and the line — even where a screen is drawn again or an effect runs twice.
  */
-const KAOS = 'ケイオス';
 const AGAIN_MS = 3000;
 /** When each key was last said (a few lines said together each keep their own). */
 const said = new Map<string, number>();
@@ -26,8 +24,8 @@ export function sayKaosLine(
   line: { speaker?: string | null; text: string } | null | undefined,
   options?: { wait?: boolean },
 ): boolean {
-  if (!line || (line.speaker !== KAOS && line.speaker !== HERO_SPEAKER)) return false;
-  const id = line.speaker === KAOS ? kaosLineVoice(line.text) : heroLineVoice(line.text);
+  if (!line) return false;
+  const id = lineVoice(line.speaker, line.text);
   if (!id) return false;
   const now = performance.now();
   if (now - (said.get(key) ?? -Infinity) < AGAIN_MS) return false;

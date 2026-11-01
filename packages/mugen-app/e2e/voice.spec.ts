@@ -231,7 +231,7 @@ test('the bakery: リナ’s welcome as it is walked into (one of three, not the
   expect(ear.errors).toEqual([]);
 });
 
-test('the tool shop: ミレイ’s welcome, a word of hers when she is touched, her thanks back out', async ({ page }) => {
+test('the tool shop: ミレイ’s welcome, the line shown when she is touched in her voice (ボイスパック15), her thanks back out', async ({ page }) => {
   test.setTimeout(120_000);
   const ear = await listen(page);
   await intoTheVillage(page);
@@ -242,7 +242,11 @@ test('the tool shop: ミレイ’s welcome, a word of hers when she is touched, 
   const touched = (await ear.heard()).length;
   await page.getByTestId('shop-keeper-touch').click();
   await expect(page.getByTestId('shop-touch-line')).toBeVisible();
-  await expect.poll(async () => (await ear.files()).slice(touched).find((f) => /v_mirei_touch0[12]/.test(f)) ?? null).not.toBeNull();
+  await expect.poll(async () => (await ear.files()).slice(touched).find((f) => /^v_ch1_mirei\d{3}\.mp3$/.test(f)) ?? null).not.toBeNull();
+  // One of her touch lines' takes (001〜027), not the two at random.
+  const take = (await ear.files()).slice(touched).find((f) => /^v_ch1_mirei/.test(f))!;
+  expect(Number(take.slice(11, 14))).toBeLessThanOrEqual(27);
+  expect((await ear.files()).slice(touched).some((f) => /v_mirei_touch0[12]/.test(f))).toBe(false);
   const inside = (await ear.heard()).length;
   await page.getByTestId('shop-leave').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
@@ -264,7 +268,9 @@ test('グレイヴ: his plain blow says its take, and 重撃・豪断 its two �
   await page.getByTestId('pb-cmd-tech-goudan').click();
   const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
   if (await pick.isVisible().catch(() => false)) await pick.click();
-  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /v_grave_finisher/.test(f)), { timeout: 15_000 }).toEqual([
+  // Its name first (ボイスパック14), then his line for the cut-in, then the blow coming down.
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /v_grave_finisher|v_ch1_grave074/.test(f)), { timeout: 20_000 }).toEqual([
+    'v_ch1_grave074.mp3',
     'v_grave_finisher01.mp3',
     'v_grave_finisher02.mp3',
   ]);
@@ -299,6 +305,30 @@ test('the tavern: グレイヴ’s 「おう、よく来たな」 as his ordinar
   await (await placeButton(page, 'tavern-button')).click();
   await talkThrough();
   await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_grave_daily01.mp3');
+  expect(ear.errors).toEqual([]);
+});
+
+test('the tavern (ボイスパック14): his greeting’s first line after 「おう、よく来たな」, not over it; 「どうした。」 over his menu', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await intoTheVillage(page);
+  // Met once: his first meeting, read through.
+  await (await placeButton(page, 'tavern-button')).click();
+  await page.getByTestId('tavern-talk').click();
+  for (let i = 0; i < 40 && (await page.getByTestId('tavern-next').isVisible().catch(() => false)); i++) await page.getByTestId('tavern-next').click();
+  await page.getByTestId('tavern-leave').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  const before = (await ear.heard()).length;
+  await (await placeButton(page, 'tavern-button')).click();
+  await page.getByTestId('tavern-talk').click();
+  await expect(page.getByTestId('tavern-master-menu')).toBeVisible();
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_grave008.mp3');
+  await page.getByTestId('tavern-master-listen').click();
+  // Left on its first line: 「おう、よく来たな」, then 「また来たな。そこ空いてるぞ。」.
+  await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /v_grave_daily01|v_ch1_grave006/.test(f)), { timeout: 10_000 }).toEqual([
+    'v_grave_daily01.mp3',
+    'v_ch1_grave006.mp3',
+  ]);
   expect(ear.errors).toEqual([]);
 });
 

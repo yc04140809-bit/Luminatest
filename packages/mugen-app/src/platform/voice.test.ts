@@ -10,9 +10,10 @@ vi.mock('@mugen/assets/appMusic', () => ({ APP_BGM_ASSETS: {}, APP_BGM_FALLBACK:
 vi.mock('@mugen/assets/sfx', () => ({ SFX_FILES: {} }));
 
 const { AudioManager, VOICE_GAP_MS } = await import('./audio');
-const { VOICE_LINES, heroLineVoice, kaosLineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
+const { VOICE_LINES, heroLineVoice, kaosLineVoice, lineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
 const { KAOS_CH1_LINES, KAOS_CH1_SPELLS } = await import('./kaosLines');
 const { HERO_CH1_LINES } = await import('./heroLines');
+const { GRAVE_CH1_LINES, MIREI_CH1_LINES, RIZEL_CH1_LINES } = await import('./npcLines');
 
 class FakeAudio {
   static made: FakeAudio[] = [];
@@ -64,12 +65,12 @@ describe('the table', () => {
         KAOS: /^(v_chaos_|v_op_chaos|v_ch1_chaos|kaos_|op\.op_|daily\.)/,
         HERO: /^(v_hero_|hero_|v_ch1_hero)/,
         GALD: /^v_gard_/,
-        GRAVE: /^v_grave_/,
+        GRAVE: /^(v_grave_|v_ch1_grave)/,
         LEVI: /^v_levi_/,
         ARIA: /^v_aria_/,
-        RIZEL: /^v_rizel_/,
+        RIZEL: /^(v_rizel_|v_ch1_rizel)/,
         LINA: /^v_lina_/,
-        MIREI: /^v_mirei_/,
+        MIREI: /^(v_mirei_|v_ch1_mirei)/,
       }[line.who];
       for (const f of line.files) expect(f).toMatch(named);
       // 主人公 is the player's to name: no name of his is written here.
@@ -288,6 +289,35 @@ describe('第1章のケイオス (ボイスパック12): what she says on screen
     // His quiet takes, lifted.
     expect(voiceGainOf(voiceUrl(heroLineVoice('……いた。'))!)).toBeCloseTo(10 ** (6 / 20), 3);
     expect(voiceGainOf(voiceUrl(heroLineVoice('どうした？'))!)).toBe(1);
+  });
+
+  it('グレイヴ 74, ミレイ 38, リゼル 28 (ボイスパック14〜16): every take found; a line by who says it and what', () => {
+    expect(Object.keys(GRAVE_CH1_LINES)).toHaveLength(73);
+    expect(Object.keys(MIREI_CH1_LINES)).toHaveLength(38);
+    expect(Object.keys(RIZEL_CH1_LINES)).toHaveLength(28);
+    for (const [who, lines] of [['GRAVE', GRAVE_CH1_LINES], ['MIREI', MIREI_CH1_LINES], ['RIZEL', RIZEL_CH1_LINES]] as const)
+      for (const file of Object.values(lines)) {
+        expect(voiceUrl(`ch1.${file}`), file).not.toBeNull();
+        expect(VOICE_LINES[`ch1.${file}`].who).toBe(who);
+      }
+    // 重撃・豪断: its name, then his line for the cut-in.
+    expect(VOICE_LINES['battle.goudan'].files).toEqual(['v_ch1_grave074.mp3', 'v_grave_finisher01.mp3']);
+    expect(VOICE_LINES['battle.goudan'].play).toBe('SEQUENCE');
+    // By who says it: the same words, each in their own voice.
+    expect(lineVoice('グレイヴ', 'どうした。')).toBe('ch1.v_ch1_grave008');
+    expect(lineVoice('{HERO}', 'どうした。')).toBe('ch1.v_ch1_hero054');
+    expect(lineVoice('{HERO}', 'どうした？')).toBe('ch1.v_ch1_hero022');
+    // Before he gives his name he is 「マスター」 on screen — still him.
+    expect(lineVoice('マスター', 'お、旅人さん。見ない顔だな。')).toBe('ch1.v_ch1_grave001');
+    // Written over two lines or run together: the same take.
+    expect(lineVoice('グレイヴ', 'あの遺跡で、\nとんでもねぇ奴と戦ったことがある。')).toBe('ch1.v_ch1_grave016');
+    expect(lineVoice('グレイヴ', 'あの遺跡で、とんでもねぇ奴と戦ったことがある。')).toBe('ch1.v_ch1_grave016');
+    expect(lineVoice('ミレイ', 'いらっしゃい。今日は何を探してるの？')).toBe('ch1.v_ch1_mirei001');
+    expect(lineVoice('リゼル', 'リゼル。……覚えなくていい。')).toBe('ch1.v_ch1_rizel001');
+    expect(lineVoice('ケイオス', 'ただいまー。')).toBe('ch1.v_ch1_chaos042');
+    expect(lineVoice('リナ', 'まいどあり！')).toBeNull();
+    expect(lineVoice(null, 'どうした。')).toBeNull();
+    expect(voiceGainOf(voiceUrl('ch1.v_ch1_grave043')!)).toBeCloseTo(10 ** (6 / 20), 3);
   });
 
   it('the whispered takes played louder (+6dB); the rest as recorded', () => {

@@ -8,6 +8,8 @@ import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { playVoice } from '../platform/audio';
+import { lineVoice } from '../platform/voice';
+import { sayKaosLine } from './audio/kaosLineVoice';
 import { SHOP_VOICE_SPOTS, shopTouch } from './audio/shopVoices';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
 import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
@@ -71,6 +73,10 @@ export function ItemShopScreen({
   const [sceneAt, setSceneAt] = useState(0);
   const [sceneDone, setSceneDone] = useState(false);
   const sceneLine = scene && !sceneDone ? scene.lines[sceneAt] : null;
+  // Her words in it as they come up (ボイスパック15) — the first after her welcome, not over it.
+  useEffect(() => {
+    if (sceneLine) sayKaosLine(`shop-daily:${sceneAt}`, sceneLine, { wait: sceneAt === 0 });
+  }, [sceneAt, sceneDone]);
   const sceneNext = () => {
     if (!scene) return;
     if (sceneAt < scene.lines.length - 1) return setSceneAt((n) => n + 1);
@@ -134,8 +140,8 @@ export function ItemShopScreen({
       arcStage: SEKIRYUGA_STAGES.indexOf(world.getSekiryugaStage()),
     };
     const said = pickTouchReaction(SHOP_MIREI, taps.current, facts, lastLine.current);
-    // Her voice too: one of hers at random (platform/voice.ts `shop.ALDEN_ITEM_SHOP.touch`).
-    playVoice(shopTouch(SHOP_VOICE_SPOTS.ITEM_SHOP));
+    // Her voice too: the line shown, in her voice (ボイスパック15); else one of hers at random (`shop.ALDEN_ITEM_SHOP.touch`).
+    playVoice(lineVoice(SHOP_MIREI.name, said.text) ?? shopTouch(SHOP_VOICE_SPOTS.ITEM_SHOP));
     lastLine.current = said.text;
     setFace(said.expression);
     setTouch({ ...said, n: taps.current });

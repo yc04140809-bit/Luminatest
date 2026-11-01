@@ -103,6 +103,10 @@ const graveMeeting: TalkEvent<GraveTalkContext> = {
 /** His greeting's last line — "nothing worth hearing tonight" — which the route's lines replace. */
 const NOTHING_TONIGHT = '今夜は、めぼしい話は入ってきてねぇ。';
 
+/** What he says over his small menu (話を聞く／加工を頼む). */
+const MASTER_ASKS = 'どうした。';
+const GRAVE_SPEAKER = 'グレイヴ';
+
 /**
  * What a talk is, with the route's words where they belong:
  *
@@ -280,10 +284,15 @@ export function TavernScreen({
   const talking = steps ? steps[stepAt].lines : (talk?.lines ?? null);
   const raw = talking?.[at];
   const line = raw ? shown(raw, heroName) : undefined;
-  // 主人公's words as they come up (ボイスパック13): the line as written, before his name is put in.
+  // 主人公's words as they come up (ボイスパック13): the line as written, before his name is put in; グレイヴ's
+  // (ボイスパック14). A talk's first line after whatever is still being said (his 「おう、よく来たな」), not over it.
   useEffect(() => {
-    if (raw) sayKaosLine(`tavern:${stepAt}:${at}:${raw.text}`, raw);
+    if (raw) sayKaosLine(`tavern:${stepAt}:${at}:${raw.text}`, raw, { wait: at === 0 });
   }, [raw]);
+  // His 「どうした。」 over the small menu, as it opens.
+  useEffect(() => {
+    if (masterMenu) sayKaosLine('tavern:menu', { speaker: GRAVE_SPEAKER, text: MASTER_ASKS });
+  }, [masterMenu]);
   // グレイヴの表情 (2026-10-12): while he speaks — a line of his, his small menu, his handwork —
   // he is drawn with the face the line names (NORMAL when it names none), in place of his standing figure.
   const [craftFace, setCraftFace] = useState<GraveFace>('NORMAL');
@@ -462,7 +471,7 @@ export function TavernScreen({
         ) : masterMenu ? (
           <div className="tavern-panel tavern-master-menu" data-testid="tavern-master-menu">
             <p className="speaker">グレイヴ</p>
-            <p className="line tavern-panel-say">「どうした。」</p>
+            <p className="line tavern-panel-say">「{MASTER_ASKS}」</p>
             <div className="actions">
               <button
                 className="btn primary"

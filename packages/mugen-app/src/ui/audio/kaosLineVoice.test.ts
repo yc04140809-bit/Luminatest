@@ -3,8 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const played: unknown[][] = [];
 vi.mock('../../platform/audio', () => ({ playVoice: (...a: unknown[]) => played.push(a) }));
 vi.mock('../../platform/voice', () => ({
-  kaosLineVoice: (text: string) => ({ 'ただいまー。': 'ch1.v_ch1_chaos042', 'うん。': 'ch1.v_ch1_chaos007' })[text] ?? null,
-  heroLineVoice: (text: string) => ({ 'どうした？': 'ch1.v_ch1_hero022' })[text] ?? null,
+  lineVoice: (speaker: string | null, text: string) =>
+    ({
+      ケイオス: { 'ただいまー。': 'ch1.v_ch1_chaos042', 'うん。': 'ch1.v_ch1_chaos007' },
+      '{HERO}': { 'どうした？': 'ch1.v_ch1_hero022' },
+      グレイヴ: { 'どうした。': 'ch1.v_ch1_grave008' },
+    } as Record<string, Record<string, string>>)[speaker ?? '']?.[text] ?? null,
 }));
 const { sayKaosLine, forgetKaosLine } = await import('./kaosLineVoice');
 
@@ -29,6 +33,12 @@ describe('ケイオス’s line, heard as it comes up (ボイスパック12)', (
     expect(sayKaosLine('h:3', { speaker: 'ケイオス', text: 'どうした？' })).toBe(false);
     expect(sayKaosLine('h:4', { speaker: '{HERO}', text: '？' })).toBe(false);
     expect(played).toEqual([['ch1.v_ch1_hero022', undefined]]);
+  });
+
+  it('グレイヴ’s too (ボイスパック14), by who says it', () => {
+    expect(sayKaosLine('g:0', { speaker: 'グレイヴ', text: 'どうした。' })).toBe(true);
+    expect(sayKaosLine('g:1', { speaker: 'リナ', text: 'どうした。' })).toBe(false);
+    expect(played).toEqual([['ch1.v_ch1_grave008', undefined]]);
   });
 
   it('once per screen and line, even drawn twice; several together each once, the rest after the first', () => {

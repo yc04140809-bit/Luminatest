@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { sayKaosLine } from './audio/kaosLineVoice';
 import type { BgmId } from '@mugen/assets';
 import type { TradeOutcome } from '@mugen/core/world/world';
 import { itemDef } from '@mugen/content/economy/itemDefs';
@@ -206,6 +207,11 @@ export function CraftPanel({
   const [busy, setBusy] = useState(false);
   // Re-drawn after each making (the bag changed).
   const [, setMade] = useState(0);
+  // His word, heard each time he says one (ボイスパック14): as the panel opens, and after each asking.
+  const [asked, setAsked] = useState(0);
+  useEffect(() => {
+    sayKaosLine(`craft:${asked}`, { speaker: 'グレイヴ', text: said });
+  }, [asked]);
   const craft = hub.craft;
   if (!craft) return null;
 
@@ -225,8 +231,12 @@ export function CraftPanel({
                 : GRAVE_CRAFT_WORDS.owned,
         );
         setMade((n) => n + 1);
+        setAsked((n) => n + 1);
       })
-      .catch(() => setSaid(GRAVE_CRAFT_WORDS.short))
+      .catch(() => {
+        setSaid(GRAVE_CRAFT_WORDS.short);
+        setAsked((n) => n + 1);
+      })
       .finally(() => setBusy(false));
   };
 
