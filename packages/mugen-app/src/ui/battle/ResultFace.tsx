@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { playVoice } from '../../platform/audio';
+import { kaosLineVoice } from '../../platform/voice';
 import { kaosFacePicture, type FaceBox } from '../../assets/kaosFaces';
 import type { resultFaceFor } from './resultFace';
 import './resultFace.css';
@@ -32,8 +33,11 @@ export function ResultOver({
   useEffect(() => {
     if (said.current) return;
     said.current = true;
+    // Her line in the band is what she says (ボイスパック12), in place of her plain word for a win — never both.
+    const band = face ? kaosLineVoice(face.line.kaos) : null;
+    const words = band ? say.map((id) => (id === 'battle.kaos.win' ? band : id)) : say;
     // After whatever is still being said (a finisher's last line), never over it.
-    playVoice(say, { wait: true });
+    playVoice(words, { wait: true });
   }, []);
   return (
     <div className={`result-over${face ? ' with-kaos' : ''}`} data-testid={testId}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { kaosFaceOf } from '@mugen/content/characters/kaosFaces';
@@ -8,6 +8,7 @@ import { nudgeFor, settingOutTalkFor, type KaosNudge, type NudgeFacts } from '@m
 import { banterMark } from '@mugen/content/story/kaosBanter';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import { TalkStage, stageAt } from './talkStage';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * ケイオスの軽い誘い (襲撃前の日々, 2026-10-11): as they come back into the
@@ -146,6 +147,10 @@ export function settingOutSaid(world: World, memo: TalkMemo, talk: KaosNudge): v
 export function NudgeAside({ world, nudge, onDone }: { world: World; nudge: KaosNudge; onDone: () => void }) {
   const [at, setAt] = useState(0);
   const line = nudge.lines[Math.min(at, nudge.lines.length - 1)];
+  // Her line, heard as it comes up (ボイスパック12).
+  useEffect(() => {
+    sayKaosLine(`nudge:${nudge.id}:${at}`, line);
+  }, [at]);
   const last = at >= nudge.lines.length - 1;
   const speaker = line.speaker === HERO_SPEAKER ? world.getHeroName() : line.speaker;
   const face = kaosFaceOf(line);

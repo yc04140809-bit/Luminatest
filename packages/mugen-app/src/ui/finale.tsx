@@ -32,6 +32,7 @@ import { MOMENT_SPECIAL_FX, SPECIAL_FX, type SpecialEffectType } from './fx/spec
 import { audioManager, playSfx } from '../platform/audio';
 import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * 第1章終盤 — THE FINALE, PLAYED (2026-10-12: 最低限の演出で最初から最後まで通す).
@@ -318,6 +319,11 @@ function FinaleScene({
         if (shake) void screenShake(shake, at0);
       });
     }, lands);
+    return () => window.clearTimeout(t);
+  }, [sceneId, at]);
+  // Her words, heard as they come up — after the line's 間, with them (ボイスパック12).
+  useEffect(() => {
+    const t = window.setTimeout(() => sayKaosLine(`finale:${sceneId}:${at}`, { speaker, text }), pause);
     return () => window.clearTimeout(t);
   }, [sceneId, at]);
   // The music falling away (a hushed line; a DROP or a DIP until the scene ends) — eased, and back after.

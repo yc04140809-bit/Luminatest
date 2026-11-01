@@ -287,3 +287,29 @@ for (const [w, h] of [
     await expect(page.getByTestId('explore-button')).toBeInViewport();
   });
 }
+
+test('ケイオス’s words in it heard as each comes up (ボイスパック12): 「ねえ。」「冒険ってさ。」「たまには何もしないのも、冒険じゃない？」「……うん。こういうの。」', async ({ page }) => {
+  await page.addInitScript(() => {
+    const heard: string[] = [];
+    (window as unknown as { __heard: string[] }).__heard = heard;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      const file = (this.src.split('/').pop() ?? '').replace(/-[A-Za-z0-9_]{6,}(?=\.mp3)/, '');
+      if (this instanceof HTMLAudioElement && /^v_ch1_/.test(file)) heard.push(file);
+      return play.call(this);
+    };
+  });
+  await freshVillage(page);
+  await onTheRoute(page, 'SETTLED');
+  // From here: what was said on the way (the look ahead, the ruins) is not this scene's.
+  const before = await page.evaluate(() => (window as unknown as { __heard: string[] }).__heard.length);
+  await outAndBack(page);
+  await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'KAOS_DETOUR');
+  for (let i = 0; i < 12 && (await page.getByTestId('daily-scene').count()) > 0; i++) {
+    await page.waitForTimeout(250);
+    await page.getByTestId('daily-next').click();
+  }
+  await expect
+    .poll(() => page.evaluate((from) => (window as unknown as { __heard: string[] }).__heard.slice(from), before))
+    .toEqual(['013', '014', '015', '016'].map((n) => `v_ch1_chaos${n}.mp3`));
+});

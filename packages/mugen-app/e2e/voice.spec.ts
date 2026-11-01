@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { fightUntil } from './battle';
-import { throughTheOpening, pastTheIntro } from './opening';
+import { fightUntil, readyToAct, throughTheAwakening } from './battle';
+import { throughTheOpening, pastTheIntro, watchTheIntro } from './opening';
 import { placeButton } from './village';
 
 /**
@@ -64,7 +64,7 @@ test('ケイオス’s 《双極臨界》: 「双極臨界――吸いなさい�
   expect(ear.errors).toEqual([]);
 });
 
-test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「散れ」 as the lilies open; a won fight: 「……終わったか」 then 「ふふっ、うちの勝ちだね」', async ({ page }) => {
+test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「散れ」 as the lilies open; a won fight: 「……終わったか」 then her line in the band, 「決まったね！ わたしの応援のおかげ♪」', async ({ page }) => {
   test.setTimeout(60_000);
   const ear = await listen(page);
   await page.goto('/?preview=party&higanbana=1&enemies=2&weak=1');
@@ -74,7 +74,8 @@ test('主人公’s 《彼岸花》: 「彼岸花――」 with the cut-in, 「�
   await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 10_000 });
   await expect.poll(async () => (await ear.files()).slice(before).filter((f) => /finisher/.test(f))).toEqual(['v_hero_finisher01.mp3', 'v_hero_finisher02.mp3']);
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 30_000 });
-  await expect.poll(async () => (await ear.files()).filter((f) => /win/.test(f)), { timeout: 8_000 }).toEqual(['v_hero_win01.mp3', 'v_chaos_win01.mp3']);
+  // Her line in the result's band is what she says (ボイスパック12), in place of her plain word for a win.
+  await expect.poll(async () => (await ear.files()).filter((f) => /win|v_ch1_/.test(f)), { timeout: 8_000 }).toEqual(['v_hero_win01.mp3', 'v_ch1_chaos152.mp3']);
   expect(ear.errors).toEqual([]);
 });
 
@@ -271,5 +272,48 @@ test('the tavern: グレイヴ’s 「おう、よく来たな」 as his ordinar
   await (await placeButton(page, 'tavern-button')).click();
   await talkThrough();
   await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_grave_daily01.mp3');
+  expect(ear.errors).toEqual([]);
+});
+
+test('第1章のケイオス (ボイスパック12): 第0話 from 回想 — each line of hers heard as it comes up, 「？？？」 before she is named too', async ({ page }) => {
+  test.setTimeout(90_000);
+  const ear = await listen(page);
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await page.getByTestId('archive-button').click();
+  const before = (await ear.heard()).length;
+  await page.getByTestId('recall-OPENING_INTRO').click();
+  await watchTheIntro(page);
+  // Her 「ん？」 has no take of its own (the opening's says 「ん？ どうしたの？」): silent there.
+  await expect
+    .poll(async () => (await ear.files()).slice(before).filter((f) => /^v_ch1_/.test(f)))
+    .toEqual(['003', '004', '005', '006', '007', '008', '009', '010', '011', '012'].map((n) => `v_ch1_chaos${n}.mp3`));
+  expect(ear.errors).toEqual([]);
+});
+
+test('第1章のケイオス (ボイスパック12): against Gald she wakes — 「……そこまで。」「わたしも、戦えるよ。」 — and her spell says its name, 「星光弾」', async ({ page }) => {
+  test.setTimeout(120_000);
+  const ear = await listen(page);
+  await page.goto('/?preview=battle&enemy=gald');
+  const awakening = page.getByTestId('magic-awakening');
+  const until = Date.now() + 90_000;
+  while (Date.now() < until && !(await awakening.isVisible())) {
+    const free = await page.evaluate(() => document.querySelector('[data-testid="bp-commands"]')?.getAttribute('data-locked') === 'no');
+    if (free) await page.getByTestId('bp-attack').click().catch(() => {});
+    else await page.waitForTimeout(60);
+  }
+  expect(await throughTheAwakening(page)).toBe(true);
+  await expect.poll(async () => (await ear.files()).filter((f) => /^v_ch1_/.test(f))).toEqual(['v_ch1_chaos100.mp3', 'v_ch1_chaos101.mp3']);
+  await readyToAct(page);
+  await page.getByTestId('bp-magic').click();
+  await page.getByTestId('magic-starlight_bolt').click();
+  await expect.poll(async () => (await ear.files()).filter((f) => /^v_ch1_/.test(f)), { timeout: 10_000 }).toContain('v_ch1_chaos145.mp3');
   expect(ear.errors).toEqual([]);
 });

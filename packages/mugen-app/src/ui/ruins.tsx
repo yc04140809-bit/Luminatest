@@ -21,6 +21,7 @@ import { portraitArt } from '../assets/portraits';
 import { playSfx } from '../platform/audio';
 import { NewBadge } from './common/NewBadge';
 import { OnceNotice } from './common/OnceNotice';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /** The way deeper, as a destination (core/world/readMarks.ts `dest:`). */
 export const SEAL_DESTINATION = 'dest:SEKIRYUGA_SEAL';
@@ -198,6 +199,10 @@ export function SealApproachScreen({
   const lines = step === 'signs' ? SEKIRYUGA_APPROACH_SIGNS : SEKIRYUGA_APPROACH_KAOS;
   const line = step === 'signs' || step === 'kaos' ? lines[at] : null;
   const quiet = useRef<number | null>(null);
+  // Her words as they come up (ボイスパック12).
+  useEffect(() => {
+    if (step === 'kaos') sayKaosLine(`seki-approach:${at}`, line);
+  }, [step, at]);
 
   useEffect(() => () => {
     if (quiet.current !== null) window.clearTimeout(quiet.current);
@@ -285,6 +290,10 @@ export function SekiryugaAftermathScreen({ heroName, onDone }: { heroName: strin
   const [at, setAt] = useState(0);
   const line = shown(SEKIRYUGA_AFTERMATH[at], heroName);
   const last = at >= SEKIRYUGA_AFTERMATH.length - 1;
+  // Her words as they come up (ボイスパック12).
+  useEffect(() => {
+    sayKaosLine(`seki-after:${at}`, line);
+  }, [at]);
   // It is down for the first two lines; then it rises — and, from 「だが、
   // セキリュウガはこちらを見ていない。」 on, it is turned away, deeper in.
   const stopped = at < 2;
@@ -348,6 +357,10 @@ export function SekiryugaRevisitScreen({ heroName, onDone }: { heroName: string;
   const beat = SEKIRYUGA_REVISIT[at];
   const line = shown(beat, heroName);
   const last = at >= SEKIRYUGA_REVISIT.length - 1;
+  // Her words as they come up (ボイスパック12; her silence says nothing).
+  useEffect(() => {
+    sayKaosLine(`seki-revisit:${at}`, line);
+  }, [at]);
   // Which way it is looking: the last beat that said so.
   const look = SEKIRYUGA_REVISIT.slice(0, at + 1).reduce<'party' | 'deeper'>((now, b) => b.look ?? now, 'deeper');
   const glance = !!beat.glance;

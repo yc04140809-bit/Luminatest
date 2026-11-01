@@ -57,6 +57,7 @@ function toldParts(line: string): [string, string] {
 const TOLD_MS = 3200;
 const TOLD_FLOOR_MS = 2200;
 import { AwakeningScene } from './AwakeningScene';
+import { AwakeningVoice } from './AwakeningVoice';
 import { useMeterTrails } from './meterTrail';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
@@ -629,7 +630,10 @@ export function BattleStage({
       style={{ ...theatreVars(speed), ...uiVars } as CSSProperties}
     >
       {battle.awakeningLines.length > 0 && onAwakeningDone && (
-        <AwakeningScene lines={battle.awakeningLines} onDone={onAwakeningDone} />
+        <>
+          <AwakeningScene lines={battle.awakeningLines} onDone={onAwakeningDone} />
+          <AwakeningVoice lines={battle.awakeningLines} />
+        </>
       )}
 
       <div

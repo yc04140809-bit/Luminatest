@@ -13,6 +13,7 @@ import { BanterAside } from "./kaosBanter";
 import { banterFor } from "./banterRoll";
 import { NudgeAside } from "./kaosNudge";
 import type { KaosNudge } from "@mugen/content/story/kaosNudges";
+import { sayKaosLine } from "./audio/kaosLineVoice";
 
 /**
  * ALDEN INCIDENT — KAOS SENSES SOMETHING (予兆フェーズ, 2026-10-10).
@@ -57,6 +58,12 @@ export function KaosAside({
     // Once, as it is shown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Her line of the signs, heard as it comes up (ボイスパック12).
+  useEffect(() => {
+    if (owed === null || heard !== null) return;
+    const said = INCIDENT_KAOS_TALKS[owed];
+    sayKaosLine(`incident:${owed}:${at}`, said[Math.min(at, said.length - 1)]);
+  }, [at, owed, heard]);
   if (owed === null && heard === null)
     return banter ? (
       <BanterAside world={world} banter={banter} />

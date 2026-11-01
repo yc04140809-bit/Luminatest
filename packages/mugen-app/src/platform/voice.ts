@@ -27,6 +27,9 @@
  *   talk.<who>.<moment>              a keeper's word as a talk goes (グレイヴ in the tavern: ui/tavern.tsx)
  *   event.<who>.<name>               a line for an event whose moment is still to be set (registered only)
  *   daily.<scene id>.<line no.>      a line of a small thing in the village (content/story/dailyScenes.ts), from 1
+ *   ch1.<file id>                    ケイオス's words as shown in chapter 1, by what she says (ボイスパック12:
+ *                                    platform/kaosLines.ts; `kaosLineVoice(text)`) — one recording per text, wherever
+ *                                    it is said (ui/audio/kaosLineVoice.ts plays it as the line comes up)
  *
  * A member of the fight speaks where the table has lines for them (`battle.<member id>.start` …): 主人公, ケイオス,
  * グレイヴ now; レヴィ, アリア, リゼル as soon as they fight beside them (their lines are here already). レヴィ's and
@@ -34,6 +37,8 @@
  *
  * Heard at the voice volume, which is its own (platform/audio.ts `voice`): neither the music's nor the sounds'.
  */
+
+import { KAOS_CH1_GAIN_DB, KAOS_CH1_LINES, KAOS_CH1_SPELLS } from './kaosLines';
 
 export type VoiceSpeaker = 'KAOS' | 'HERO' | 'GALD' | 'GRAVE' | 'LEVI' | 'ARIA' | 'RIZEL' | 'LINA' | 'MIREI';
 
@@ -78,7 +83,7 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   // ボイスパック11（2026-11-01）：変顔のあとの反応、「じゃ。」、見送り、最後のカード。
   // chaos11 は拗ねた小声のテイクなので、切り出したときに +4dB 上げてある。
   'op.op_reaction_comic': kaos(['v_op_chaos11.mp3', 'v_op_chaos12.mp3'], 'つまんない反応だな〜／もうちょっと驚いてくれてもいいのに。', 'SEQUENCE'),
-  'op.op_choice_comic.SMILE': kaos(['kaos_op_choice_smile.mp3'], '……なんてね♪'),
+  'op.op_choice_comic.SMILE': kaos(['op.op_choice_comic.SMILE.mp3'], '……なんてね♪'),
   'op.op_jaa': kaos(['v_op_chaos13.mp3'], 'じゃ。（読みは「じゃあ」）'),
   'op.op_itterasshai': kaos(['v_op_chaos14.mp3'], '行ってらっしゃい♪'),
   'op.op_mata_kokode': kaos(['v_op_chaos15.mp3'], 'また、ここで。'),
@@ -180,10 +185,24 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'event.aria.daily03': aria(['v_aria_daily03.mp3'], '空が綺麗です。……少し、休みませんか？'),
   // リナ — イベント用（発火条件は今後）。
   'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
-  // ---- イベント（村の小さな出来事。未納品） ----
-  'daily.LINA_BURNT_BREAD.4': kaos(['kaos_daily_lina_burnt_bread_4.mp3'], 'ん、おいしい♪ 焦げてるとこが一番おいしいかも。'),
+  // ---- イベント（村の小さな出来事）。LINA_BURNT_BREAD.4 はボイスパック12 ----
+  'daily.LINA_BURNT_BREAD.4': kaos(['daily.LINA_BURNT_BREAD.4.mp3'], 'ん、おいしい♪ 焦げてるとこが一番おいしいかも。'),
   'daily.LINA_BURNT_BREAD.6': hero(['hero_daily_lina_burnt_bread_6.mp3'], '褒めてる。'),
+  // ---- 第1章のケイオス（ボイスパック12）：画面の台詞ごとに1本、魔法は名前を唱える ----
+  ...Object.fromEntries(
+    Object.entries(KAOS_CH1_LINES).map(([says, file]) => [
+      `ch1.${file}`,
+      { who: 'KAOS' as const, files: [`${file}.mp3`], says, ...(KAOS_CH1_GAIN_DB[file] ? { gainDb: KAOS_CH1_GAIN_DB[file] } : {}) },
+    ]),
+  ),
+  ...Object.fromEntries(Object.entries(KAOS_CH1_SPELLS).map(([spell, { file, says }]) => [`battle.${spell}`, kaos([`${file}.mp3`], says)])),
 };
+
+/** ケイオス's line for what she says on screen in chapter 1 (its text as written, `{HERO}` and all), or null. */
+export function kaosLineVoice(text: string): string | null {
+  const file = KAOS_CH1_LINES[text];
+  return file ? `ch1.${file}` : null;
+}
 
 /** Where the files are. Read as a folder: the name is the whole of it. */
 const delivered = import.meta.glob('../../../mugen-assets/files/voice/*.{mp3,ogg,m4a,wav}', {

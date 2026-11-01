@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MemoryEvent } from '@mugen/core/memory/types';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
@@ -13,6 +13,7 @@ import { OFF_SCREEN_EVENT_INFO, OFF_SCREEN_VISIONS } from '@mugen/content/events
 import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * She is the one talking through all three beats — asking, showing,
@@ -112,6 +113,15 @@ export function FutureVisionScreen({
   const [leaving, setLeaving] = useState(false);
   const vision = visionCgOf(future);
   const cg = usePicture(vision ? () => eventCg(vision.key) : null, `event-cg:${vision?.key ?? 'none'}`);
+  // Her words, heard as each beat comes up (ボイスパック12) — several at once, one after another.
+  useEffect(() => {
+    const words =
+      beat === 'ASK' ? FUTURE_VISION_INTRO_LINES : beat === 'SEE' ? [{ speaker: 'ケイオス', text: FUTURE_VISION_SEEN_LINE }] : FUTURE_VISION_RETURN_LINES;
+    let first = true;
+    words.forEach((line, i) => {
+      if (sayKaosLine(`vision:${beat}:${i}`, line, { wait: !first })) first = false;
+    });
+  }, [beat]);
 
   if (beat === 'ASK') {
     return (

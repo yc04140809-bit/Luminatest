@@ -4,6 +4,7 @@ import type { PartyArtState } from '@mugen/core/art/artStates';
 import { kaosPortraitState, kaosTalkMode } from '@mugen/content/characters/kaosPortraits';
 import { areaArt, type AreaId } from '../assets/areas';
 import { sceneArt, titleKeyVisual, type SceneCharacter } from '../assets/sceneArt';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * A SCENE WITH PEOPLE IN IT — the App's first step past plain text.
@@ -191,6 +192,8 @@ export function StagedLines({
   const last = at >= lines.length - 1;
   useEffect(() => {
     if (line) onLine?.(line);
+    // ケイオス's line, heard as it comes up (ボイスパック12).
+    sayKaosLine(`${lineTestId}:${at}`, line);
     // Only when the line changes.
   }, [at]);
   return (

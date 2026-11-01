@@ -10,7 +10,8 @@ vi.mock('@mugen/assets/appMusic', () => ({ APP_BGM_ASSETS: {}, APP_BGM_FALLBACK:
 vi.mock('@mugen/assets/sfx', () => ({ SFX_FILES: {} }));
 
 const { AudioManager, VOICE_GAP_MS } = await import('./audio');
-const { VOICE_LINES, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
+const { VOICE_LINES, kaosLineVoice, lendVoiceFiles, setVoiceRandom, speaksInFights, voiceGainOf, voicePlan, voiceUrl } = await import('./voice');
+const { KAOS_CH1_LINES, KAOS_CH1_SPELLS } = await import('./kaosLines');
 
 class FakeAudio {
   static made: FakeAudio[] = [];
@@ -57,9 +58,9 @@ describe('the table', () => {
     const files = Object.values(VOICE_LINES).flatMap((l) => l.files);
     expect(new Set(files).size).toBe(files.length);
     for (const [id, line] of Object.entries(VOICE_LINES)) {
-      expect(id).toMatch(/^(battle|op|daily|shop|event|talk)\./);
+      expect(id).toMatch(/^(battle|op|daily|shop|event|talk|ch1)\./);
       const named = {
-        KAOS: /^(v_chaos_|v_op_chaos|kaos_)/,
+        KAOS: /^(v_chaos_|v_op_chaos|v_ch1_chaos|kaos_|op\.op_|daily\.)/,
         HERO: /^(v_hero_|hero_)/,
         GALD: /^v_gard_/,
         GRAVE: /^v_grave_/,
@@ -231,5 +232,37 @@ describe('a line spoken', () => {
     ready(0).playVoice('battle.kaos.start');
     new AudioManager().playVoice('battle.kaos.start');
     expect(FakeAudio.made).toHaveLength(0);
+  });
+});
+
+describe('第1章のケイオス (ボイスパック12): what she says on screen, by its text', () => {
+  it('all 150 files delivered and found: 143 lines, 5 spells, and the two registered before', () => {
+    expect(Object.keys(KAOS_CH1_LINES)).toHaveLength(143);
+    expect(Object.keys(KAOS_CH1_SPELLS)).toHaveLength(5);
+    const ids = [...Object.values(KAOS_CH1_LINES).map((f) => `ch1.${f}`), ...Object.keys(KAOS_CH1_SPELLS).map((s) => `battle.${s}`)];
+    for (const id of ids) expect(voiceUrl(id), id).not.toBeNull();
+    expect(new Set(ids.map((id) => VOICE_LINES[id].files[0])).size).toBe(148);
+    expect(voiceUrl('op.op_choice_comic.SMILE')).not.toBeNull();
+    expect(voiceUrl('daily.LINA_BURNT_BREAD.4')).not.toBeNull();
+  });
+
+  it('a line is found by its text wherever it is said; her silences and a line with no take of its own are not', () => {
+    expect(kaosLineVoice('ただいまー。')).toBe('ch1.v_ch1_chaos042');
+    // One recording for a text said in several scenes (作者 Q5): 「ううん。なんでもない♪」.
+    expect(kaosLineVoice('ううん。なんでもない♪')).toBe('ch1.v_ch1_chaos026');
+    expect(kaosLineVoice('よろしくね、{HERO}♪')).toBe('ch1.v_ch1_chaos009');
+    expect(kaosLineVoice('ずっと、\nあっちを見てる。')).toBe('ch1.v_ch1_chaos113');
+    expect(kaosLineVoice('……。')).toBeNull();
+    expect(kaosLineVoice('…………。')).toBeNull();
+    // 第0話's 「ん？」: the opening's take says 「ん？ どうしたの？」 — not used for it.
+    expect(kaosLineVoice('ん？')).toBeNull();
+    expect(kaosLineVoice('知らない台詞')).toBeNull();
+    expect(VOICE_LINES['battle.starlight_bolt'].says).toBe('星光弾');
+  });
+
+  it('the whispered takes played louder (+6dB); the rest as recorded', () => {
+    expect(voiceGainOf(voiceUrl(kaosLineVoice('奥。'))!)).toBeCloseTo(10 ** (6 / 20), 3);
+    expect(voiceGainOf(voiceUrl(kaosLineVoice('……え。'))!)).toBeCloseTo(10 ** (6 / 20), 3);
+    expect(voiceGainOf(voiceUrl(kaosLineVoice('ただいまー。'))!)).toBe(1);
   });
 });

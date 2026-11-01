@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { World } from "@mugen/core/world/world";
 import { HERO_SPEAKER } from "@mugen/content/story/sekiryugaArc";
 import { kaosFaceOf } from "@mugen/content/characters/kaosFaces";
 import { banterMark, type KaosBanter } from "@mugen/content/story/kaosBanter";
 import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
+import { sayKaosLine } from "./audio/kaosLineVoice";
 
 /**
  * 主人公×ケイオス — ONE SHORT EXCHANGE, at the top of the page (作者指示
@@ -22,7 +23,12 @@ export function BanterAside({
 }) {
   const [at, setAt] = useState(0);
   const [done, setDone] = useState(false);
-  if (done || world.isRead(banterMark(banter.id))) return null;
+  const shown = !done && !world.isRead(banterMark(banter.id));
+  // Her line, heard as it comes up (ボイスパック12).
+  useEffect(() => {
+    if (shown) sayKaosLine(`banter:${banter.id}:${at}`, banter.lines[Math.min(at, banter.lines.length - 1)]);
+  }, [at, shown]);
+  if (!shown) return null;
   const line = banter.lines[Math.min(at, banter.lines.length - 1)];
   const last = at >= banter.lines.length - 1;
   const speaker =

@@ -9,6 +9,7 @@ import {
   type IntroBeat,
 } from '@mugen/content/story/openingIntro';
 import { Stage, type FigureCue } from './scene';
+import { sayKaosLine } from './audio/kaosLineVoice';
 
 /**
  * 第0話 — THE WAY INTO ALDEN (content/story/openingIntro), after the name.
@@ -52,6 +53,11 @@ export function IntroScreen({
   const [held, setHeld] = useState(false);
   const beat = OPENING_INTRO[at];
   const last = at >= OPENING_INTRO.length - 1;
+  // Her line, heard as it comes up (ボイスパック12) — before she is named too (「？？？」 is her).
+  useEffect(() => {
+    if (phase !== 'beats' || beat.thought || (beat.speaker !== 'ケイオス' && beat.speaker !== '？？？')) return;
+    sayKaosLine(`intro:${at}`, { speaker: 'ケイオス', text: beat.text });
+  }, [phase, at]);
   // Out once, whether the card is tapped or runs out.
   const left = useRef(false);
   const leave = () => {
