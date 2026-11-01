@@ -75,9 +75,9 @@ describe('the table', () => {
     }
   });
 
-  it('the delivered thirty-five are all in it, and found: ケイオス 21 (opening 10, the fight 11), 主人公 9, ガルド 5', () => {
+  it('the delivered forty are all in it, and found: ケイオス 26 (opening 15, the fight 11), 主人公 9, ガルド 5', () => {
     const delivered = Object.values(VOICE_LINES).flatMap((l) => l.files).filter((f) => /^v_/.test(f));
-    expect(delivered.filter((f) => f.startsWith('v_op_chaos'))).toHaveLength(10);
+    expect(delivered.filter((f) => f.startsWith('v_op_chaos'))).toHaveLength(15);
     expect(delivered.filter((f) => f.startsWith('v_chaos_'))).toHaveLength(11);
     expect(delivered.filter((f) => f.startsWith('v_hero_'))).toHaveLength(9);
     expect(delivered.filter((f) => f.startsWith('v_gard_'))).toHaveLength(5);
@@ -121,6 +121,10 @@ describe('the table', () => {
       ['v_op_chaos09.mp3'],
       ['v_op_chaos10.mp3'],
     ]);
+    // ボイスパック11: the reaction's two panels in turn; then 「じゃ。」, the send-off and the last card, one a page.
+    expect(names('op.op_reaction_comic')).toEqual(['v_op_chaos11.mp3', 'v_op_chaos12.mp3']);
+    expect(['op.op_jaa', 'op.op_itterasshai', 'op.op_mata_kokode'].map(names)).toEqual([['v_op_chaos13.mp3'], ['v_op_chaos14.mp3'], ['v_op_chaos15.mp3']]);
+    expect(voicePlan('op.op_reaction_comic')).toHaveLength(2);
   });
 
   it('two takes are said in turn; a page’s lines all, in order', () => {

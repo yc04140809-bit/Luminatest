@@ -75,7 +75,13 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'op.op_05_doushitano': kaos(['v_op_chaos08.mp3'], 'ん？ どうしたの？'),
   'op.op_06_jitsuwane': kaos(['v_op_chaos09.mp3'], 'じつはね…'),
   'op.op_flash_01b_doushitano': kaos(['v_op_chaos10.mp3'], 'どうしたの？'),
+  // ボイスパック11（2026-11-01）：変顔のあとの反応、「じゃ。」、見送り、最後のカード。
+  // chaos11 は拗ねた小声のテイクなので、切り出したときに +4dB 上げてある。
+  'op.op_reaction_comic': kaos(['v_op_chaos11.mp3', 'v_op_chaos12.mp3'], 'つまんない反応だな〜／もうちょっと驚いてくれてもいいのに。', 'SEQUENCE'),
   'op.op_choice_comic.SMILE': kaos(['kaos_op_choice_smile.mp3'], '……なんてね♪'),
+  'op.op_jaa': kaos(['v_op_chaos13.mp3'], 'じゃ。（読みは「じゃあ」）'),
+  'op.op_itterasshai': kaos(['v_op_chaos14.mp3'], '行ってらっしゃい♪'),
+  'op.op_mata_kokode': kaos(['v_op_chaos15.mp3'], 'また、ここで。'),
   // ---- 戦闘（ケイオス） ----
   'battle.kaos.start': kaos(['v_chaos_start01.mp3'], 'さあ――始めようか'),
   'battle.kaos.attack': kaos(['v_chaos_atk01.mp3', 'v_chaos_atk02.mp3'], 'くらえっ／そこっ！', 'ALTERNATE'),
