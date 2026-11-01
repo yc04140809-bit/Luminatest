@@ -27,6 +27,8 @@ describe('触る漫画形式のオープニング (作者指示 2026-10-16)', ()
 
   it('noise and the glimpse go on by themselves, briefly; the despair is held; nothing explains (no names)', () => {
     for (const s of OPENING_STEPS.filter((x) => x.kind === 'NOISE')) expect(s.ms!).toBeLessThanOrEqual(200);
+    // Every glitch is heard but the one just before the last despair (作者 2026-11-01).
+    expect(OPENING_STEPS.filter((x) => x.kind === 'NOISE' && !x.sound).map((x) => x.image)).toEqual(['op_flash_06_noise']);
     const gald = OPENING_STEPS.find((s) => s.scene === 'SCENE15')!;
     expect(gald).toMatchObject({ kind: 'GLIMPSE', lines: [] });
     expect(gald.ms!).toBeGreaterThanOrEqual(700);

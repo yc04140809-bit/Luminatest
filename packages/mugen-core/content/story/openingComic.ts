@@ -178,7 +178,8 @@ export const OPENING_STEPS: readonly OpeningStep[] = [
   noise('FLASH04', 'op_flash_04_noise'),
   flash('FLASH05', 'op_flash_05_machine_angel'),
   flash('FLASH06', 'op_flash_06_stand'),
-  noise('FLASH06', 'op_flash_06_noise'),
+  // Its picture breaks up, but in silence (作者 2026-11-01: a noise here, just before the last despair, spoils it).
+  noise('FLASH06', 'op_flash_06_noise', { sound: undefined }),
   // FLASH 07 — the last despair, held longer than the rest.
   flash('FLASH07', 'op_flash_07_cry'),
   { scene: 'FLASH07', kind: 'HOLD', image: 'op_flash_07_cry_closeup', size: WIDE, ms: 1500, lines: [] },
