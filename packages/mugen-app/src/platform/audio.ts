@@ -148,9 +148,9 @@ export class AudioManager {
    * together; two lines of the same side never are. For each: the line being spoken, which run of lines it is
    * (a new run, or a stop, ends the one before and what was to follow), and what is still to follow in it.
    */
-  private voices: Record<VoiceMouth, { audio: HTMLAudioElement | null; chain: number; queue: string[] }> = {
-    party: { audio: null, chain: 0, queue: [] },
-    foe: { audio: null, chain: 0, queue: [] },
+  private voices: Record<VoiceMouth, { audio: HTMLAudioElement | null; chain: number; queue: string[]; breath: boolean }> = {
+    party: { audio: null, chain: 0, queue: [], breath: false },
+    foe: { audio: null, chain: 0, queue: [], breath: false },
   };
   /** When each sound last played, for the retrigger guard. */
   private sfxLastAt = new Map<SfxId, number>();
@@ -855,8 +855,9 @@ export class AudioManager {
       const who = other && !other.paused ? voiceSpeakerOf(other.src) : null;
       if (who === 'HERO' || who === 'KAOS') this.stopVoice('foe');
     }
-    // `wait`: after what is being said (a won fight's words wait for the finisher's last line), not over it.
-    if (wait && m.audio && !m.audio.paused) {
+    // `wait`: after what is being said (a won fight's words wait for the finisher's last line), not over it — the
+    // breath between two of its lines too (重撃・豪断's name, then his line: the blow landing between them waits).
+    if (wait && ((m.audio && !m.audio.paused) || m.breath)) {
       m.queue.push(...urls);
       return;
     }
@@ -865,7 +866,9 @@ export class AudioManager {
     const queue = [...urls];
     m.queue = queue;
     const say = (n: number) => {
-      if (chain !== m.chain || n >= queue.length) return;
+      if (chain !== m.chain) return;
+      m.breath = false;
+      if (n >= queue.length) return;
       try {
         const audio = new Audio(queue[n]);
         audio.volume = this.voiceVolume;
@@ -875,7 +878,8 @@ export class AudioManager {
         audio.addEventListener('ended', () => {
           if (m.audio !== audio) return;
           m.audio = null;
-          // The next of them, after a breath.
+          // The next of them, after a breath (one asked to wait while it is drawn is said after it).
+          m.breath = true;
           setTimeout(() => say(n + 1), VOICE_GAP_MS);
         });
         m.audio = audio;
@@ -915,6 +919,7 @@ export class AudioManager {
     for (const which of mouth ? [mouth] : (Object.keys(this.voices) as VoiceMouth[])) {
       const m = this.voices[which];
       m.chain++;
+      m.breath = false;
       const audio = m.audio;
       m.audio = null;
       if (!audio) continue;

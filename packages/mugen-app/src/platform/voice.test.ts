@@ -197,6 +197,25 @@ describe('a line spoken', () => {
     expect(FakeAudio.made.every((a) => a.paused)).toBe(true);
   });
 
+  it('a line that waits, asked in the breath between two of a sequence: after both — none of them dropped (重撃・豪断)', () => {
+    lendVoiceFiles({ 'v_ch1_grave074.mp3': 'name.mp3', 'v_grave_finisher01.mp3': 'line.mp3', 'v_grave_finisher02.mp3': 'down.mp3' });
+    const manager = ready();
+    manager.playVoice('battle.goudan');
+    FakeAudio.made[0].finish();
+    // The blow lands in the breath after its name.
+    manager.playVoice('battle.goudan.release', { wait: true });
+    vi.advanceTimersByTime(VOICE_GAP_MS);
+    FakeAudio.made[1].finish();
+    vi.advanceTimersByTime(VOICE_GAP_MS);
+    expect(FakeAudio.made.map(src)).toEqual(['name.mp3', 'line.mp3', 'down.mp3']);
+    // Not waiting, it still cuts in at once (and the breath is over).
+    manager.playVoice('battle.goudan');
+    FakeAudio.made[3].finish();
+    manager.playVoice('battle.goudan.release');
+    vi.advanceTimersByTime(VOICE_GAP_MS * 3);
+    expect(FakeAudio.made.slice(3).map(src)).toEqual(['name.mp3', 'down.mp3']);
+  });
+
   it('a line that waits is said after the one being said — not over it', () => {
     lendVoiceFiles({ 'v_chaos_finisher02.mp3': 'f.mp3', 'v_hero_win01.mp3': 'w.mp3' });
     const manager = ready();
