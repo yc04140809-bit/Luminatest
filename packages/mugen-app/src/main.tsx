@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { applySoundSettings, loadSoundSettings } from './platform/settings';
+import { runPendingReset } from './platform/adminReset';
 // 明朝 for the paper theme (ステータス's palette, used app-wide since
 // 2026-10-07 — ui/styles.css 「THE PAPER THEME」). Self-hosted, OFL 1.1.
 import '@fontsource/noto-serif-jp/latin-400.css';
@@ -167,9 +169,14 @@ if (
     ),
   );
 } else {
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
+  // The player's sound as they set it (設定), before anything is heard; and the admin's reset, if one was asked
+  // for, done before the game opens its save (platform/adminReset.ts).
+  applySoundSettings(loadSoundSettings());
+  void runPendingReset().finally(() =>
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    ),
   );
 }

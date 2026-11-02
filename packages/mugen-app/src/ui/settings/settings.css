@@ -1,0 +1,93 @@
+/* 設定 — over any screen, in the crystal UI (紺×クリスタル). Fits a landscape phone (640×300 up): the card
+   scrolls inside itself, never the page. */
+.settings-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(6, 8, 20, 0.72);
+}
+.settings-card {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
+  color: #f2f4f8;
+  font-size: 14px;
+}
+.settings-group-title {
+  margin: 2px 0 4px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 400;
+  color: #e5cb91;
+}
+.settings-group-title small,
+.settings-name small { margin-left: 6px; font-size: 9px; letter-spacing: 0.12em; color: #b3bbdc; }
+.settings-row {
+  display: grid;
+  grid-template-columns: 8.5em minmax(0, 1fr) 2.6em;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 2px 4px;
+  border-bottom: 1px solid rgba(200, 214, 255, 0.14);
+}
+.settings-row[data-muted='yes'] input[type='range'] { opacity: 0.4; }
+.settings-name { white-space: nowrap; }
+.settings-value { text-align: right; font-variant-numeric: tabular-nums; color: #bfc7d5; }
+.settings-row input[type='range'] { width: 100%; accent-color: #9fc4ff; min-height: 28px; }
+.settings-mute { grid-template-columns: 8.5em auto; justify-content: start; }
+.settings-switch {
+  min-width: 64px;
+  min-height: 30px;
+  border: 1px solid rgba(200, 214, 255, 0.5);
+  border-radius: 15px;
+  background: #151b3a;
+  color: #eef1ff;
+  font: inherit;
+}
+.settings-switch[aria-checked='true'] { background: #2c3670; border-color: #e5cb91; color: #e5cb91; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 12px 0 6px; }
+/* The admin's row: small and dim, at the very end. */
+.settings-admin { margin-top: 10px; padding-top: 6px; border-top: 1px dashed rgba(200, 214, 255, 0.16); text-align: right; font-size: 11px; }
+.settings-admin-open { background: none; border: none; padding: 6px 4px; color: rgba(191, 199, 213, 0.45); font: inherit; }
+.settings-admin-lock { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.settings-admin-lock input {
+  width: 9em;
+  min-height: 30px;
+  padding: 2px 8px;
+  border: 1px solid rgba(200, 214, 255, 0.4);
+  border-radius: 4px;
+  background: #090c1a;
+  color: #f2f4f8;
+  font: inherit;
+  font-size: 14px;
+}
+.settings-admin-wrong { color: var(--danger); }
+.settings-admin-tools { display: inline-flex; gap: 10px; align-items: center; }
+.settings-admin-note { color: #e5cb91; }
+.btn.settings-danger { border-color: var(--danger); color: #ffb3ad; }
+.settings-confirm { padding: 6px 4px; text-align: center; }
+.settings-confirm-q { margin: 6px 0 4px; font-size: 16px; }
+.settings-confirm-note { margin: 0 0 6px; color: #bfc7d5; font-size: 13px; line-height: 1.6; }
+/* The gear that opens it: small, in a corner of the screen it is on. */
+.settings-gear {
+  min-width: 36px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(200, 214, 255, 0.45);
+  border-radius: 6px;
+  background: rgba(21, 27, 58, 0.82);
+  color: #eef1ff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+/* In the title's corner — above the title's own rule that stands every child in the flow (styles.css). */
+.screen.title > .settings-gear.settings-gear,
+.screen.title.has-logo > .settings-gear.settings-gear { position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 5; }
+/* In the village, with the day and the purse: as small as a finger allows. */
+.settings-gear.vg-gear { min-width: 0; min-height: 24px; padding: 0 7px; font-size: max(11px, 1.2cqw); align-self: center; }

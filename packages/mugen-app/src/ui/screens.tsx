@@ -136,11 +136,14 @@ export function TitleScreen({
   saving,
   onStart,
   onContinue,
+  onSettings,
 }: {
   hasSave: boolean;
   saving: boolean;
   onStart: () => void;
   onContinue: () => void;
+  /** 設定 (its gear in the corner): the sound — and, for the staff, the admin's reset. */
+  onSettings?: () => void;
 }) {
   // THE TITLE PICTURE (作者 2026-10-25) — Kaos between her wings with 「MUGEN ZERO」 drawn into it, shown
   // whole on black (its own ground is black, so the bars beside it vanish). The name is the picture's
@@ -157,6 +160,11 @@ export function TitleScreen({
           aria-hidden="true"
           data-testid="title-logo"
         />
+      )}
+      {onSettings && (
+        <button type="button" className="settings-gear" data-testid="settings-button" aria-label="設定" onClick={onSettings}>
+          設定
+        </button>
       )}
       <h1 className="logo">MUGEN ZERO</h1>
       <p className="sub">App Alpha</p>

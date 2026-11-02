@@ -65,9 +65,12 @@ export function VillageScreen({
   onMemory,
   onArchive,
   onStatus,
+  onSettings,
   diorama = ALDEN_DIORAMA,
 }: {
   world: World;
+  /** 設定 (a small gear with the day and the purse). */
+  onSettings?: () => void;
   /** 次の目的 (content `nextObjective`). */
   objective: string;
   /** Who is where now (content `villagePresence`) — worked out by the caller, never kept. */
@@ -286,6 +289,11 @@ export function VillageScreen({
                 <span className="vg-purse" data-testid="lumi">
                   LUMI {world.getLumi()}
                 </span>
+                {onSettings && (
+                  <button type="button" className="settings-gear vg-gear" data-testid="settings-button" aria-label="設定" onClick={onSettings}>
+                    設定
+                  </button>
+                )}
               </span>
             </KitPanel>
             {/* 次の目的: held to its box's right edge, growing leftward with its words. */}

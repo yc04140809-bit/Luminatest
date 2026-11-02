@@ -117,6 +117,7 @@ import { celebrateArtSrc } from './assets/celebrateArt';
 import { notices } from './ui/common/noticeQueue';
 import { newEquipmentIds } from './ui/equipment';
 import { memoryMark } from './ui/memory';
+import { SettingsPanel } from './ui/settings/SettingsPanel';
 import {
   RuinsWalkScreen,
   SealApproachScreen,
@@ -209,6 +210,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * never sound together. (The dev server's tests pass it by a cookie — themeIntroSkipped — DEV only.)
    */
   const [themeIntro, setThemeIntro] = useState(() => !themeIntroSkipped());
+  // 設定, over the screen it was opened on: from the title, or from the village (where タイトルに戻る is offered).
+  const [settingsFrom, setSettingsFrom] = useState<'TITLE' | 'HOME' | null>(null);
   /**
    * 触る漫画形式のオープニング (2026-10-16): the music let go at the power off
    * (until the funny face). The rest of what it asks — turned down for the
@@ -779,6 +782,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           Its own key: two siblings with one key are not both remounted when the screen changes. */}
       <CelebrateHost key={`celebrate:${noticeScope}`} />
       {timePass.overlay}
+      {settingsFrom && (
+        <SettingsPanel
+          onClose={() => setSettingsFrom(null)}
+          // Back to the title by starting the page again (the save is kept as it is written): from the village only.
+          onTitle={settingsFrom === 'HOME' ? () => window.location.assign(window.location.pathname) : undefined}
+        />
+      )}
     </>
   );
 
@@ -794,6 +804,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           <TitleScreen
             hasSave={world.hasProgress()}
             saving={saving}
+            onSettings={() => setSettingsFrom('TITLE')}
             onStart={() => {
               if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
               // The opening is hers from its first page: her piece, held through the naming after it.
@@ -1027,6 +1038,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             setHomeNudge(null);
             flow.goTo('EXPLORE');
           }}
+          onSettings={() => setSettingsFrom('HOME')}
           onBag={() => flow.goTo('BAG')}
           onMemory={() => flow.goTo('WORLD_MEMORY')}
           onArchive={() => flow.goTo('ARCHIVE')}
