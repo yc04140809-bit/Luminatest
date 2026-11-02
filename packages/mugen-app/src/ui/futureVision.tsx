@@ -15,6 +15,7 @@ import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * She is the one talking through all three beats — asking, showing,
@@ -102,7 +103,7 @@ function Lines({ lines }: { lines: readonly DialogueLine[] }) {
     <>
       {lines.map((line, i) => (
         <p className="line" key={i}>
-          {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
+          <Typed text={line.speaker ? `${line.speaker}「${line.text}」` : line.text} />
         </p>
       ))}
     </>

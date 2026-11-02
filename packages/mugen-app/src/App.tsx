@@ -118,6 +118,7 @@ import { notices } from './ui/common/noticeQueue';
 import { newEquipmentIds } from './ui/equipment';
 import { memoryMark } from './ui/memory';
 import { SettingsPanel } from './ui/settings/SettingsPanel';
+import { BrightnessVeil } from './ui/settings/BrightnessVeil';
 import {
   RuinsWalkScreen,
   SealApproachScreen,
@@ -789,6 +790,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onTitle={settingsFrom === 'HOME' ? () => window.location.assign(window.location.pathname) : undefined}
         />
       )}
+      <BrightnessVeil />
     </>
   );
 

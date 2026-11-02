@@ -22,6 +22,7 @@ import { playSfx } from '../platform/audio';
 import { NewBadge } from './common/NewBadge';
 import { OnceNotice } from './common/OnceNotice';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /** The way deeper, as a destination (core/world/readMarks.ts `dest:`). */
 export const SEAL_DESTINATION = 'dest:SEKIRYUGA_SEAL';
@@ -250,7 +251,7 @@ export function SealApproachScreen({
           <>
             {said.speaker && <p className="speaker">{said.speaker}</p>}
             <p className="line" data-testid="seal-line">
-              {said.speaker ? `「${said.text}」` : said.text}
+              <Typed text={said.speaker ? `「${said.text}」` : said.text} />
             </p>
             <button className="btn primary" data-testid="seal-next" onClick={next}>
               つぎへ
@@ -308,7 +309,7 @@ export function SekiryugaAftermathScreen({ heroName, onDone }: { heroName: strin
       <div className="seal-words">
         {line.speaker && <p className="speaker">{line.speaker}</p>}
         <p className="line" data-testid="seal-line">
-          {line.speaker ? `「${line.text}」` : line.text}
+          <Typed text={line.speaker ? `「${line.text}」` : line.text} />
         </p>
         <button
           className="btn primary"
@@ -384,7 +385,7 @@ export function SekiryugaRevisitScreen({ heroName, onDone }: { heroName: string;
       <div className="seal-words">
         {line.speaker && <p className="speaker">{line.speaker}</p>}
         <p className="line" data-testid="seal-line">
-          {line.speaker ? `「${line.text}」` : line.text}
+          <Typed text={line.speaker ? `「${line.text}」` : line.text} />
         </p>
         <button
           className="btn primary"
@@ -422,7 +423,7 @@ export function SekiryugaStillScreen({ heroName, onLeave }: { heroName: string; 
       <div className="seal-words">
         {said?.speaker && <p className="speaker">{said.speaker}</p>}
         <p className="line" data-testid="seal-line">
-          {said ? `「${said.text}」` : SEKIRYUGA_STILL_LINE}
+          <Typed text={said ? `「${said.text}」` : SEKIRYUGA_STILL_LINE} />
         </p>
         <div className="actions">
           <button className="btn primary" data-testid="still-look" onClick={() => setLooked(looked + 1)}>

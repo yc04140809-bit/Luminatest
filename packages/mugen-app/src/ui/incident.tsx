@@ -14,6 +14,7 @@ import { banterFor } from "./banterRoll";
 import { NudgeAside } from "./kaosNudge";
 import type { KaosNudge } from "@mugen/content/story/kaosNudges";
 import { sayKaosLine } from "./audio/kaosLineVoice";
+import { Typed } from './common/Typed';
 
 /**
  * ALDEN INCIDENT — KAOS SENSES SOMETHING (予兆フェーズ, 2026-10-10).
@@ -100,7 +101,7 @@ export function KaosAside({
             <NewBadge testId="kaos-aside-new" />
           </div>
           <p className="kaos-aside-line" data-testid="kaos-aside-line">
-            「{line.text}」
+            <Typed text={`「${line.text}」`} />
           </p>
           <button
             className="kaos-aside-next"

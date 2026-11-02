@@ -15,6 +15,7 @@ import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
 import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
 import { NewBadge } from './common/NewBadge';
 import { rumorUnheard } from './talkNews';
+import { Typed } from './common/Typed';
 
 /**
  * THE DOOR AT ALDEN.
@@ -259,9 +260,13 @@ export function ItemShopScreen({
               {/* Not her everyday line: NEW while it is told (2026-10-11). */}
               <NewBadge testId="shop-daily-new" />
               <p className="say shop-keeper" data-testid="shop-daily-line">
-                {sceneLine.speaker
-                  ? `${sceneLine.speaker === HERO_SPEAKER ? world.getHeroName() : sceneLine.speaker}「${sceneLine.text}」`
-                  : sceneLine.text}
+                <Typed
+                  text={
+                    sceneLine.speaker
+                      ? `${sceneLine.speaker === HERO_SPEAKER ? world.getHeroName() : sceneLine.speaker}「${sceneLine.text}」`
+                      : sceneLine.text
+                  }
+                />
               </p>
               <button className="btn" data-testid="shop-daily-next" onClick={sceneNext}>
                 {scene && sceneAt >= scene.lines.length - 1 ? 'とじる' : 'つぎへ'}

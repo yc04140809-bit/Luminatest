@@ -6,6 +6,7 @@ import { banterMark, type KaosBanter } from "@mugen/content/story/kaosBanter";
 import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
 import { sayKaosLine } from "./audio/kaosLineVoice";
+import { Typed } from './common/Typed';
 
 /**
  * 主人公×ケイオス — ONE SHORT EXCHANGE, at the top of the page (作者指示
@@ -54,7 +55,7 @@ export function BanterAside({
             <NewBadge testId="kaos-banter-new" />
           </div>
           <p className="kaos-aside-line" data-testid="kaos-banter-line">
-            「{line.text}」
+            <Typed text={`「${line.text}」`} />
           </p>
           <button
             className="kaos-aside-next"

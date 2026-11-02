@@ -26,6 +26,7 @@ import { bakeryArt, type BakeryArt } from '../assets/bakery';
 import { NewBadge } from './common/NewBadge';
 import { BAKERY_NEW_HAND_SIGHT } from '@mugen/content/events/offScreenLife';
 import { linaHasNews, ownerHasNews, rumorUnheard } from './talkNews';
+import { Typed } from './common/Typed';
 
 /**
  * アルデン村のパン屋 — THE APP'S BAKERY.
@@ -248,7 +249,7 @@ export function BakeryScreen({
               line.speaker && <p className="speaker">{line.speaker}</p>
             )}
             <p className="line" data-testid="bakery-line">
-              {line.speaker ? `「${line.text}」` : line.text}
+              <Typed text={line.speaker ? `「${line.text}」` : line.text} />
             </p>
             <button className="btn primary" data-testid="bakery-next" onClick={next}>
               {last ? 'もどる' : 'つぎへ'}

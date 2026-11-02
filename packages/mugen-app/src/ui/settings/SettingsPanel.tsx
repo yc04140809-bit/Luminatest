@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { CrystalButton, CrystalPanel } from '../kit/Crystal';
-import { applySoundSettings, loadSoundSettings, saveSoundSettings, type SoundSettings } from '../../platform/settings';
+import {
+  applySoundSettings,
+  BRIGHTNESS_RANGE,
+  displaySettings,
+  loadSoundSettings,
+  saveSoundSettings,
+  setDisplaySettings,
+  watchDisplaySettings,
+  type CutInMode,
+  type SoundSettings,
+  type TextSpeed,
+} from '../../platform/settings';
+import { Typed } from '../common/Typed';
 import { adminUnlocks, requestSaveReset } from '../../platform/adminReset';
 import './settings.css';
 
@@ -8,6 +20,7 @@ import './settings.css';
  * 設定 (作者 2026-11-02 — 試遊版の次に): over whatever screen it was opened on, in the crystal UI.
  *
  *   音量         マスター／BGM／SE／ボイス, each a slider, heard as it moves; and 全ミュート
+ *   画面         明るさ (a veil over the game), カットイン (毎回／1日1回／OFF), テキスト表示速度 (遅い〜一括)
  *   タイトルに戻る  only where it was opened in the village (`onTitle`), asked once
  *   管理者        the last row, small: the lock number opens データリセット, asked twice
  *
@@ -16,6 +29,20 @@ import './settings.css';
  */
 type Ask = null | 'TITLE' | 'RESET_1' | 'RESET_2';
 type Admin = 'LOCKED' | 'ASKING' | 'OPEN';
+
+const CUT_IN_CHOICES: readonly { id: CutInMode; label: string }[] = [
+  { id: 'ALWAYS', label: '毎回' },
+  { id: 'DAILY', label: '1日1回だけ' },
+  { id: 'OFF', label: 'OFF' },
+];
+const SPEED_CHOICES: readonly { id: TextSpeed; label: string }[] = [
+  { id: 'SLOW', label: '遅い' },
+  { id: 'NORMAL', label: '普通' },
+  { id: 'FAST', label: '速い' },
+  { id: 'INSTANT', label: '一括' },
+];
+/** How the words will come, shown with the choice. */
+const SAMPLE = 'ケイオス「ねえ、今日はどっち行く？」';
 
 const BUSES: readonly { key: 'master' | 'bgm' | 'sfx' | 'voice'; label: string; sub: string }[] = [
   { key: 'master', label: 'マスター', sub: 'MASTER' },
@@ -30,6 +57,7 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
   const [admin, setAdmin] = useState<Admin>('LOCKED');
   const [code, setCode] = useState('');
   const [wrong, setWrong] = useState(false);
+  const screen = useSyncExternalStore(watchDisplaySettings, displaySettings);
 
   const change = (next: SoundSettings) => {
     setSound(next);
@@ -82,6 +110,71 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
                   {sound.muted ? 'ON' : 'OFF'}
                 </button>
               </div>
+            </section>
+
+            <section className="settings-group" aria-label="画面">
+              <h2 className="settings-group-title">
+                画面 <small>SCREEN</small>
+              </h2>
+              <label className="settings-row">
+                <span className="settings-name">
+                  明るさ
+                  <small>BRIGHTNESS</small>
+                </span>
+                <input
+                  type="range"
+                  min={Math.round(BRIGHTNESS_RANGE.min * 100)}
+                  max={Math.round(BRIGHTNESS_RANGE.max * 100)}
+                  step={5}
+                  value={Math.round(screen.brightness * 100)}
+                  data-testid="settings-brightness"
+                  onChange={(e) => setDisplaySettings({ ...screen, brightness: Number(e.target.value) / 100 })}
+                />
+                <span className="settings-value" data-testid="settings-brightness-value">
+                  {Math.round(screen.brightness * 100)}
+                </span>
+              </label>
+              <div className="settings-row settings-pick">
+                <span className="settings-name">
+                  カットイン
+                  <small>CUT-IN</small>
+                </span>
+                <div className="settings-choice" role="group" aria-label="カットイン">
+                  {CUT_IN_CHOICES.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={screen.cutIn === c.id}
+                      data-testid={`settings-cutin-${c.id.toLowerCase()}`}
+                      onClick={() => setDisplaySettings({ ...screen, cutIn: c.id })}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="settings-row settings-pick">
+                <span className="settings-name">
+                  テキスト速度
+                  <small>TEXT</small>
+                </span>
+                <div className="settings-choice" role="group" aria-label="テキスト表示速度">
+                  {SPEED_CHOICES.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={screen.textSpeed === c.id}
+                      data-testid={`settings-text-${c.id.toLowerCase()}`}
+                      onClick={() => setDisplaySettings({ ...screen, textSpeed: c.id })}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="settings-sample" data-testid="settings-text-sample" key={screen.textSpeed}>
+                <Typed text={SAMPLE} holdsTaps={false} />
+              </p>
             </section>
 
             <div className="settings-actions">

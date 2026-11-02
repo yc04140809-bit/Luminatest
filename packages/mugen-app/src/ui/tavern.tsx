@@ -28,6 +28,7 @@ import { graveFaceOf, type GraveFace } from '@mugen/content/characters/graveFace
 import { graveFaceSrc } from '../assets/graveFaces';
 import { playVoice } from '../platform/audio';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -462,7 +463,7 @@ export function TavernScreen({
               line.speaker && <p className="speaker">{line.speaker}</p>
             )}
             <p className="line" data-testid="tavern-line">
-              {line.speaker ? `「${line.text}」` : line.text}
+              <Typed text={line.speaker ? `「${line.text}」` : line.text} />
             </p>
             <button className="btn primary" data-testid="tavern-next" onClick={next}>
               {closes ? 'もどる' : 'つぎへ'}

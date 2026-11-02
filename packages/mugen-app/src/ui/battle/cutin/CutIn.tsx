@@ -11,6 +11,7 @@
 // screen, no veil, no timer. `stop()` ends it at once, and the screen
 // that uses the director going away ends it too.
 
+import { cutInShown } from '../../../platform/settings';
 import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import type { BattleSpeed } from '@mugen/game/battle/battleSpeed';
 import { cutInMs, type CutInPace, type CutInTier } from './cutInTiming';
@@ -228,6 +229,9 @@ export function useCutInDirector(speed: BattleSpeed): CutInDirector {
   const play = (spec: CutInSpec) =>
     new Promise<CutInEnd>((resolve) => {
       if (resolveCurrent.current) finish('stopped');
+      // 設定 カットイン: OFF, or once a day and seen today — nothing of it, neither its picture nor its shout
+      // (作者 2026-11-02); the move goes straight on.
+      if (!cutInShown(spec.name)) return resolve('done');
       resolveCurrent.current = resolve;
       nextId.current += 1;
       setCurrent({

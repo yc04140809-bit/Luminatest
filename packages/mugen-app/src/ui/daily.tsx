@@ -9,6 +9,7 @@ import { TalkStage, stageAt } from "./talkStage";
 import { audioManager, playVoice } from "../platform/audio";
 import { rizelSceneVoice } from "./audio/rizelVoices";
 import { lineVoice } from "../platform/voice";
+import { Typed } from './common/Typed';
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
@@ -104,7 +105,7 @@ export function DailyAside({
         <NewBadge testId="daily-new" />
       </div>
       <p className="kaos-aside-line" data-testid="daily-line">
-        {speaker ? `「${line.text}」` : line.text}
+        <Typed text={speaker ? `「${line.text}」` : line.text} />
       </p>
       <button
         className="kaos-aside-next"

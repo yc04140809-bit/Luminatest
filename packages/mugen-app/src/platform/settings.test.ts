@@ -39,3 +39,30 @@ describe('管理者モード: the lock', () => {
     expect(adminUnlocks('')).toBe(false);
   });
 });
+
+describe('設定 段階2: the screen', () => {
+  it('nothing stored: as it has always been — full brightness, every cut-in, the words all at once', async () => {
+    const { readDisplaySettings } = await import('./settings');
+    expect(readDisplaySettings(null)).toEqual({ brightness: 1, cutIn: 'ALWAYS', textSpeed: 'INSTANT' });
+    expect(readDisplaySettings(JSON.stringify({ brightness: 3, cutIn: 'SOMETIMES', textSpeed: 'FAST' }))).toEqual({ brightness: 1.2, cutIn: 'ALWAYS', textSpeed: 'FAST' });
+    expect(readDisplaySettings(JSON.stringify({ brightness: 0.1 })).brightness).toBe(0.6);
+  });
+
+  it('カットイン: every time; never; or once a day each, by the phone’s own date', async () => {
+    const { cutInShown, localDay } = await import('./settings');
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) });
+    const day1 = new Date(2026, 10, 2, 23, 59);
+    const day2 = new Date(2026, 10, 3, 0, 1);
+    expect(localDay(day1)).toBe('2026-11-02');
+    expect(cutInShown('瞬断', 'ALWAYS', day1)).toBe(true);
+    expect(cutInShown('瞬断', 'OFF', day1)).toBe(false);
+    expect(cutInShown('瞬断', 'DAILY', day1)).toBe(true);
+    expect(cutInShown('瞬断', 'DAILY', day1)).toBe(false);
+    // Each its own: another move is still shown today.
+    expect(cutInShown('彼岸花', 'DAILY', day1)).toBe(true);
+    // The date turns: again.
+    expect(cutInShown('瞬断', 'DAILY', day2)).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});

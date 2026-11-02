@@ -33,6 +33,7 @@ import { audioManager, playSfx } from '../platform/audio';
 import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * 第1章終盤 — THE FINALE, PLAYED (2026-10-12: 最低限の演出で最初から最後まで通す).
@@ -387,7 +388,7 @@ function FinaleScene({
           data-pause={pause}
           style={pause > 0 ? { ['--finale-pause' as string]: `${pause}ms` } : undefined}
         >
-          {speaker ? `「${text}」` : text}
+          <Typed text={speaker ? `「${text}」` : text} />
         </p>
         <button
           className="btn primary finale-next"

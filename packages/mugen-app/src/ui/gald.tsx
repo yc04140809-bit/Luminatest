@@ -11,6 +11,7 @@ import {
 } from '@mugen/content/dialogue/galdEncounter';
 import { Place } from './screens';
 import { Stage, StagedLines, kaosFigureFor } from './scene';
+import { Typed } from './common/Typed';
 
 /**
  * THE ONE FIGHT THE SLICE IS BUILT TO ARRIVE AT.
@@ -51,7 +52,7 @@ function Scene({
     <>
       {last && atEnd}
       <p className="line" data-testid={testId}>
-        {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
+        <Typed text={line.speaker ? `${line.speaker}「${line.text}」` : line.text} />
       </p>
       <button
         className="btn primary"

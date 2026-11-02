@@ -9,6 +9,7 @@ import { banterMark } from '@mugen/content/story/kaosBanter';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import { TalkStage, stageAt } from './talkStage';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * ケイオスの軽い誘い (襲撃前の日々, 2026-10-11): as they come back into the
@@ -161,7 +162,7 @@ export function NudgeAside({ world, nudge, onDone }: { world: World; nudge: Kaos
         <div className="kaos-aside daily-aside nudge-aside" data-testid="kaos-nudge" data-nudge={nudge.id} data-kaos-face={face ?? ''}>
           <div className="kaos-aside-head">{speaker && <p className="kaos-aside-speaker">{speaker}</p>}</div>
           <p className="kaos-aside-line" data-testid="kaos-nudge-line">
-            「{line.text}」
+            <Typed text={`「${line.text}」`} />
           </p>
           <button className="kaos-aside-next" data-testid="kaos-nudge-next" onClick={() => (last ? onDone() : setAt((n) => n + 1))}>
             {last ? 'とじる' : 'つぎへ'}

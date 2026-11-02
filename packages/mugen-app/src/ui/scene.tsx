@@ -5,6 +5,7 @@ import { kaosPortraitState, kaosTalkMode } from '@mugen/content/characters/kaosP
 import { areaArt, type AreaId } from '../assets/areas';
 import { sceneArt, titleKeyVisual, type SceneCharacter } from '../assets/sceneArt';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * A SCENE WITH PEOPLE IN IT — the App's first step past plain text.
@@ -204,7 +205,7 @@ export function StagedLines({
       {title && <h1 className="place">{title}</h1>}
       {line.speaker && <p className="speaker stage-speaker">{line.speaker}</p>}
       <p className="line stage-line" data-testid={lineTestId}>
-        {line.speaker ? `「${line.text}」` : line.text}
+        <Typed text={line.speaker ? `「${line.text}」` : line.text} />
       </p>
       <button
         className="btn primary"

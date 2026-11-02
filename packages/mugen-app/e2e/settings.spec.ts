@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 設定 (作者 2026-11-02): the sound as the player sets it, kept across a restart; タイトルに戻る from the village,
@@ -130,10 +131,119 @@ for (const size of [
     expect(card!.y).toBeGreaterThanOrEqual(0);
     expect(card!.x + card!.width).toBeLessThanOrEqual(size.width);
     expect(card!.y + card!.height).toBeLessThanOrEqual(size.height);
-    for (const id of ['settings-master', 'settings-voice', 'settings-mute', 'settings-title', 'settings-close', 'settings-admin']) {
+    for (const id of ['settings-master', 'settings-voice', 'settings-mute', 'settings-brightness', 'settings-cutin-daily', 'settings-text-instant', 'settings-title', 'settings-close', 'settings-admin']) {
       await page.getByTestId(id).scrollIntoViewIfNeeded();
       await expect(page.getByTestId(id)).toBeInViewport();
     }
+    await page.getByTestId('settings-text-instant').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `test-results/settings-${size.width}.png` });
   });
 }
+
+// ---- 段階2: 画面 ----
+
+/** Each voice file played, by name, from before the page loads. */
+async function listenForVoices(page: Page) {
+  await page.addInitScript(() => {
+    const heard: string[] = [];
+    (window as unknown as { __heard: string[] }).__heard = heard;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      const file = (this.src.split('/').pop() ?? '').replace(/-[A-Za-z0-9_]{6,}(?=\.mp3)/, '');
+      if (this instanceof HTMLAudioElement && /^v_/.test(file)) heard.push(file);
+      return play.call(this);
+    };
+  });
+  return () => page.evaluate(() => (window as unknown as { __heard: string[] }).__heard.slice());
+}
+
+/** The screen's settings, set before the page loads (as a device that set them before). */
+async function withScreen(page: Page, screen: object) {
+  await page.addInitScript((s) => localStorage.setItem('mugen-settings-display', JSON.stringify(s)), screen);
+}
+
+async function toHerTurnOf(page: Page, who: string) {
+  for (let i = 0; i < 8; i++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+    if ((await page.getByTestId('pb-screen').getAttribute('data-actor')) === who) return;
+    await page.getByTestId('pb-cmd-defend').click();
+  }
+  throw new Error(`never ${who}'s turn`);
+}
+
+async function shundan(page: Page) {
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-shundan').click();
+  const pick = page.locator('[data-testid^="pb-target-enemy-"]').first();
+  if (await pick.isVisible().catch(() => false)) await pick.click();
+}
+
+test('明るさ: darker — a veil over everything; brighter — drawn brighter; 100 — nothing; kept after a restart', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('settings-button').click();
+  await expect(page.getByTestId('brightness-veil')).toHaveCount(0);
+  await page.getByTestId('settings-brightness').fill('80');
+  await expect(page.getByTestId('brightness-veil')).toHaveAttribute('data-brightness', '0.80');
+  // Never in a finger's way.
+  await expect(page.getByTestId('brightness-veil')).toHaveCSS('pointer-events', 'none');
+  await page.getByTestId('settings-close').click();
+  await page.reload();
+  await expect(page.getByTestId('brightness-veil')).toHaveAttribute('data-brightness', '0.80');
+  await page.getByTestId('settings-button').click();
+  await page.getByTestId('settings-brightness').fill('120');
+  await expect(page.getByTestId('brightness-veil')).toHaveCSS('backdrop-filter', /brightness\(1\.2/);
+  await page.getByTestId('settings-brightness').fill('100');
+  await expect(page.getByTestId('brightness-veil')).toHaveCount(0);
+});
+
+test('カットイン OFF: 《瞬断》 goes straight on — no picture, no shout', async ({ page }) => {
+  test.setTimeout(60_000);
+  await withScreen(page, { brightness: 1, cutIn: 'OFF', textSpeed: 'INSTANT' });
+  const heard = await listenForVoices(page);
+  await page.goto('/?preview=party');
+  await toHerTurnOf(page, 'hero');
+  await shundan(page);
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+  await expect(page.getByTestId('cut-in')).toHaveCount(0);
+  expect((await heard()).filter((f) => /v_ch1_hero110/.test(f))).toEqual([]);
+});
+
+test('カットイン 1日1回: 《瞬断》’s the first time today, with its shout; in the next fight the same day, straight on', async ({ page }) => {
+  test.setTimeout(90_000);
+  await withScreen(page, { brightness: 1, cutIn: 'DAILY', textSpeed: 'INSTANT' });
+  const heard = await listenForVoices(page);
+  await page.goto('/?preview=party');
+  await toHerTurnOf(page, 'hero');
+  await shundan(page);
+  await expect(page.getByTestId('cut-in')).toBeVisible();
+  await expect.poll(async () => (await heard()).filter((f) => /v_ch1_hero110/.test(f))).toHaveLength(1);
+  // Another fight, the same day.
+  await page.reload();
+  await toHerTurnOf(page, 'hero');
+  await shundan(page);
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+  await expect(page.getByTestId('cut-in')).toHaveCount(0);
+  expect((await heard()).filter((f) => /v_ch1_hero110/.test(f))).toEqual([]);
+});
+
+test('テキスト速度 普通: a line comes a letter at a time; the first tap shows it whole and goes nowhere, the next goes on', async ({ page }) => {
+  test.setTimeout(120_000);
+  await intoTheVillage(page);
+  await page.getByTestId('settings-button').click();
+  // 一括 as it has always been, until another is chosen; the sample shows how they will come.
+  await expect(page.getByTestId('settings-text-instant')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('settings-text-normal').click();
+  await expect(page.getByTestId('settings-text-sample').locator('[data-typing="yes"]')).toHaveCount(1);
+  await page.getByTestId('settings-close').click();
+  await (await placeButton(page, 'tavern-button')).click();
+  await page.getByTestId('tavern-talk').click();
+  const line = page.getByTestId('tavern-line');
+  await expect(line.locator('[data-typing="yes"]')).toHaveCount(1);
+  const first = (await line.textContent()) ?? '';
+  await page.getByTestId('tavern-next').click();
+  // Whole now — the same line, not the next.
+  await expect(line.locator('[data-typing="yes"]')).toHaveCount(0);
+  expect(await line.textContent()).toBe(first);
+  await page.getByTestId('tavern-next').click();
+  await expect(line).not.toHaveText(first);
+});

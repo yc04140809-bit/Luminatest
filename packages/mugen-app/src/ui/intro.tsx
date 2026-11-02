@@ -10,6 +10,7 @@ import {
 } from '@mugen/content/story/openingIntro';
 import { Stage, type FigureCue } from './scene';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { Typed } from './common/Typed';
 
 /**
  * 第0話 — THE WAY INTO ALDEN (content/story/openingIntro), after the name.
@@ -156,7 +157,7 @@ export function IntroScreen({
       <Stage backdrop={beat.place === 'ROAD' ? 'GREENWOOD' : 'ALDEN'} figure={figureOf(beat)} side="left">
         {speaker && <p className="speaker stage-speaker">{speaker}</p>}
         <p className="line stage-line" data-testid="intro-line" data-thought={beat.thought ? 'yes' : 'no'}>
-          {beat.thought ? `（${text}）` : speaker ? `「${text}」` : text}
+          <Typed text={beat.thought ? `（${text}）` : speaker ? `「${text}」` : text} />
         </p>
         <button
           className="btn primary"
