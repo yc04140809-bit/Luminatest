@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { playVoice } from '../../platform/audio';
 import { lineVoice } from '../../platform/voice';
 import type { BattleState } from '@mugen/game/battle/battleLogic';
 import { enemyPose, heroPose, kaosPose } from '@mugen/game/battle/battleArtState';
@@ -342,6 +341,8 @@ export function BattleStage({
     foeHp: battle.enemyHp,
     foeMaxHp: battle.enemyMaxHp,
     foePhase: battle.enemyPhaseId,
+    // His last word over his fall (ボイスパック18 「……くそ……。」): said with it, right after it.
+    foeLastWords: opponent.defeated ? lineVoice(opponent.defeated.speaker, opponent.defeated.text) : null,
   });
   const enemyShown = person
     ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
@@ -378,11 +379,6 @@ export function BattleStage({
   // What the plate says: the last line of the fight — or, once it is
   // beaten, what it says or is said about it.
   const showingDefeatLine = beaten && opponent.defeated !== undefined;
-  // His last word, in his voice (ボイスパック18 「……くそ……。」), after his fall's.
-  useEffect(() => {
-    const said = showingDefeatLine ? lineVoice(opponent.defeated!.speaker, opponent.defeated!.text) : null;
-    if (said) playVoice(said, { mouth: 'foe', wait: true });
-  }, [showingDefeatLine]);
   const plate = sayOf(showingDefeatLine ? opponent.defeated!.text : battle.log[battle.log.length - 1]);
   const plateKey = `${battle.log.length}:${plate?.lead ?? ''}:${plate?.figure ?? ''}`;
 

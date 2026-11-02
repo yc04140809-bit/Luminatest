@@ -101,6 +101,7 @@ export function useBattleVoices({
   foeHp,
   foeMaxHp,
   foePhase = null,
+  foeLastWords = null,
 }: {
   beat: string;
   blows: readonly Blow[];
@@ -114,6 +115,8 @@ export function useBattleVoices({
   foeMaxHp: number;
   /** The phase the one they fight is in (ガルド's 本気・捨て身), or null. */
   foePhase?: string | null;
+  /** What they say as they go down, after their fall's own line (ガルド's 「……くそ……。」), or null. */
+  foeLastWords?: string | null;
 }) {
   // His word as he changes (ボイスパック18 — `battle.<foe>.phase.<id>`), after what he is saying, never over it.
   useEffect(() => {
@@ -146,7 +149,9 @@ export function useBattleVoices({
       } else {
         const said = hurtVoice(foe, foeHp, foeMaxHp, foePinched.current);
         if (said.pinch) foePinched.current = true;
-        playVoice(said.id, { mouth: 'foe' });
+        // Fallen: his last words straight after, in the same breath — nothing in between can cut them off.
+        const down = said.id === `battle.${foe}.down` && foeLastWords;
+        playVoice(down ? [said.id, foeLastWords] : said.id, { mouth: 'foe' });
       }
     }
   }, [blows]);

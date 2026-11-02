@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { audioManager, playVoice } from '../platform/audio';
+import { lineVoice } from '../platform/voice';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import {
@@ -104,9 +106,11 @@ export function LifeChoiceScreen({
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18), after his fall's word.
+  // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18) — in his own mouth, after his fall and
+  // his last word (still being said as this comes up), never over them.
   useEffect(() => {
-    sayKaosLine('life-choice', { speaker: '盗賊 ガルド', text: GALD_LIFE_CHOICE_LINE }, { wait: true });
+    const id = lineVoice('盗賊 ガルド', GALD_LIFE_CHOICE_LINE);
+    if (id) playVoice(id, { mouth: 'foe', wait: true });
   }, []);
 
   const choose = (choice: LifeChoiceId) => {
@@ -175,6 +179,10 @@ export function ChoiceResultScreen({
    */
   atEnd?: ReactNode;
 }) {
+  // The answer given: his question, if still being said, is cut off.
+  useEffect(() => {
+    audioManager.stopVoice('foe');
+  }, []);
   return (
     <Place area="GREENWOOD" title="グリーンウッドの森">
       <div data-testid="choice-result" data-choice={choice}>
