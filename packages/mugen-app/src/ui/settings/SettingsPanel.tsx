@@ -13,6 +13,8 @@ import {
   type TextSpeed,
 } from '../../platform/settings';
 import { Typed } from '../common/Typed';
+import { explorePref, setExplorePref } from '../../platform/explorePrefs';
+import { buzz } from '../../platform/haptics';
 import { adminUnlocks, requestSaveReset } from '../../platform/adminReset';
 import './settings.css';
 
@@ -20,7 +22,8 @@ import './settings.css';
  * 設定 (作者 2026-11-02 — 試遊版の次に): over whatever screen it was opened on, in the crystal UI.
  *
  *   音量         マスター／BGM／SE／ボイス, each a slider, heard as it moves; and 全ミュート
- *   画面         明るさ (a veil over the game), カットイン (毎回／1日1回／OFF), テキスト表示速度 (遅い〜一括)
+ *   画面         明るさ (a veil over the game), カットイン (毎回／1日1回／OFF), テキスト表示速度 (遅い〜一括),
+ *                振動 (the same switch as the walk's own — platform/explorePrefs; a light buzz as it is turned on)
  *   タイトルに戻る  only where it was opened in the village (`onTitle`), asked once
  *   管理者        the last row, small: the lock number opens データリセット, asked twice
  *
@@ -58,6 +61,7 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
   const [code, setCode] = useState('');
   const [wrong, setWrong] = useState(false);
   const screen = useSyncExternalStore(watchDisplaySettings, displaySettings);
+  const [vibration, setVibration] = useState(() => explorePref('vibration'));
 
   const change = (next: SoundSettings) => {
     setSound(next);
@@ -175,6 +179,28 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
               <p className="settings-sample" data-testid="settings-text-sample" key={screen.textSpeed}>
                 <Typed text={SAMPLE} holdsTaps={false} />
               </p>
+              <div className="settings-row settings-mute">
+                <span className="settings-name">
+                  振動
+                  <small>VIBRATION</small>
+                </span>
+                <button
+                  type="button"
+                  className="settings-switch"
+                  role="switch"
+                  aria-checked={vibration}
+                  data-testid="settings-vibration"
+                  onClick={() => {
+                    const on = !vibration;
+                    setVibration(on);
+                    setExplorePref('vibration', on);
+                    // Turned on: felt once, so it is known what it will be.
+                    if (on) buzz('light');
+                  }}
+                >
+                  {vibration ? 'ON' : 'OFF'}
+                </button>
+              </div>
             </section>
 
             <div className="settings-actions">

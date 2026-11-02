@@ -131,7 +131,7 @@ for (const size of [
     expect(card!.y).toBeGreaterThanOrEqual(0);
     expect(card!.x + card!.width).toBeLessThanOrEqual(size.width);
     expect(card!.y + card!.height).toBeLessThanOrEqual(size.height);
-    for (const id of ['settings-master', 'settings-voice', 'settings-mute', 'settings-brightness', 'settings-cutin-daily', 'settings-text-instant', 'settings-title', 'settings-close', 'settings-admin']) {
+    for (const id of ['settings-master', 'settings-voice', 'settings-mute', 'settings-brightness', 'settings-cutin-daily', 'settings-text-instant', 'settings-vibration', 'settings-title', 'settings-close', 'settings-admin']) {
       await page.getByTestId(id).scrollIntoViewIfNeeded();
       await expect(page.getByTestId(id)).toBeInViewport();
     }
@@ -246,4 +246,18 @@ test('テキスト速度 普通: a line comes a letter at a time; the first tap 
   expect(await line.textContent()).toBe(first);
   await page.getByTestId('tavern-next').click();
   await expect(line).not.toHaveText(first);
+});
+
+test('振動: the same switch as the walk’s own — OFF here is OFF there, kept after a restart', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('settings-button').click();
+  await expect(page.getByTestId('settings-vibration')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('settings-vibration').click();
+  await expect(page.getByTestId('settings-vibration')).toHaveText('OFF');
+  expect(await page.evaluate(() => localStorage.getItem('mugen-explore-vibration'))).toBe('off');
+  await page.reload();
+  await page.getByTestId('settings-button').click();
+  await expect(page.getByTestId('settings-vibration')).toHaveAttribute('aria-checked', 'false');
+  await page.getByTestId('settings-vibration').click();
+  expect(await page.evaluate(() => localStorage.getItem('mugen-explore-vibration'))).toBe('on');
 });
