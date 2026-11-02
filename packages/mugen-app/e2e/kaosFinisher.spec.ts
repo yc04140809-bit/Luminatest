@@ -105,11 +105,17 @@ async function record(page: Page) {
       const box = (sel: string) => document.querySelector(sel)?.getBoundingClientRect();
       const core = box('[data-testid="pb-collapse-core"]');
       const mote = document.querySelectorAll<HTMLElement>('[data-testid="pb-collapse-dust"]')[5];
-      if (core && mote && Number(getComputedStyle(mote).opacity) > 0.3) {
+      if (core && mote) {
         const m = mote.getBoundingClientRect();
         const d = Math.hypot(m.x + m.width / 2 - (core.x + core.width / 2), m.y + m.height / 2 - (core.y + core.height / 2));
-        c.moteFar = Math.max((c.moteFar as number) ?? 0, d);
-        c.moteNear = Math.min((c.moteNear as number) ?? 9999, d);
+        if (Number(getComputedStyle(mote).opacity) > 0.3) {
+          c.moteFar = Math.max((c.moteFar as number) ?? 0, d);
+          c.moteNear = Math.min((c.moteNear as number) ?? 9999, d);
+        }
+        // Where its way in ends: its own animation over (held there), however few frames the last of it was seen in —
+        // at ×2 on a busy machine the moment it is nearest and still bright can fall between two looks.
+        const suck = mote.getAnimations().find((a) => (a as CSSAnimation).animationName === 'pb-cl-suck');
+        if (suck && suck.playState === 'finished') c.moteEnd ??= d;
       }
       for (const k of ['white', 'violet']) {
         const r = box(`[data-testid="pb-collapse-ringbox-${k}"]`);
@@ -304,7 +310,7 @@ test.describe('with motion', () => {
       expect(c['ringMoved-white'] as number).toBeGreaterThan(30);
       expect(c['ringMoved-violet'] as number).toBeGreaterThan(30);
       // Drawn in, not turned: a mote from far out to the point; the core grown, then crushed to a point.
-      expect(c.moteNear as number).toBeLessThan((c.moteFar as number) * 0.3);
+      expect(Math.min((c.moteNear as number) ?? 9999, (c.moteEnd as number) ?? 9999)).toBeLessThan((c.moteFar as number) * 0.3);
       expect(c.coreLast as number).toBeLessThan((c.coreBig as number) * 0.25);
       // The stillness (v2 §19–21): the film held at the point before the release — 0.12s or so at ×1, 0.08s at ×2.
       expect(c.stillFilm as number).toBeGreaterThan(2.25);

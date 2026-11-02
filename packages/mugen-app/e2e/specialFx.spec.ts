@@ -38,7 +38,9 @@ test('グレイヴ\'s 重撃・豪断: the 重撃 and the 豪断 on the creature
 test('the hero: 《瞬断》 his red-black crescent on the creature; 月影の構え his moon arc behind him and the stance held at his feet; none of グレイヴ\'s', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 640, height: 300 });
-  await page.goto('/?preview=party&hurt=1&footing=40');
+  // At full health (`hurt` is for the heals): started on 40 of 100, a few blows taken while the others wait could put
+  // him down before his second turn — and his turn would never come.
+  await page.goto('/?preview=party&footing=40');
   await turnOf(page, 'hero');
   await page.getByTestId('pb-cmd-skills').click();
   await page.getByTestId('pb-cmd-skill-shundan').click();
