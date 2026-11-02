@@ -361,6 +361,15 @@ describe('第1章のケイオス (ボイスパック12): what she says on screen
     expect(voiceGainOf(voiceUrl('ch1.v_ch1_lina035')!)).toBeCloseTo(10 ** (12 / 20), 3);
   });
 
+  it('バルド’s four recorded before (ボイスパック17): in the table, found — and he is not one of those who fight', () => {
+    for (const id of ['battle.baldo.attack', 'battle.baldo.hurt', 'event.baldo.daily01', 'event.baldo.daily02']) {
+      expect(VOICE_LINES[id].who, id).toBe('BALDO');
+      expect(voiceUrl(id), id).not.toBeNull();
+    }
+    expect(VOICE_LINES['event.baldo.daily02'].says).toBe('わ、悪い、後でいいか……いや、今やる');
+    expect(speaksInFights('baldo')).toBe(false);
+  });
+
   it('the whispered takes played louder (+6dB); the rest as recorded', () => {
     expect(voiceGainOf(voiceUrl(kaosLineVoice('奥。'))!)).toBeCloseTo(10 ** (6 / 20), 3);
     expect(voiceGainOf(voiceUrl(kaosLineVoice('……え。'))!)).toBeCloseTo(10 ** (6 / 20), 3);

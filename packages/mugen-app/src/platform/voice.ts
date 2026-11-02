@@ -86,6 +86,7 @@ const aria = by('ARIA');
 const rizel = by('RIZEL');
 const lina = by('LINA');
 const mirei = by('MIREI');
+const baldo = by('BALDO');
 const hero = (files: readonly string[], says: string, play?: VoiceLine['play']): VoiceLine => ({ who: 'HERO', files, says, ...(play ? { play } : {}) });
 
 /** Line id → who says it and in which files. Not here: silent. */
@@ -207,6 +208,11 @@ export const VOICE_LINES: Readonly<Record<string, VoiceLine>> = {
   'event.aria.daily03': aria(['v_aria_daily03.mp3'], '空が綺麗です。……少し、休みませんか？'),
   // リナ — イベント用（発火条件は今後）。
   'event.lina.daily01': lina(['v_lina_daily01.mp3'], 'お兄ちゃん、顔色悪いよ？'),
+  // バルド — 先行収録の4本（ボイスパック17、2026-11-02）。第1章では戦わず、日常の場面もまだ決まっていない（登録のみ）。
+  'battle.baldo.attack': baldo(['v_baldo_atk01.mp3'], 'いくぞっ！'),
+  'battle.baldo.hurt': baldo(['v_baldo_dmg01.mp3'], 'いって……！'),
+  'event.baldo.daily01': baldo(['v_baldo_daily01.mp3'], 'おう、買いに来たのか？'),
+  'event.baldo.daily02': baldo(['v_baldo_daily02.mp3'], 'わ、悪い、後でいいか……いや、今やる'),
   // ---- イベント（村の小さな出来事）。LINA_BURNT_BREAD.4 はボイスパック12 ----
   'daily.LINA_BURNT_BREAD.4': kaos(['daily.LINA_BURNT_BREAD.4.mp3'], 'ん、おいしい♪ 焦げてるとこが一番おいしいかも。'),
   'daily.LINA_BURNT_BREAD.6': hero(['v_ch1_hero019.mp3'], '褒めてる。'),
