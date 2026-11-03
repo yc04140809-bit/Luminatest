@@ -176,6 +176,8 @@ export const GALD_CH1_LINES: Readonly<Record<string, string>> = {
   "それでも見逃すのか？": 'v_ch1_gald013',
   "……馬鹿じゃねぇのか。": 'v_ch1_gald014',
   "……なんのつもりだ。": 'v_ch1_gald015',
+  // ボイスパック24 (2026-11-03): 発見シーンの答え — 薬包は妹のもの (ui/gald.tsx).
+  "妹だ。病気なんだ": 'v_ch1_gald016',
 };
 
 export const LINA_CH1_LINES: Readonly<Record<string, string>> = {
@@ -244,4 +246,6 @@ export const NPC_CH1_GAIN_DB_2: Readonly<Record<string, number>> = {
   v_ch1_lina019: 6,
   v_ch1_lina034: 6,
   v_ch1_lina035: 12,
+  // ボイスパック23・24, quiet takes as delivered (平均 −28 dB 台).
+  v_ch1_gald016: 6,
 };

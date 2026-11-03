@@ -12,6 +12,26 @@ export const GALD_DEFEATED_LINES: DialogueLine[] = [
   { speaker: '盗賊 ガルド', text: '……くそ……。' },
 ];
 
+/**
+ * 発見 — between his fall and the four answers (作者 2026-11-03, 試遊版・第1章の感情設計 1).
+ *
+ * Ten seconds or so, tapped through: what fell from his pack, the note in it, the hero picking it up, her word and
+ * his. No story of his life — 「盗賊 → 薬 → 妹 → ただの盗賊ではない」 is for the player to put together. The hero
+ * holding the medicine is the seed every answer grows from (CHOICE_RESULT_PARCEL_LINES): it never comes from nowhere.
+ * The note is written, not said: shown as a slip of paper from its line on (`showsMemo`), and with the hero in every
+ * route after.
+ */
+export const MEDICINE_DISCOVERY_LINES: (DialogueLine & { showsMemo?: boolean })[] = [
+  { speaker: null, text: '男の荷から、小さな包みがこぼれ落ちた。' },
+  { speaker: null, text: '薬包に、走り書きのメモが挟まっている。', showsMemo: true },
+  { speaker: null, text: '主人公は、包みを拾い上げた。', showsMemo: true },
+  { speaker: 'ケイオス', text: '……薬？', showsMemo: true },
+  { speaker: '盗賊 ガルド', text: '妹だ。病気なんだ', showsMemo: true },
+];
+
+/** The note in the medicine: its words only — no voice reads it. */
+export const MEDICINE_MEMO = 'エルナへ　あと二日分';
+
 /** Shown beside the four options, so a person is being decided, not a menu. */
 export const GALD_LIFE_CHOICE_LINE = '……どうするつもりだ……。';
 
@@ -53,6 +73,28 @@ export const CHOICE_RESULT_LINES: Record<LifeChoiceId, DialogueLine[]> = {
     { speaker: null, text: '最後まで、一言も話さなかった。' },
   ],
 };
+
+/**
+ * Where the medicine goes, by the answer (作者 2026-11-03 採用): one line each, in its place among the lines above.
+ * Given back (見逃す・助ける), handed to the guards (捕縛), or still in the hero's hands (とどめ). The note stays with
+ * the hero in all four. Only the App shows these — its four answers come after the discovery; the Artifact's do not.
+ */
+export const CHOICE_RESULT_PARCEL_LINES: Record<LifeChoiceId, { after: string | null; line: DialogueLine }> = {
+  SPARE: { after: '……馬鹿じゃねぇのか。', line: { speaker: null, text: '包みを差し出すと、男は黙って受け取った。' } },
+  KILL: { after: null, line: { speaker: null, text: '包みとメモは、まだ主人公の手の中にある。' } },
+  HELP: { after: '男は傷の手当てを黙って受けた。', line: { speaker: null, text: '手当てを終えると、包みを男の手に戻した。' } },
+  CAPTURE: { after: '男は縄をかけられ、村の衛兵に引き渡された。', line: { speaker: null, text: '包みのことは、衛兵に伝えて預けた。' } },
+};
+
+/** The lines after an answer, once the medicine has been found: CHOICE_RESULT_LINES with its line put in. */
+export function choiceResultLinesAfterDiscovery(choice: LifeChoiceId): DialogueLine[] {
+  const lines = [...CHOICE_RESULT_LINES[choice]];
+  const { after, line } = CHOICE_RESULT_PARCEL_LINES[choice];
+  const at = after === null ? lines.length : lines.findIndex((l) => l.text === after) + 1;
+  if (at <= 0) throw new Error(`No line 「${after}」 after ${choice}`);
+  lines.splice(at, 0, line);
+  return lines;
+}
 
 /**
  * THE ONE LOOK AHEAD — what Kaos says while she shows it.

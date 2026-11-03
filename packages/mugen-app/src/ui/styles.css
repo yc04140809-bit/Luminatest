@@ -1107,6 +1107,28 @@ body {
 }
 .choice-grid .btn { width: 100%; }
 
+/* 発見 (作者 2026-11-03): the note in the medicine — a slip of paper, written by hand, no voice reads it. */
+.medicine-memo {
+  align-self: flex-start;
+  margin: 2px 0 6px;
+  padding: 8px 16px 9px;
+  max-width: 100%;
+  background: linear-gradient(180deg, #f3ead6, #e6d9bb);
+  color: #3a2c1c;
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  transform: rotate(-2deg);
+  animation: medicine-memo-in 0.5s ease-out both;
+}
+@keyframes medicine-memo-in {
+  from { opacity: 0; transform: translateY(6px) rotate(-4deg); }
+  to { opacity: 1; transform: rotate(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) { .medicine-memo { animation: none; } }
+
 /* ── THE TITLE PICTURE (作者 2026-10-25): whole, on black, the button under its lettering ──
    The picture carries the name, so the lettered one is kept for screen readers only, and App Alpha
    goes small into the corner. The picture fills the screen but for a band along the bottom (where the

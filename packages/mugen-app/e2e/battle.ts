@@ -7,7 +7,8 @@ import { expect, type Page } from '@playwright/test';
  * while it is showing is not a turn (`bp-commands[data-locked]`). So a
  * command waits for the row to be free, and a fight is fought by
  * pressing 攻撃 whenever it is — tapping through Kaos's awakening when
- * she steps forward — until whatever the test is waiting for appears.
+ * she steps forward, and the medicine found once he is down — until
+ * whatever the test is waiting for appears.
  */
 
 /** The fight is on screen and the row can be pressed. */
@@ -33,6 +34,20 @@ export async function throughTheAwakening(page: Page): Promise<boolean> {
 }
 
 /**
+ * Taps through the medicine found in his pack (発見, 作者 2026-11-03) — between his fall and the four answers —
+ * if it is on screen.
+ */
+export async function throughTheDiscovery(page: Page): Promise<boolean> {
+  const scene = page.getByTestId('medicine-discovery');
+  let tapped = false;
+  for (let i = 0; i < 10 && (await scene.isVisible().catch(() => false)); i++) {
+    await page.getByTestId('discovery-next').click({ timeout: 2000 }).catch(() => {});
+    tapped = true;
+  }
+  return tapped;
+}
+
+/**
  * Attacks until `done` says so — a result screen, the four answers,
  * whatever comes next. Presses only when the row is free.
  */
@@ -44,6 +59,8 @@ export async function fightUntil(
   for (let turns = 0; turns < maxTurns; ) {
     if (await done()) return;
     if (await throughTheAwakening(page)) continue;
+    // His fight won: the medicine, found, on the way to the four answers.
+    if (await throughTheDiscovery(page)) continue;
     // Read, never waited for: once the enemy is beaten the row is gone
     // (as in the Artifact), and waiting for it would wait forever.
     const free = await page.evaluate(

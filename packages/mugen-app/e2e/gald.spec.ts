@@ -160,6 +160,72 @@ test('the four answers are offered, and only once per world', async ({ page }) =
   await expect(page.getByTestId('encounter-button')).toBeVisible();
 });
 
+test('発見: before the four answers, the medicine from his pack and the note in it; then where it goes', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await toTheForest(page);
+  await meetGald(page);
+  // His fall: the four answers are not up yet — what fell from his pack is.
+  const found = page.getByTestId('medicine-discovery');
+  await fightUntil(page, () => found.isVisible().catch(() => false), { maxTurns: 200 });
+  await expect(page.getByTestId('life-choice-screen')).toHaveCount(0);
+  await expect(page.getByTestId('choice-SPARE')).toHaveCount(0);
+  const line = page.getByTestId('discovery-line');
+  const memo = page.getByTestId('medicine-memo');
+  const seen: string[] = [];
+  const memos: boolean[] = [];
+  for (let i = 0; i < 5; i++) {
+    seen.push(((await line.textContent()) ?? '').trim());
+    memos.push(await memo.isVisible());
+    await page.getByTestId('discovery-next').click();
+  }
+  expect(seen).toEqual([
+    '男の荷から、小さな包みがこぼれ落ちた。',
+    '薬包に、走り書きのメモが挟まっている。',
+    '主人公は、包みを拾い上げた。',
+    '「……薬？」',
+    '「妹だ。病気なんだ」',
+  ]);
+  // The note, written: from the line that finds it on, on paper — and over nothing (the line still reads).
+  expect(memos).toEqual([false, true, true, true, true]);
+  // Then the four answers as they were, his question beside them.
+  await expect(found).toHaveCount(0);
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible();
+  await expect(page.getByTestId('life-choice-line')).toHaveText('「……どうするつもりだ……。」');
+  for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) await expect(page.getByTestId(`choice-${id}`)).toBeVisible();
+  // 見逃す: the medicine handed back, after his 「……馬鹿じゃねぇのか。」 and before he goes.
+  await page.getByTestId('choice-SPARE').click();
+  const after: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    after.push(((await page.getByTestId('choice-result-line').textContent()) ?? '').trim());
+    if (i < 4) await page.getByTestId('choice-result-next').click();
+  }
+  expect(after.slice(2)).toEqual(['盗賊「……馬鹿じゃねぇのか。」', '包みを差し出すと、男は黙って受け取った。', '男は森の奥へと消えていった。']);
+});
+
+test('発見 on a phone held sideways: the note, the line and つぎへ all on screen, none over another', async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 });
+  await freshApp(page);
+  await intoTheVillage(page);
+  await toTheForest(page);
+  await meetGald(page);
+  const found = page.getByTestId('medicine-discovery');
+  await fightUntil(page, () => found.isVisible().catch(() => false), { maxTurns: 200 });
+  await page.getByTestId('discovery-next').click();
+  const boxes = await Promise.all(['medicine-memo', 'discovery-line', 'discovery-next'].map(async (id) => (await page.getByTestId(id).boundingBox())!));
+  for (const b of boxes) {
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.y + b.height).toBeLessThanOrEqual(375);
+    expect(b.x + b.width).toBeLessThanOrEqual(667);
+  }
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++) {
+      const [a, b] = [boxes[i], boxes[j]];
+      const apart = a.y + a.height <= b.y + 0.5 || b.y + b.height <= a.y + 0.5 || a.x + a.width <= b.x || b.x + b.width <= a.x;
+      expect(apart, `${i} and ${j} apart`).toBe(true);
+    }
+});
+
 test('the answer, and what it unlocked, survive a restart', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);

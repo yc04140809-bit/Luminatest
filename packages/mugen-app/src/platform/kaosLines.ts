@@ -144,6 +144,8 @@ export const KAOS_CH1_LINES: Readonly<Record<string, string>> = {
   "ふふーん、今日もわたしの勝ち♪": 'v_ch1_chaos150',
   "……はぁ。ぜんぜん余裕だったけどね？": 'v_ch1_chaos151',
   "決まったね！ わたしの応援のおかげ♪": 'v_ch1_chaos152',
+  // ボイスパック23 (2026-11-03): ガルドの荷からこぼれた薬包を見て — 発見シーン (ui/gald.tsx).
+  "……薬？": 'v_ch1_chaos170',
 };
 
 /** Her spells' names, said as the cut-in comes in: the spell's id → its file. */
@@ -163,4 +165,5 @@ export const KAOS_CH1_GAIN_DB: Readonly<Record<string, number>> = {
   v_ch1_chaos110: 6,
   v_ch1_chaos112: 6,
   v_ch1_chaos140: 6,
+  v_ch1_chaos170: 6,
 };

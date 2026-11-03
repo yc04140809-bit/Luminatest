@@ -5,11 +5,13 @@ import { lineVoice } from '../platform/voice';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import {
-  CHOICE_RESULT_LINES,
   GALD_ENCOUNTER_LINES,
   GALD_LIFE_CHOICE_LINE,
   LIFE_CHOICE_OPTIONS,
   LIFE_CHOICE_PROMPT,
+  MEDICINE_DISCOVERY_LINES,
+  MEDICINE_MEMO,
+  choiceResultLinesAfterDiscovery,
 } from '@mugen/content/dialogue/galdEncounter';
 import { Place } from './screens';
 import { Stage, StagedLines, kaosFigureFor } from './scene';
@@ -91,7 +93,42 @@ export function GaldEncounterScreen({ onBattle }: { onBattle: () => void }) {
 }
 
 /**
- * THE FOUR ANSWERS.
+ * 発見 (作者 2026-11-03): before the four answers, on the same stage — what fell from his pack, the note, the hero
+ * picking it up, her 「……薬？」 and his 「妹だ。病気なんだ」. Tapped through, ten seconds or so.
+ *
+ * Her word in her mouth, his in his: after his last word (still being said as this comes up), never over it.
+ */
+function MedicineDiscovery({ onDone }: { onDone: () => void }) {
+  const [at, setAt] = useState(0);
+  const line = MEDICINE_DISCOVERY_LINES[at];
+  const last = at >= MEDICINE_DISCOVERY_LINES.length - 1;
+  useEffect(() => {
+    if (line.speaker === 'ケイオス') sayKaosLine(`medicine-discovery:${at}`, line, { wait: true });
+    else if (line.speaker) {
+      const id = lineVoice(line.speaker, line.text);
+      if (id) playVoice(id, { mouth: 'foe', wait: true });
+    }
+  }, [at]);
+  return (
+    <>
+      {line.showsMemo && (
+        <p className="medicine-memo" data-testid="medicine-memo" aria-label="メモ">
+          {MEDICINE_MEMO}
+        </p>
+      )}
+      {line.speaker && <p className="speaker stage-speaker">{line.speaker}</p>}
+      <p className="line stage-line" data-testid="discovery-line" key={at}>
+        <Typed text={line.speaker ? `「${line.text}」` : line.text} />
+      </p>
+      <button className="btn primary" data-testid="discovery-next" onClick={() => (last ? onDone() : setAt((n) => n + 1))}>
+        つぎへ
+      </button>
+    </>
+  );
+}
+
+/**
+ * THE FOUR ANSWERS — after the medicine is found (MedicineDiscovery), on the same stage.
  *
  * `onChoose` must not resolve until WORLD MEMORY has the write, and
  * the screen must not advance before it does — a choice that is on
@@ -104,10 +141,27 @@ export function LifeChoiceScreen({
 }: {
   onChoose: (choice: LifeChoiceId) => Promise<void>;
 }) {
+  const [found, setFound] = useState(false);
+  return (
+    <Stage
+      backdrop="GREENWOOD"
+      // Beaten, on one knee: a person being decided, not a menu.
+      figure={{ who: 'gald', state: 'portrait', alt: '膝をついた盗賊' }}
+      side="left"
+      className={found ? 'life-choice' : 'life-choice medicine-discovery'}
+      testId={found ? 'life-choice-screen' : 'medicine-discovery'}
+    >
+      <h1 className="place">グリーンウッドの森</h1>
+      {found ? <FourAnswers onChoose={onChoose} /> : <MedicineDiscovery onDone={() => setFound(true)} />}
+    </Stage>
+  );
+}
+
+function FourAnswers({ onChoose }: { onChoose: (choice: LifeChoiceId) => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18) — in his own mouth, after his fall and
-  // his last word (still being said as this comes up), never over them.
+  // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18) — in his own mouth, after his fall,
+  // his last word and his 「妹だ。病気なんだ」 (still being said as this comes up), never over them.
   useEffect(() => {
     const id = lineVoice('盗賊 ガルド', GALD_LIFE_CHOICE_LINE);
     if (id) playVoice(id, { mouth: 'foe', wait: true });
@@ -126,15 +180,7 @@ export function LifeChoiceScreen({
   };
 
   return (
-    <Stage
-      backdrop="GREENWOOD"
-      // Beaten, on one knee: a person being decided, not a menu.
-      figure={{ who: 'gald', state: 'portrait', alt: '膝をついた盗賊' }}
-      side="left"
-      className="life-choice"
-      testId="life-choice-screen"
-    >
-      <h1 className="place">グリーンウッドの森</h1>
+    <>
       <p className="speaker stage-speaker">盗賊 ガルド</p>
       <p className="line stage-line" data-testid="life-choice-line">
         「{GALD_LIFE_CHOICE_LINE}」
@@ -161,7 +207,7 @@ export function LifeChoiceScreen({
           記録できませんでした。もう一度選んでください。
         </p>
       )}
-    </Stage>
+    </>
   );
 }
 
@@ -187,7 +233,7 @@ export function ChoiceResultScreen({
     <Place area="GREENWOOD" title="グリーンウッドの森">
       <div data-testid="choice-result" data-choice={choice}>
         <Scene
-          lines={CHOICE_RESULT_LINES[choice]}
+          lines={choiceResultLinesAfterDiscovery(choice)}
           testId="choice-result-line"
           nextTestId="choice-result-next"
           doneLabel="村へもどる"

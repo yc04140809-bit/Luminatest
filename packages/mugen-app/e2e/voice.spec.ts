@@ -204,9 +204,11 @@ test('ガルド (still 「盗賊」 on screen): 「へっ、やるってのか�
   expect(said.filter((f) => f === 'v_ch1_gald008.mp3').length).toBeLessThanOrEqual(1);
   await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_gald010.mp3');
   await expect.poll(async () => (await ear.files()).slice(before), { timeout: 10_000 }).toContain('v_ch1_gald011.mp3');
-  // One after another in his own voice — his fall, his last word, his question — none over another.
+  // One after another in his own voice — his fall, his last word, the medicine's 「妹だ。病気なんだ」 (発見, ボイスパック24),
+  // his question — none over another. Her 「……薬？」 (ボイスパック23) in hers.
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_chaos170.mp3');
   const his = (await ear.files()).slice(before).filter((f) => /^(v_gard_|v_ch1_gald)/.test(f));
-  expect(his.slice(his.indexOf('v_gard_down01.mp3'))).toEqual(['v_gard_down01.mp3', 'v_ch1_gald010.mp3', 'v_ch1_gald011.mp3']);
+  expect(his.slice(his.indexOf('v_gard_down01.mp3'))).toEqual(['v_gard_down01.mp3', 'v_ch1_gald010.mp3', 'v_ch1_gald016.mp3', 'v_ch1_gald011.mp3']);
   // 見逃す: his three words after it.
   const answered = (await ear.heard()).length;
   await page.getByTestId('choice-SPARE').click();
