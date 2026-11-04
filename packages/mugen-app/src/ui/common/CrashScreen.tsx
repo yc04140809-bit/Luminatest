@@ -106,6 +106,9 @@ export class GameErrorBoundary extends Component<{ children: ReactNode }, { cras
           <p className="crash-code" data-testid="crash-code">
             {crash.message}
           </p>
+          <p className="crash-code" data-testid="crash-build">
+            build {__MUGEN_BUILD__}
+          </p>
         </div>
       </div>
     );

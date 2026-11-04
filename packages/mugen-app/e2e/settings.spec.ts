@@ -261,3 +261,15 @@ test('振動: the same switch as the walk’s own — OFF here is OFF there, kep
   await page.getByTestId('settings-vibration').click();
   expect(await page.evaluate(() => localStorage.getItem('mugen-explore-vibration'))).toBe('on');
 });
+
+test('which build: at the very foot of 設定, small — the dev server says dev', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('settings-button').click();
+  const stamp = page.getByTestId('settings-build');
+  await expect(stamp).toHaveText('build dev');
+  // Last in the card, under the admin's row; small.
+  const admin = (await page.getByTestId('settings-admin').boundingBox())!;
+  const at = (await stamp.boundingBox())!;
+  expect(at.y).toBeGreaterThanOrEqual(admin.y + admin.height - 1);
+  expect(await stamp.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(11);
+});

@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -132,6 +133,21 @@ function forgeAuthoring(): Plugin {
 }
 
 /**
+ * WHICH BUILD THIS IS (作者採用 2026-11-04): the day it was built (Japan's date) and the commit, shown small at the
+ * foot of 設定 (and with an error) — so a report from a phone says which build it came from. The dev server: 'dev'.
+ */
+export function buildStamp(now: Date = new Date()): string {
+  const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(now);
+  let commit = '';
+  try {
+    commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    /* no repository here: the date alone */
+  }
+  return commit ? `${day} (${commit})` : day;
+}
+
+/**
  * THE APP'S BUILD, which is the Artifact's build minus every
  * concession to a 16 MiB page.
  *
@@ -146,6 +162,7 @@ export default defineConfig(({ command, mode }) => {
   const debugTools = command === 'serve' || env.VITE_MUGEN_DEBUG_TOOLS === '1';
   return {
     base: './',
+    define: { __MUGEN_BUILD__: JSON.stringify(command === 'build' ? buildStamp() : 'dev') },
     plugins: [
       ...(debugTools ? [react(), forgeAuthoring()] : [react(), withoutDebugTools()]),
       webpPictures({ cacheDir: fileURLToPath(new URL('./node_modules/.cache/mugen-webp/', import.meta.url)) }),

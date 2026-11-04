@@ -256,6 +256,10 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
                 </div>
               )}
             </section>
+            {/* Which build this is (作者採用 2026-11-04): small, at the very foot — for a report. */}
+            <p className="settings-build" data-testid="settings-build">
+              build {__MUGEN_BUILD__}
+            </p>
           </>
         ) : (
           <Confirm ask={ask} onTitle={onTitle} onAsk={setAsk} />

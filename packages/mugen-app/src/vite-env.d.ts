@@ -8,3 +8,6 @@ interface ImportMetaEnv {
    */
   readonly VITE_MUGEN_DEBUG_TOOLS?: string;
 }
+
+/** Which build this is: its day (Japan's date) and commit — `2026-11-04 (bc8e913)` — or 'dev' (vite.config.ts). */
+declare const __MUGEN_BUILD__: string;

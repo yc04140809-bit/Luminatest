@@ -11,6 +11,7 @@ import { mugenAliases } from '../shared-aliases.mjs';
  */
 export default defineConfig({
   resolve: { alias: mugenAliases() },
+  define: { __MUGEN_BUILD__: JSON.stringify('test') },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'scripts/**/*.test.ts'],
   },
