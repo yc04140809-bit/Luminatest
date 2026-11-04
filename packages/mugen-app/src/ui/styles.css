@@ -3428,3 +3428,27 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .gusts { display: none; }
 }
+
+/* エラー時の受け皿 (A3, ui/common/CrashScreen): on its own — nothing of the game's screens under it. */
+.crash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #070a18;
+  color: #f2f4f8;
+}
+.crash-card {
+  width: min(460px, 100%);
+  padding: 18px 20px 14px;
+  border: 1px solid rgba(200, 214, 255, 0.4);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #151b3a, #0d1128);
+  text-align: center;
+}
+.crash-title { margin: 0 0 8px; font-family: var(--font-display); font-size: 18px; font-weight: 400; color: #e5cb91; }
+.crash-note { margin: 0 0 14px; font-size: 14px; line-height: 1.7; color: #d6dbe8; }
+.crash-code { margin: 12px 0 0; font-size: 10px; color: rgba(191, 199, 213, 0.5); word-break: break-all; }

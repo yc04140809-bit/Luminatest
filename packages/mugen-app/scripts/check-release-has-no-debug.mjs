@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 const APP = fileURLToPath(new URL('..', import.meta.url));
 // Strings that exist only in the debug tools' own files.
 const MARKERS = [
+  // A screen broken on request (ui/common/CrashScreen DevCrashOnRequest, A3).
+  'mugen-dev-crash',
   'debug-battle-preview',
   'debug-panel',
   'debug-replay',

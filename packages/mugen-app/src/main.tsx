@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { applySoundSettings, loadSoundSettings } from './platform/settings';
 import { runPendingReset } from './platform/adminReset';
+import { DevCrashOnRequest, GameErrorBoundary } from './ui/common/CrashScreen';
 // 明朝 for the paper theme (ステータス's palette, used app-wide since
 // 2026-10-07 — ui/styles.css 「THE PAPER THEME」). Self-hosted, OFL 1.1.
 import '@fontsource/noto-serif-jp/latin-400.css';
@@ -172,10 +173,14 @@ if (
   // The player's sound as they set it (設定), before anything is heard; and the admin's reset, if one was asked
   // for, done before the game opens its save (platform/adminReset.ts).
   applySoundSettings(loadSoundSettings());
+  // A screen that breaks while drawn is caught (ui/common/CrashScreen — A3): never a blank page.
   void runPendingReset().finally(() =>
     root.render(
       <StrictMode>
-        <App />
+        <GameErrorBoundary>
+          {(import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') && <DevCrashOnRequest />}
+          <App />
+        </GameErrorBoundary>
       </StrictMode>,
     ),
   );

@@ -49,6 +49,7 @@ import {
 import { battleBgmChoice, hasBattleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { DebugEntry } from './dev/DebugEntry';
 import { ThemeIntro, themeIntroSkipped } from './ui/themeIntro';
+import { backFromCrash } from './ui/common/CrashScreen';
 import { useTimePass } from './ui/timePass/TimePass';
 import { resultFaceFor } from './ui/battle/resultFace';
 import { SHOP_VOICE_SPOTS, useShopVoices } from './ui/audio/shopVoices';
@@ -210,7 +211,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * ends or is skipped. Not saved. While it is up the title's own piece is not asked for (below), so the two
    * never sound together. (The dev server's tests pass it by a cookie — themeIntroSkipped — DEV only.)
    */
-  const [themeIntro, setThemeIntro] = useState(() => !themeIntroSkipped());
+  // Back at the title after a crash (ui/common/CrashScreen): 「また、ここで。」 was heard this launch.
+  const [themeIntro, setThemeIntro] = useState(() => !themeIntroSkipped() && !backFromCrash());
   // 設定, over the screen it was opened on: from the title, or from the village (where タイトルに戻る is offered).
   const [settingsFrom, setSettingsFrom] = useState<'TITLE' | 'HOME' | null>(null);
   /**
