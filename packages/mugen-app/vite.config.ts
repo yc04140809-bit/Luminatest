@@ -5,6 +5,7 @@ import type { IncomingMessage } from 'node:http';
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { mugenAliases } from '../shared-aliases.mjs';
+import { webpPictures } from './scripts/webpPictures';
 
 const DEV_DIR = fileURLToPath(new URL('./src/dev/', import.meta.url));
 const DEBUG_STUB = '\0mugen-debug-tools-stub';
@@ -135,7 +136,9 @@ function forgeAuthoring(): Plugin {
  * concession to a 16 MiB page.
  *
  * Nothing is inlined, nothing is downscaled, and the music is the
- * music as delivered. `base: './'` because a Capacitor WebView serves
+ * music as delivered. The pictures keep their size in pixels but are
+ * written as WebP (scripts/webpPictures.ts — 作者 2026-11-04, A1): the
+ * PNGs as delivered stay in mugen-assets, and the dev server shows them. `base: './'` because a Capacitor WebView serves
  * from a local origin and an absolute path would not be found there.
  */
 export default defineConfig(({ command, mode }) => {
@@ -143,7 +146,10 @@ export default defineConfig(({ command, mode }) => {
   const debugTools = command === 'serve' || env.VITE_MUGEN_DEBUG_TOOLS === '1';
   return {
     base: './',
-    plugins: debugTools ? [react(), forgeAuthoring()] : [react(), withoutDebugTools()],
+    plugins: [
+      ...(debugTools ? [react(), forgeAuthoring()] : [react(), withoutDebugTools()]),
+      webpPictures({ cacheDir: fileURLToPath(new URL('./node_modules/.cache/mugen-webp/', import.meta.url)) }),
+    ],
     resolve: { alias: mugenAliases() },
     build: { outDir: 'dist' },
     server: {
