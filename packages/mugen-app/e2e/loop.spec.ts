@@ -73,7 +73,8 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   await expect(page.getByTestId('continue-button')).toHaveCount(0);
 
   await intoTheVillage(page);
-  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(0);
+  // A new game sets out with 30 LUMI (作者 2026-11-05, A7) — given once, as he is named.
+  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(30);
   const full = numberIn(await page.getByTestId('party-hero').textContent(), 'HP');
 
   // ALDEN → MAP → GREENWOOD → BATTLE
@@ -98,8 +99,8 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   await page.getByTestId('back-to-village').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
-  // What the fight cost and paid, carried out of it.
-  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(lumi);
+  // What the fight cost and paid, carried out of it — on top of the 30 a new game sets out with (A7).
+  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(30 + lumi);
   const hurt = numberIn(await page.getByTestId('party-hero').textContent(), 'HP');
   expect(hurt, 'a wound outlives the fight').toBeLessThan(full);
 
@@ -108,7 +109,8 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 20_000 });
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(lumi);
+  // Kept, and the 30 not given again on the way back in.
+  expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(30 + lumi);
   expect(numberIn(await page.getByTestId('party-hero').textContent(), 'HP')).toBe(hurt);
 });
 

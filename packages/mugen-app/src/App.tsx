@@ -19,6 +19,7 @@ import {
   GALD_UNNAMED,
 } from './ui/gald';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
+import { STARTING_PURSE_LUMI } from '@mugen/core/economy/lumi';
 import { GALD_DEFEATED_LINES } from '@mugen/content/dialogue/galdEncounter';
 import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
@@ -130,6 +131,9 @@ import {
   SekiryugaStillScreen,
   type RuinsPhase,
 } from './ui/ruins';
+
+/** A new game's purse, given once as he is named (A7 — core/economy/lumi STARTING_PURSE_LUMI). */
+const STARTING_PURSE_MARK = 'purse:starting';
 
 /** His fight as the hero knows him: 「盗賊」, not yet 「盗賊 ガルド」 (作者 2026-11-05). */
 const GALD_BATTLE_UNNAMED = { ...GALD_BATTLE, name: GALD_UNNAMED };
@@ -866,7 +870,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               // アルデン村, 作者決定 2026-10-16), and the village.
               void world
                 .setHeroName(name)
-                .then(() => world.markRead([OPENING_COMIC_MARK]))
+                // The purse a new game sets out with (A7): once, and kept as given.
+                .then(() => (world.isRead(STARTING_PURSE_MARK) ? undefined : world.addLumi(STARTING_PURSE_LUMI)))
+                .then(() => world.markRead([OPENING_COMIC_MARK, STARTING_PURSE_MARK]))
                 .catch((e) => console.error('Failed to keep the name or the opening', e))
                 .finally(() => {
                   setNaming(false);

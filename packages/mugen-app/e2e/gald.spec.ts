@@ -200,14 +200,19 @@ test('発見: before the four answers, the medicine from his pack and the note i
   await expect(page.getByTestId('life-choice-screen').locator('.stage-speaker')).toHaveText('盗賊');
   await expect(page.getByTestId('life-choice-screen')).not.toContainText('ガルド');
   for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) await expect(page.getByTestId(`choice-${id}`)).toBeVisible();
-  // 見逃す: the medicine handed back, after his 「……馬鹿じゃねぇのか。」 and before he goes.
+  // 見逃す: the medicine handed back, after his 「……馬鹿じゃねぇのか。」; his name as he leaves (A9); then he goes.
   await page.getByTestId('choice-SPARE').click();
   const after: string[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     after.push(((await page.getByTestId('choice-result-line').textContent()) ?? '').trim());
-    if (i < 4) await page.getByTestId('choice-result-next').click();
+    if (i < 5) await page.getByTestId('choice-result-next').click();
   }
-  expect(after.slice(2)).toEqual(['盗賊「……馬鹿じゃねぇのか。」', '包みを差し出すと、男は黙って受け取った。', '男は森の奥へと消えていった。']);
+  expect(after.slice(2)).toEqual([
+    '盗賊「……馬鹿じゃねぇのか。」',
+    '包みを差し出すと、男は黙って受け取った。',
+    '去り際に、男はガルドと名乗った。',
+    '男は森の奥へと消えていった。',
+  ]);
 });
 
 test('発見 on a phone held sideways: the note, the line and つぎへ all on screen, none over another', async ({ page }) => {

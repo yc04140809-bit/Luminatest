@@ -25,33 +25,42 @@ describe('the medicine, found before the four answers', () => {
     expect(LIFE_CHOICE_OPTIONS.map((o) => o.id)).toEqual(['KILL', 'SPARE', 'HELP', 'CAPTURE']);
   });
 
-  it('after each answer, one line says where the medicine went, in its place; the rest as it was', () => {
+  it('after each answer: where the medicine went, and his name — learned here and no sooner (A9) — in their places', () => {
     expect(choiceResultLinesAfterDiscovery('SPARE').map((l) => l.text)).toEqual([
       '……俺は、お前を襲ったんだぞ。',
       'それでも見逃すのか？',
       '……馬鹿じゃねぇのか。',
       '包みを差し出すと、男は黙って受け取った。',
+      '去り際に、男はガルドと名乗った。',
       '男は森の奥へと消えていった。',
     ]);
     expect(choiceResultLinesAfterDiscovery('KILL').map((l) => l.text)).toEqual([
       '男は動かなくなった。',
       '懐から、古い手紙のようなものが覗いている。',
+      '手紙の差出人に、ガルド、とあった。',
       '包みとメモは、まだ{HERO}の手の中にある。',
     ]);
     expect(choiceResultLinesAfterDiscovery('HELP').map((l) => l.text)).toEqual([
       '……なんのつもりだ。',
       '男は傷の手当てを黙って受けた。',
       '手当てを終えると、包みを男の手に戻した。',
+      '手当ての途中、男はガルドとだけ名乗った。',
     ]);
     expect(choiceResultLinesAfterDiscovery('CAPTURE').map((l) => l.text)).toEqual([
       '男は縄をかけられ、村の衛兵に引き渡された。',
       '包みのことは、衛兵に伝えて預けた。',
+      '衛兵が、男の名を呼んだ。ガルド、と。',
       '最後まで、一言も話さなかった。',
     ]);
-    // The narration is narration; the shared lines (the Artifact's) are untouched.
+    // Narration, no voice; the shared lines (the Artifact's) are untouched.
     for (const id of ['SPARE', 'KILL', 'HELP', 'CAPTURE'] as const) {
-      expect(choiceResultLinesAfterDiscovery(id).length).toBe(CHOICE_RESULT_LINES[id].length + 1);
+      const added = choiceResultLinesAfterDiscovery(id).filter((l) => !CHOICE_RESULT_LINES[id].includes(l));
+      expect(added).toHaveLength(2);
+      for (const l of added) expect(l.speaker).toBeNull();
+      // His name once in each, never before the answer (the discovery says 「盗賊」).
+      expect(added.filter((l) => l.text.includes('ガルド'))).toHaveLength(1);
     }
+    expect(MEDICINE_DISCOVERY_LINES.some((l) => l.text.includes('ガルド') || l.speaker?.includes('ガルド'))).toBe(false);
     expect(CHOICE_RESULT_LINES.SPARE.map((l) => l.text)).not.toContain('包みを差し出すと、男は黙って受け取った。');
   });
 });

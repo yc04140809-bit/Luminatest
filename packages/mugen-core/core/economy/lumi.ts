@@ -13,6 +13,14 @@
 /** A purse that has never been paid. */
 export const INITIAL_LUMI = 0;
 
+/**
+ * WHAT A NEW GAME SETS OUT WITH (作者 2026-11-05, A7): 30 LUMI, given once as the hero is named — enough for one
+ * herb or loaf (16〜22) and 12 over, so the first shop is a purchase and not only 「LUMIが足りない」; a fight in
+ * the forest (+9) makes up the next. The purse itself still opens at nought (INITIAL_LUMI): this is a gift on the
+ * way in, written down as given (the App's mark), never a different empty purse.
+ */
+export const STARTING_PURSE_LUMI = 30;
+
 /** Whole, and never below nought. */
 function clean(value: number): number {
   const whole = Math.floor(value);

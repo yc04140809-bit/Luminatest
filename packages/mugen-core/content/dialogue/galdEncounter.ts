@@ -79,22 +79,41 @@ export const CHOICE_RESULT_LINES: Record<LifeChoiceId, DialogueLine[]> = {
 /**
  * Where the medicine goes, by the answer (作者 2026-11-03 採用): one line each, in its place among the lines above.
  * Given back (見逃す・助ける), handed to the guards (捕縛), or still in the hero's hands (とどめ). The note stays with
- * the hero in all four. Only the App shows these — its four answers come after the discovery; the Artifact's do not.
+ * the hero in all four.
+ *
+ * And HIS NAME, learned here and no sooner (作者 2026-11-05, A9): until now he has been 「盗賊」 only. One line
+ * each, no voice — the letter's sender (とどめ: the clue to whom the medicine goes), his name as he leaves (見逃す),
+ * given while he is tended (助ける), called by the guards (捕縛).
+ *
+ * Only the App shows these — its four answers come after the discovery; the Artifact's do not.
  */
-export const CHOICE_RESULT_PARCEL_LINES: Record<LifeChoiceId, { after: string | null; line: DialogueLine }> = {
-  SPARE: { after: '……馬鹿じゃねぇのか。', line: { speaker: null, text: '包みを差し出すと、男は黙って受け取った。' } },
-  KILL: { after: null, line: { speaker: null, text: '包みとメモは、まだ{HERO}の手の中にある。' } },
-  HELP: { after: '男は傷の手当てを黙って受けた。', line: { speaker: null, text: '手当てを終えると、包みを男の手に戻した。' } },
-  CAPTURE: { after: '男は縄をかけられ、村の衛兵に引き渡された。', line: { speaker: null, text: '包みのことは、衛兵に伝えて預けた。' } },
+export const CHOICE_RESULT_PARCEL_LINES: Record<LifeChoiceId, readonly { after: string | null; line: DialogueLine }[]> = {
+  SPARE: [
+    { after: '……馬鹿じゃねぇのか。', line: { speaker: null, text: '包みを差し出すと、男は黙って受け取った。' } },
+    { after: '包みを差し出すと、男は黙って受け取った。', line: { speaker: null, text: '去り際に、男はガルドと名乗った。' } },
+  ],
+  KILL: [
+    { after: '懐から、古い手紙のようなものが覗いている。', line: { speaker: null, text: '手紙の差出人に、ガルド、とあった。' } },
+    { after: null, line: { speaker: null, text: '包みとメモは、まだ{HERO}の手の中にある。' } },
+  ],
+  HELP: [
+    { after: '男は傷の手当てを黙って受けた。', line: { speaker: null, text: '手当てを終えると、包みを男の手に戻した。' } },
+    { after: '手当てを終えると、包みを男の手に戻した。', line: { speaker: null, text: '手当ての途中、男はガルドとだけ名乗った。' } },
+  ],
+  CAPTURE: [
+    { after: '男は縄をかけられ、村の衛兵に引き渡された。', line: { speaker: null, text: '包みのことは、衛兵に伝えて預けた。' } },
+    { after: '包みのことは、衛兵に伝えて預けた。', line: { speaker: null, text: '衛兵が、男の名を呼んだ。ガルド、と。' } },
+  ],
 };
 
-/** The lines after an answer, once the medicine has been found: CHOICE_RESULT_LINES with its line put in. */
+/** The lines after an answer, once the medicine has been found: CHOICE_RESULT_LINES with its lines put in. */
 export function choiceResultLinesAfterDiscovery(choice: LifeChoiceId): DialogueLine[] {
   const lines = [...CHOICE_RESULT_LINES[choice]];
-  const { after, line } = CHOICE_RESULT_PARCEL_LINES[choice];
-  const at = after === null ? lines.length : lines.findIndex((l) => l.text === after) + 1;
-  if (at <= 0) throw new Error(`No line 「${after}」 after ${choice}`);
-  lines.splice(at, 0, line);
+  for (const { after, line } of CHOICE_RESULT_PARCEL_LINES[choice]) {
+    const at = after === null ? lines.length : lines.findIndex((l) => l.text === after) + 1;
+    if (at <= 0) throw new Error(`No line 「${after}」 after ${choice}`);
+    lines.splice(at, 0, line);
+  }
   return lines;
 }
 
