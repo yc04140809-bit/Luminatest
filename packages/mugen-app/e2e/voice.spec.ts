@@ -233,10 +233,10 @@ test('リナ (ボイスパック19): the shelves — 「いらっしゃい！ �
   await page.getByTestId('bakery-buy').click();
   await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_lina010.mp3');
   await page.locator('[data-testid^="bakery-buy-"]:not([data-testid="bakery-buy-close"])').first().click();
-  // 「まいどあり！」, or — a new save's purse — 「あ……LUMIがちょっと足りないみたい。」: whichever is shown, in her voice.
-  const shown = (await page.getByTestId('bakery-say').textContent()) ?? '';
-  const take = shown.includes('まいどあり') ? 'v_ch1_lina013.mp3' : shown.includes('足りない') ? 'v_ch1_lina014.mp3' : 'v_ch1_lina015.mp3';
-  await expect.poll(async () => (await ear.files()).slice(before)).toContain(take);
+  // A new game sets out with 30 LUMI (A7): the first loaf (18) is bought — 「まいどあり！」, in her voice. Waited for
+  // as shown, never read before the screen has answered the tap.
+  await expect(page.getByTestId('bakery-say')).toContainText('まいどあり');
+  await expect.poll(async () => (await ear.files()).slice(before)).toContain('v_ch1_lina013.mp3');
   expect(ear.errors).toEqual([]);
 });
 
