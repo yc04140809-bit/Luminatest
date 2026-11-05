@@ -264,6 +264,8 @@ test('④ coming back: a light purse first; the same day, nothing more; the next
 }) => {
   await freshVillage(page);
   await readAllRumours(page);
+  // A light purse: a new game's 30 LUMI (A7) spent — her word is for under 30.
+  await world(page, `(w) => w.spendLumi(w.getLumi())`);
   await nudgeRoll(page, 0);
   await outAndBack(page);
   await expect(page.getByTestId('kaos-nudge')).toHaveAttribute('data-nudge', 'POOR_1');

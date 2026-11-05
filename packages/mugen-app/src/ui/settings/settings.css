@@ -91,6 +91,12 @@
 .screen.title.has-logo > .settings-gear.settings-gear { position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 5; }
 /* In the village, with the day and the purse: as small as a finger allows. */
 .settings-gear.vg-gear { min-width: 0; min-height: 24px; padding: 0 7px; font-size: max(11px, 1.2cqw); align-self: center; }
+/* On a small phone (the village's picture under 480px across), the row of the day, the purse and 設定 a little
+   tighter (2026-11-05: 「LUMI 30」, a digit longer, put 設定 over 次の目的 at 640×300) — hundreds of LUMI still clear. */
+@container (max-width: 480px) {
+  .vg-head { gap: 6px; font-size: 10px; }
+  .settings-gear.vg-gear { padding: 0 5px; font-size: 10px; }
+}
 /* The words still to come: laid out, unseen (ui/common/Typed). */
 .typed-rest { visibility: hidden; }
 /* 画面の明るさ: over everything, the settings card included (so it can be judged while it is set). */

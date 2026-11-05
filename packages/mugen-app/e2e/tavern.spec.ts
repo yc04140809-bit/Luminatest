@@ -122,6 +122,8 @@ function without(saved: Saved, key: string): Saved {
 
 /** What the way into Alden left read, before anything in the village (the opening, event:OPENING_COMIC — openingComic.spec). */
 const INTRO = 'event:OPENING_COMIC';
+/** A new game's purse, given once as he is named (A7). */
+const PURSE = 'purse:starting';
 
 /** A save from a build before readMarks: the row taken out, as it never was. */
 async function withoutTheReadMarksRow(page: Page) {
@@ -218,8 +220,8 @@ test('village → tavern → the room, the master, a talk → back to the villag
   // key, row for row. (The way into Alden was already read before the village.)
   await page.waitForTimeout(500);
   const after = await everythingSaved(page);
-  expect(readMarksOf(after)).toEqual([INTRO, 'talk:GRAVE_MEETING']);
-  expect(readMarksOf(before)).toEqual([INTRO]);
+  expect(readMarksOf(after)).toEqual([INTRO, PURSE, 'talk:GRAVE_MEETING']);
+  expect(readMarksOf(before)).toEqual([INTRO, PURSE]);
   expect(rowOf(after, 'musicUnlocks')).toEqual([...((rowOf(before, 'musicUnlocks') as string[]) ?? []), 'TAVERN']);
   expect(without(after, 'musicUnlocks')).toEqual(without(before, 'musicUnlocks'));
   await page.getByTestId('memory-button').click();
@@ -334,7 +336,7 @@ test('his meeting happens once in a new save: not again on walking back in, not 
   await page.getByTestId('tavern-leave').click();
 
   // The app closed and opened: still his greeting.
-  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual([INTRO, 'talk:GRAVE_MEETING']);
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual([INTRO, PURSE, 'talk:GRAVE_MEETING']);
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

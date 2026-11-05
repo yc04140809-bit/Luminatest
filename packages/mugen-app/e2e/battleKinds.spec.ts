@@ -176,7 +176,8 @@ test('ガルド: his own music, no 逃げる, no AUTO, at arm’s length in the 
     await page.getByTestId('encounter-next').click();
   }
   expect(await fingerprint(page)).toEqual({
-    name: '盗賊 ガルド',
+    // 「盗賊」 until he gives his name (作者 2026-11-05, A9).
+    name: '盗賊',
     boss: false,
     escape: false,
     auto: false,

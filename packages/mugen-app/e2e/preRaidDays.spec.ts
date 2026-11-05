@@ -126,6 +126,8 @@ test('the forest grows back: the herbs two days on — and Kaos says so on comin
 }) => {
   await freshVillage(page);
   await readAllRumours(page);
+  // The purse empty: a new game's 30 LUMI (A7) spent.
+  await world(page, `(w) => w.spendLumi(w.getLumi())`);
   await page.evaluate(() => ((window as unknown as { __mugenNudgeRoll?: number }).__mugenNudgeRoll = 0));
   // Into the forest: the herbs taken.
   await page.getByTestId('explore-button').click();
