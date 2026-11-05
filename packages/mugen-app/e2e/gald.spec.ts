@@ -67,6 +67,9 @@ async function walkTheVision(page: Page) {
 async function meetGald(page: Page) {
   await page.getByTestId('gald-button').click();
   await expect(page.getByTestId('gald-encounter')).toBeVisible();
+  // A stranger on the path: 「盗賊」, his name not yet given (作者 2026-11-05).
+  await expect(page.getByTestId('gald-encounter')).toContainText('盗賊');
+  await expect(page.getByTestId('gald-encounter')).not.toContainText('ガルド');
   for (let i = 0; i < 6; i++) {
     if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
@@ -165,6 +168,8 @@ test('発見: before the four answers, the medicine from his pack and the note i
   await intoTheVillage(page);
   await toTheForest(page);
   await meetGald(page);
+  // 「盗賊」 until he gives his name (作者 2026-11-05): on his plate in the fight too.
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('盗賊');
   // His fall: the four answers are not up yet — what fell from his pack is.
   const found = page.getByTestId('medicine-discovery');
   await fightUntil(page, () => found.isVisible().catch(() => false), { maxTurns: 200 });
@@ -192,6 +197,8 @@ test('発見: before the four answers, the medicine from his pack and the note i
   await expect(found).toHaveCount(0);
   await expect(page.getByTestId('life-choice-screen')).toBeVisible();
   await expect(page.getByTestId('life-choice-line')).toHaveText('「……どうするつもりだ……。」');
+  await expect(page.getByTestId('life-choice-screen').locator('.stage-speaker')).toHaveText('盗賊');
+  await expect(page.getByTestId('life-choice-screen')).not.toContainText('ガルド');
   for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) await expect(page.getByTestId(`choice-${id}`)).toBeVisible();
   // 見逃す: the medicine handed back, after his 「……馬鹿じゃねぇのか。」 and before he goes.
   await page.getByTestId('choice-SPARE').click();

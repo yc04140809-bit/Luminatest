@@ -24,9 +24,11 @@ export const GALD_DEFEATED_LINES: DialogueLine[] = [
 export const MEDICINE_DISCOVERY_LINES: (DialogueLine & { showsMemo?: boolean })[] = [
   { speaker: null, text: '男の荷から、小さな包みがこぼれ落ちた。' },
   { speaker: null, text: '薬包に、走り書きのメモが挟まっている。', showsMemo: true },
-  { speaker: null, text: '主人公は、包みを拾い上げた。', showsMemo: true },
+  // {HERO}: his name as the player gave it, put in where it is shown (作者 2026-11-05).
+  { speaker: null, text: '{HERO}は、包みを拾い上げた。', showsMemo: true },
   { speaker: 'ケイオス', text: '……薬？', showsMemo: true },
-  { speaker: '盗賊 ガルド', text: '妹だ。病気なんだ', showsMemo: true },
+  // 「盗賊」: he has not given his name yet (作者 2026-11-05).
+  { speaker: '盗賊', text: '妹だ。病気なんだ', showsMemo: true },
 ];
 
 /** The note in the medicine: its words only — no voice reads it. */
@@ -81,7 +83,7 @@ export const CHOICE_RESULT_LINES: Record<LifeChoiceId, DialogueLine[]> = {
  */
 export const CHOICE_RESULT_PARCEL_LINES: Record<LifeChoiceId, { after: string | null; line: DialogueLine }> = {
   SPARE: { after: '……馬鹿じゃねぇのか。', line: { speaker: null, text: '包みを差し出すと、男は黙って受け取った。' } },
-  KILL: { after: null, line: { speaker: null, text: '包みとメモは、まだ主人公の手の中にある。' } },
+  KILL: { after: null, line: { speaker: null, text: '包みとメモは、まだ{HERO}の手の中にある。' } },
   HELP: { after: '男は傷の手当てを黙って受けた。', line: { speaker: null, text: '手当てを終えると、包みを男の手に戻した。' } },
   CAPTURE: { after: '男は縄をかけられ、村の衛兵に引き渡された。', line: { speaker: null, text: '包みのことは、衛兵に伝えて預けた。' } },
 };

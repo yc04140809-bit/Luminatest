@@ -103,14 +103,12 @@ test('shows the six numbers for each of them — HP, MP, 攻撃力 the battle’
   await expect(page.getByTestId('status-screen')).not.toContainText('未実装');
 });
 
-test('the pages along the foot: ステータス, プロフィール, 装備, スキル are doors; ストーリー and スキン are named, never offered', async ({ page }) => {
+test('the pages along the foot: ステータス, プロフィール, 装備, スキル are doors; ストーリー and スキン not shown until they exist', async ({ page }) => {
   await openStatus(page);
+  // 作者 2026-11-05: a page that cannot be opened reads as unfinished — not shown at all.
   for (const label of ['ストーリー', 'スキン']) {
-    const item = page.getByTestId(label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`);
-    await expect(item).toBeVisible();
-    // A span, not a button, and nothing a screen reader will call operable.
-    await expect(item).toHaveJSProperty('tagName', 'SPAN');
-    await expect(item).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId(label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`)).toHaveCount(0);
+    await expect(page.locator('.st-nav')).not.toContainText(label);
   }
   const equip = page.getByTestId('status-to-equipment');
   await expect(equip).toHaveJSProperty('tagName', 'BUTTON');

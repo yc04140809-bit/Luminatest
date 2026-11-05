@@ -459,7 +459,9 @@ export function ResultScreen({
               {reward.levels.map((l, i) => (
                 <span key={l.label} className="result-level">
                   {i > 0 && <span className="result-level-sep"> / </span>}
-                  {`${l.label} Lv.${l.from} → Lv.${l.to}`}
+                  {/* His name as the player gave it, never 「あなた」; the arrow only where a level was gained
+                      (作者 2026-11-05: 「Lv.2 → Lv.2」 reads as a fault). */}
+                  {`${l.characterId === 'hero' ? heroName : l.label} ${l.to > l.from ? `Lv.${l.from} → Lv.${l.to}` : `Lv.${l.to}`}`}
                 </span>
               ))}
             </p>

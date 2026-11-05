@@ -16,6 +16,7 @@ import {
   ChoiceResultScreen,
   GaldEncounterScreen,
   LifeChoiceScreen,
+  GALD_UNNAMED,
 } from './ui/gald';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
 import { GALD_DEFEATED_LINES } from '@mugen/content/dialogue/galdEncounter';
@@ -51,7 +52,8 @@ import { DebugEntry } from './dev/DebugEntry';
 import { ThemeIntro, themeIntroSkipped } from './ui/themeIntro';
 import { backFromCrash } from './ui/common/CrashScreen';
 import { useTimePass } from './ui/timePass/TimePass';
-import { resultFaceFor } from './ui/battle/resultFace';
+import { resultFaceFor, resultPartyOf } from './ui/battle/resultFace';
+import { activeParty } from '@mugen/game/party/battleParty';
 import { SHOP_VOICE_SPOTS, useShopVoices } from './ui/audio/shopVoices';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
@@ -128,6 +130,9 @@ import {
   SekiryugaStillScreen,
   type RuinsPhase,
 } from './ui/ruins';
+
+/** His fight as the hero knows him: 「盗賊」, not yet 「盗賊 ガルド」 (作者 2026-11-05). */
+const GALD_BATTLE_UNNAMED = { ...GALD_BATTLE, name: GALD_UNNAMED };
 
 /** At or under this share of his health, グレイヴ greets him with worry (ボイス daily02, 作者 2026-10-31). */
 const GRAVE_WORRY_SHARE = 0.5;
@@ -1507,7 +1512,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // One screen, Gald's fight and the forest's, and the numbers are
           // the only difference between them. Every spec is content.
           key={gald ? 'gald' : creature.speciesId === 'moss_rabbit' ? 'rabbit' : creature.speciesId}
-          spec={gald ? GALD_BATTLE : specOf(creature)}
+          // 「盗賊」 on his plate and in the log until he gives his name (作者 2026-11-05).
+          spec={gald ? GALD_BATTLE_UNNAMED : specOf(creature)}
           // How they are drawn, as the Artifact draws the same two: Gald
           // is a person at arm's length who speaks when beaten; the
           // rabbit a creature up the path, with its own line.
@@ -1516,7 +1522,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               ? {
                   artId: 'gald',
                   stands: 'NEAR',
-                  defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text },
+                  defeated: { speaker: GALD_BATTLE_UNNAMED.name, text: GALD_DEFEATED_LINES[0].text },
                 }
               : { artId: creature.speciesId, stands: 'FAR', defeated: { text: creature.defeatedText } }
           }
@@ -1557,8 +1563,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             />
             <ResultScreen
               reward={winnings ?? NOTHING_APPLIED}
-              // Her bust and line, if she fought beside him (her magic woken): the forest's ordinary fights, an ordinary win.
-              face={resultFaceFor(kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) ? 'DUO' : 'NO_KAOS', 'NORMAL')}
+              // Her bust and line wherever she fought beside him — before her magic wakes too: she stands there and
+              // shares the winnings (作者 2026-11-05). The forest's ordinary fights: an ordinary win.
+              face={resultFaceFor(resultPartyOf(activeParty().map((m) => m.id)), 'NORMAL')}
               heroName={world.getHeroName()}
               onDone={() => {
                 if (flow.getState().screen !== 'BATTLE_RESULT') return;
@@ -1573,6 +1580,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'LIFE_CHOICE':
       return (
         <LifeChoiceScreen
+          heroName={world.getHeroName()}
           onChoose={async (choice) => {
             // WORLD MEMORY FIRST. The screen advances only once the
             // database has confirmed the write, so a choice the player
@@ -1586,6 +1594,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'CHOICE_RESULT':
       return (
         <ChoiceResultScreen
+          heroName={world.getHeroName()}
           choice={state.galdLifeChoice ?? 'SPARE'}
           // GALD'S FIGHT IS THE END OF FIGHTING BY HAND ALONE: with the last
           // of what his answer left behind, AUTO is said to be open — once,

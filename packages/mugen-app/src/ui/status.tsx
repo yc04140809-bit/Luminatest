@@ -46,8 +46,8 @@ import { battlePartyArt, type BattlePartyId } from './battle/battleArt';
  * TWO COLUMNS AND A FOOT (2026-10-11): who they are on the left (it
  * scrolls), the picture large on the right, and the pages of them along
  * the foot — ステータス, プロフィール (their words), 装備 (its own screen),
- * スキル — with ストーリー and スキン named as plain text, no handler, no
- * press state, until they exist.
+ * スキル. ストーリー and スキン are not shown until they exist (作者
+ * 2026-11-05: 試遊版で、開けない頁は作りかけに見える).
  */
 interface Props {
   world: World;
@@ -354,19 +354,8 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
             <NewBadge show={newEquipmentIds(world).length > 0} testId="status-equipment-new" />
           </CrystalTab>
           {page('SKILLS', 'スキル', 'status-to-skills', <NewBadge show={unreadSkills(world)} testId="status-skills-new" />)}
-          {/* NOT BUTTONS: named, never offered, until they exist. */}
-          {(['ストーリー', 'スキン'] as const).map((label) => (
-            <CrystalTab
-              as="span"
-              dim
-              className="st-nav-item soon"
-              key={label}
-              attrs={{ 'aria-disabled': 'true' }}
-              testId={label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`}
-            >
-              {label}
-            </CrystalTab>
-          ))}
+          {/* ストーリー and スキン: not shown until they exist (作者 2026-11-05 — a page that cannot be opened
+              reads as unfinished). */}
         </nav>
       </div>
     </div>

@@ -33,6 +33,7 @@ import { audioManager, playSfx } from '../platform/audio';
 import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { withHeroName } from './common/heroName';
 import { Typed } from './common/Typed';
 
 /**
@@ -244,6 +245,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       speaker={speaker}
       voiced={line.speaker}
       text={line.text}
+      textShown={withHeroName(line.text, heroName)}
       shake={line.shake ?? null}
       hush={line.hush === true}
       music={finaleMusicAt(scene, phase.line)}
@@ -268,6 +270,7 @@ function FinaleScene({
   speaker,
   voiced,
   text,
+  textShown,
   shake,
   hush,
   music,
@@ -287,7 +290,10 @@ function FinaleScene({
   speaker: string | null;
   /** The speaker as written (`{HERO}` before his name is put in): whose voice it is. */
   voiced: string | null;
+  /** The words as written — what her voice is found by. */
   text: string;
+  /** The words as shown: his name put in where the narration speaks of him (`{HERO}`). */
+  textShown?: string;
   /** The picture's jolt as this line comes up (SCREEN SHAKE), or none. */
   shake: 'small' | 'medium' | 'large' | null;
   /** The music almost gone while this line is up. */
@@ -388,7 +394,7 @@ function FinaleScene({
           data-pause={pause}
           style={pause > 0 ? { ['--finale-pause' as string]: `${pause}ms` } : undefined}
         >
-          <Typed text={speaker ? `「${text}」` : text} />
+          <Typed text={speaker ? `「${textShown ?? text}」` : (textShown ?? text)} />
         </p>
         <button
           className="btn primary finale-next"

@@ -13,11 +13,11 @@ describe('the medicine, found before the four answers', () => {
     expect(MEDICINE_DISCOVERY_LINES.map((l) => l.text)).toEqual([
       '男の荷から、小さな包みがこぼれ落ちた。',
       '薬包に、走り書きのメモが挟まっている。',
-      '主人公は、包みを拾い上げた。',
+      '{HERO}は、包みを拾い上げた。',
       '……薬？',
       '妹だ。病気なんだ',
     ]);
-    expect(MEDICINE_DISCOVERY_LINES.map((l) => l.speaker)).toEqual([null, null, null, 'ケイオス', '盗賊 ガルド']);
+    expect(MEDICINE_DISCOVERY_LINES.map((l) => l.speaker)).toEqual([null, null, null, 'ケイオス', '盗賊']);
     // The note is shown from the line that finds it on.
     expect(MEDICINE_DISCOVERY_LINES.map((l) => !!l.showsMemo)).toEqual([false, true, true, true, true]);
     expect(MEDICINE_MEMO).toBe('エルナへ　あと二日分');
@@ -36,7 +36,7 @@ describe('the medicine, found before the four answers', () => {
     expect(choiceResultLinesAfterDiscovery('KILL').map((l) => l.text)).toEqual([
       '男は動かなくなった。',
       '懐から、古い手紙のようなものが覗いている。',
-      '包みとメモは、まだ主人公の手の中にある。',
+      '包みとメモは、まだ{HERO}の手の中にある。',
     ]);
     expect(choiceResultLinesAfterDiscovery('HELP').map((l) => l.text)).toEqual([
       '……なんのつもりだ。',

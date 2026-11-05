@@ -167,7 +167,7 @@ export function TitleScreen({
         </button>
       )}
       <h1 className="logo">MUGEN ZERO</h1>
-      <p className="sub">App Alpha</p>
+      <p className="sub">試遊版</p>
       {hasSave ? (
         <button className="btn primary" data-testid="continue-button" onClick={onContinue}>
           つづきから

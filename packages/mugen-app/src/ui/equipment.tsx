@@ -156,14 +156,9 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
           <button className="st-menu-item live" data-testid="equip-to-status" onClick={onStatus}>
             ステータス
           </button>
-          <span className="st-menu-item soon" aria-disabled="true">
-            スキル
-          </span>
+          {/* スキル and ストーリー here: not shown until they open (作者 2026-11-05). */}
           <span className="st-menu-item on" aria-current="page">
             装備
-          </span>
-          <span className="st-menu-item soon" aria-disabled="true">
-            ストーリー
           </span>
         </nav>
 

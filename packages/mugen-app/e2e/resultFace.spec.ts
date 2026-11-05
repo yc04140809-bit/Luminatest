@@ -102,13 +102,17 @@ test('a fight of one in the forest: nothing of her before she wakes; after, her 
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
   await pastTheIntro(page);
-  // Before Gald: a creature of the forest, alone — she is not in it.
+  // Before Gald, her magic not yet woken: she stands beside him and shares the winnings — so she is on the
+  // result too (作者 2026-11-05), the two of them, an ordinary win.
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();
   await fightUntil(page, () => page.getByTestId('result-exp').isVisible().catch(() => false));
-  await expect(page.getByTestId('result-face')).toHaveCount(0);
-  await expect(page.getByTestId('result-line')).toHaveCount(0);
+  await expect(page.getByTestId('result-face')).toHaveAttribute('data-party', 'DUO');
+  await expect(page.getByTestId('result-face')).toHaveAttribute('data-face', 'SMILE');
+  await expect(page.getByTestId('result-line')).toContainText('主人公');
+  // The first win is a level for both: by name (never 「あなた」), the arrow where it was gained.
+  await expect(page.getByTestId('result-levels')).toHaveText('主人公 Lv.1 → Lv.2 / ケイオス Lv.1 → Lv.2');
   await page.getByTestId('result-done').click();
   // Gald, and the four answers: she wakes in that fight.
   await page.getByTestId('gald-button').click();
@@ -145,6 +149,8 @@ test('a fight of one in the forest: nothing of her before she wakes; after, her 
   expect(at.x + at.width).toBeLessThanOrEqual(sheet.x + 1);
   expect(sheet.width).toBeLessThanOrEqual(320);
   await expect(page.getByTestId('result-line')).toContainText('主人公');
+  // No level this time (16 EXP into Lv.2): the level alone, no arrow.
+  await expect(page.getByTestId('result-levels')).toHaveText('主人公 Lv.2 / ケイオス Lv.2');
   await page.getByTestId('result-done').click();
 });
 

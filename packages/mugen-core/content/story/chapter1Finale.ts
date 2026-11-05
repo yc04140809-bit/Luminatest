@@ -366,7 +366,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: KAOS, text: 'アリア……レヴィ……！ なんで、ここに。', kaosFace: 'SURPRISED', pause: 300 },
     { speaker: ARIA, text: 'しばらく前から、このあたりの異変を調べていたの。' },
     { speaker: LEVI, text: 'で、来てみたらこれだ。', leviFace: 'ANGRY' },
-    { speaker: null, text: '二人の目が、主人公に向いた。値踏みするような目だった。', pause: 500 },
+    { speaker: null, text: '二人の目が、{HERO}に向いた。値踏みするような目だった。', pause: 500 },
     { speaker: ARIA, text: '……この人間が、あなたの言っていた人？', ariaFace: 'TROUBLED' },
     { speaker: KAOS, text: 'うん。' },
     { speaker: ARIA, text: 'そう。' },

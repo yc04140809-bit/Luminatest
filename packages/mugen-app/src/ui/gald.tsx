@@ -16,6 +16,8 @@ import {
 import { Place } from './screens';
 import { Stage, StagedLines, kaosFigureFor } from './scene';
 import { Typed } from './common/Typed';
+import { GALD } from '@mugen/content/characters/gald';
+import { withHeroName } from './common/heroName';
 
 /**
  * THE ONE FIGHT THE SLICE IS BUILT TO ARRIVE AT.
@@ -36,8 +38,11 @@ function Scene({
   doneLabel,
   onDone,
   atEnd,
+  heroName,
 }: {
   lines: readonly DialogueLine[];
+  /** His name, put in where the narration speaks of him (`{HERO}`). */
+  heroName: string;
   testId: string;
   nextTestId: string;
   doneLabel: string;
@@ -56,7 +61,7 @@ function Scene({
     <>
       {last && atEnd}
       <p className="line" data-testid={testId}>
-        <Typed text={line.speaker ? `${line.speaker}「${line.text}」` : line.text} />
+        <Typed text={withHeroName(line.speaker ? `${line.speaker}「${line.text}」` : line.text, heroName)} />
       </p>
       <button
         className="btn primary"
@@ -69,11 +74,21 @@ function Scene({
   );
 }
 
+/**
+ * 「盗賊」 UNTIL HE GIVES HIS NAME (作者 2026-11-05): the hero has not been told it, so the game does not show it —
+ * in the forest, in the fight, beside the four answers. The lines as content has them (the Artifact's own stay as
+ * they are); here only who says them is shown as the hero knows him.
+ */
+export const GALD_UNNAMED = GALD.unknownName;
+const unnamed = (lines: readonly DialogueLine[]): DialogueLine[] =>
+  lines.map((l) => (l.speaker && l.speaker.startsWith(GALD_UNNAMED) ? { ...l, speaker: GALD_UNNAMED } : l));
+const ENCOUNTER_LINES = unnamed(GALD_ENCOUNTER_LINES);
+
 /** He stops you on the path — standing in it, knives out. */
 export function GaldEncounterScreen({ onBattle }: { onBattle: () => void }) {
   return (
     <StagedLines
-      lines={GALD_ENCOUNTER_LINES}
+      lines={ENCOUNTER_LINES}
       backdrop="GREENWOOD"
       // His TALKING picture, asked for by state. He has none, and the
       // core's talk chain answers with his full standing figure — the
@@ -98,7 +113,7 @@ export function GaldEncounterScreen({ onBattle }: { onBattle: () => void }) {
  *
  * Her word in her mouth, his in his: after his last word (still being said as this comes up), never over it.
  */
-function MedicineDiscovery({ onDone }: { onDone: () => void }) {
+function MedicineDiscovery({ onDone, heroName }: { onDone: () => void; heroName: string }) {
   const [at, setAt] = useState(0);
   const line = MEDICINE_DISCOVERY_LINES[at];
   const last = at >= MEDICINE_DISCOVERY_LINES.length - 1;
@@ -118,7 +133,7 @@ function MedicineDiscovery({ onDone }: { onDone: () => void }) {
       )}
       {line.speaker && <p className="speaker stage-speaker">{line.speaker}</p>}
       <p className="line stage-line" data-testid="discovery-line" key={at}>
-        <Typed text={line.speaker ? `「${line.text}」` : line.text} />
+        <Typed text={withHeroName(line.speaker ? `「${line.text}」` : line.text, heroName)} />
       </p>
       <button className="btn primary" data-testid="discovery-next" onClick={() => (last ? onDone() : setAt((n) => n + 1))}>
         つぎへ
@@ -138,8 +153,11 @@ function MedicineDiscovery({ onDone }: { onDone: () => void }) {
  */
 export function LifeChoiceScreen({
   onChoose,
+  heroName,
 }: {
   onChoose: (choice: LifeChoiceId) => Promise<void>;
+  /** His name, for the narration that speaks of him. */
+  heroName: string;
 }) {
   const [found, setFound] = useState(false);
   return (
@@ -152,7 +170,7 @@ export function LifeChoiceScreen({
       testId={found ? 'life-choice-screen' : 'medicine-discovery'}
     >
       <h1 className="place">グリーンウッドの森</h1>
-      {found ? <FourAnswers onChoose={onChoose} /> : <MedicineDiscovery onDone={() => setFound(true)} />}
+      {found ? <FourAnswers onChoose={onChoose} /> : <MedicineDiscovery onDone={() => setFound(true)} heroName={heroName} />}
     </Stage>
   );
 }
@@ -163,7 +181,7 @@ function FourAnswers({ onChoose }: { onChoose: (choice: LifeChoiceId) => Promise
   // His 「……どうするつもりだ……。」 beside the four answers (ボイスパック18) — in his own mouth, after his fall,
   // his last word and his 「妹だ。病気なんだ」 (still being said as this comes up), never over them.
   useEffect(() => {
-    const id = lineVoice('盗賊 ガルド', GALD_LIFE_CHOICE_LINE);
+    const id = lineVoice(GALD_UNNAMED, GALD_LIFE_CHOICE_LINE);
     if (id) playVoice(id, { mouth: 'foe', wait: true });
   }, []);
 
@@ -181,7 +199,7 @@ function FourAnswers({ onChoose }: { onChoose: (choice: LifeChoiceId) => Promise
 
   return (
     <>
-      <p className="speaker stage-speaker">盗賊 ガルド</p>
+      <p className="speaker stage-speaker">{GALD_UNNAMED}</p>
       <p className="line stage-line" data-testid="life-choice-line">
         「{GALD_LIFE_CHOICE_LINE}」
       </p>
@@ -216,8 +234,11 @@ export function ChoiceResultScreen({
   choice,
   onHome,
   atEnd,
+  heroName,
 }: {
   choice: LifeChoiceId;
+  /** His name, for the narration that speaks of him. */
+  heroName: string;
   onHome: () => void;
   /**
    * Shown with its last line — the end of Gald's part of the story, the
@@ -239,6 +260,7 @@ export function ChoiceResultScreen({
           doneLabel="村へもどる"
           onDone={onHome}
           atEnd={atEnd}
+          heroName={heroName}
         />
       </div>
     </Place>
