@@ -71,30 +71,35 @@
   .ro-line { font-size: 12px; }
 }
 
-/* The fight of one's numbers, in the small panel: each level on its own line (the slash only for a reader). */
-.result-over .result-paper { width: 100%; background: none; }
-.result-over .result-sheet { width: 100%; padding: 8px 14px 10px; }
-.result-over .result-sheet .place { font-size: 20px; margin: 2px 0 4px; white-space: nowrap; }
-@media (max-width: 700px) {
-  .result-over .result-sheet .place { font-size: 16px; letter-spacing: 0.08em; }
-}
+/* The fight of one's numbers, in the small plain navy plate (kit/navyPlate, 作者 2026-11-05): each level on its
+   own line (the slash only for a reader). */
+.result-over .result-sheet { width: 100%; }
+/* (The crystal theme's own `.result-sheet` sizing is not this plate's.) */
+.result-over .navy-plate.result-sheet { gap: 2px; padding: 14px 18px; }
+@media (max-width: 700px) { .result-over .navy-plate.result-sheet { padding: 10px 12px; } }
 .result-over .result-sheet .row { font-size: 15px; line-height: 1.55; }
 .result-over .result-level { display: block; }
 .result-over .result-level-sep { display: none; }
 
-/* The three's 「勝利！」 and つぎへ, in the same small panel (no longer pinned to the corner). */
+/* The three's 「勝利！」 and つぎへ, in the same plate (no longer pinned to the corner). */
 .result-over .pb-result {
   position: relative;
   inset: auto;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   padding: 16px 18px 14px;
-  background: rgba(10, 14, 34, 0.86);
-  border: 1px solid rgba(200, 214, 255, 0.4);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
-.result-over .pb-result b { font-size: 24px; letter-spacing: 0.12em; }
-.result-over .pb-result .pb-list-btn { min-width: 140px; justify-content: center; text-align: center; }
+.result-over .pb-result b { font-family: var(--font-display); font-size: 24px; letter-spacing: 0.12em; color: #f4f6ff; }
 .result-over .ro-panel:has(.pb-result) { width: min(240px, 34vw); }
+/* Over the three's field, the field's own plate rule (partyBattle.css `.pb-screen .pb-result`) gives way to the
+   navy plate's — the same plate as the fight of one's. */
+.pb-screen .result-over .pb-result.navy-plate {
+  border: 2px solid var(--np-rule);
+  border-image: none;
+  border-radius: 16px;
+  background: var(--np-bg);
+  box-shadow: inset 0 0 0 4px var(--np-bg), inset 0 0 0 5px var(--np-rule-inner), 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+/* Its words plain white, as the mock's — a level gained shows by its arrow, not by a colour. */
+.result-over .navy-plate .row.level { color: inherit; }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import '../kit/navyPlate.css';
 import {
   ENEMY_ID,
   castable,
@@ -1133,10 +1134,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       : null;
   // 「勝利！」／「敗北……」 and つぎへ: the panel of the result.
   const resultBox = (
-    <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
+    <div className={`pb-result${state.outcome === 'VICTORY' ? ' navy-plate' : ''}`} data-testid="pb-result" data-outcome={state.outcome}>
       <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
       <button
-        className="pb-list-btn primary"
+        className={state.outcome === 'VICTORY' ? 'navy-btn' : 'pb-list-btn primary'}
         data-testid="pb-result-next"
         onClick={() => {
           if (ended.current) return;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { NavyButton, NavyPlate } from './kit/NavyPlate';
 import {
   castMagic,
   clearAwakeningLines,
@@ -442,35 +443,31 @@ export function ResultScreen({
   // Over the fight that was fought (作者 2026-10-30 v2): App leaves it standing behind this.
   return (
     <ResultOver face={face} heroName={heroName} testId="result-screen" say={winVoices(face ? ['hero', 'kaos'] : ['hero'])}>
-      <div className="paper result-paper">
-        <div className="paper-sheet result-sheet">
-          <h1 className="place">BATTLE RESULT</h1>
-          <p className="row" data-testid="result-exp">
-            EXP +{reward.exp}
+      {/* The plain navy plate (作者 2026-11-05 — the mock's, shared with the chapter's summary). */}
+      <NavyPlate title="BATTLE RESULT" className="result-sheet">
+        <p className="row" data-testid="result-exp">
+          EXP +{reward.exp}
+        </p>
+        <p className="row" data-testid="result-lumi">
+          LUMI +{reward.lumi}
+        </p>
+        <p className="row" data-testid="result-items">
+          {items.length === 0 ? 'ITEM なし' : items.join(' / ')}
+        </p>
+        {reward.levels.length > 0 && (
+          <p className="row level" data-testid="result-levels">
+            {reward.levels.map((l, i) => (
+              <span key={l.label} className="result-level">
+                {i > 0 && <span className="result-level-sep"> / </span>}
+                {/* His name as the player gave it, never 「あなた」; the arrow only where a level was gained
+                    (作者 2026-11-05: 「Lv.2 → Lv.2」 reads as a fault). */}
+                {`${l.characterId === 'hero' ? heroName : l.label} ${l.to > l.from ? `Lv.${l.from} → Lv.${l.to}` : `Lv.${l.to}`}`}
+              </span>
+            ))}
           </p>
-          <p className="row" data-testid="result-lumi">
-            LUMI +{reward.lumi}
-          </p>
-          <p className="row" data-testid="result-items">
-            {items.length === 0 ? 'ITEM なし' : items.join(' / ')}
-          </p>
-          {reward.levels.length > 0 && (
-            <p className="row level" data-testid="result-levels">
-              {reward.levels.map((l, i) => (
-                <span key={l.label} className="result-level">
-                  {i > 0 && <span className="result-level-sep"> / </span>}
-                  {/* His name as the player gave it, never 「あなた」; the arrow only where a level was gained
-                      (作者 2026-11-05: 「Lv.2 → Lv.2」 reads as a fault). */}
-                  {`${l.characterId === 'hero' ? heroName : l.label} ${l.to > l.from ? `Lv.${l.from} → Lv.${l.to}` : `Lv.${l.to}`}`}
-                </span>
-              ))}
-            </p>
-          )}
-          <button className="btn primary" data-testid="result-done" onClick={onDone}>
-            もどる
-          </button>
-        </div>
-      </div>
+        )}
+        <NavyButton testId="result-done" onClick={onDone} label="もどる" />
+      </NavyPlate>
     </ResultOver>
   );
 }
