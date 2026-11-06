@@ -11,6 +11,7 @@ import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
 import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
 import { OFF_SCREEN_EVENT_INFO, OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
 import { VISION_POSSIBILITIES } from '@mugen/content/events/visionPossibilities';
+import { VISION_MEDICINE_DELIVERED, VISION_PAIN_LINES } from '@mugen/content/events/visionPain';
 import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
@@ -152,7 +153,17 @@ export function FutureVisionScreen({
       <Stage
         backdrop="ALDEN"
         figure={vision ? null : HER}
-        picture={vision && cg ? { src: cg, alt: vision.alt, testId: 'future-vision-cg' } : null}
+        picture={
+          vision && cg
+            ? {
+                src: cg,
+                alt: vision.alt,
+                testId: 'future-vision-cg',
+                // 痛みの一文 (作者 2026-11-03/11-06): under the picture, before 「――3年後。」 and the list.
+                caption: VISION_PAIN_LINES[vision.key] ? { text: VISION_PAIN_LINES[vision.key]!, testId: 'future-vision-pain' } : null,
+              }
+            : null
+        }
         side="left"
         // A LOW SCREEN NEVER HIDES THE WAY ON. The words scroll inside
         // their own column if they must; つづける stays on screen.
@@ -168,6 +179,12 @@ export function FutureVisionScreen({
                 (OFF_SCREEN_VISIONS). The other answers keep theirs. */}
             {vision?.log === false ? null : (
               <ul className="memory-list" data-testid="future-vision-list">
+                {/* とどめ: where the medicine went, first — days, not months (作者 2026-11-06). */}
+                {vision?.key === VISION_MEDICINE_DELIVERED.on && (
+                  <li className="memory-row" key="medicine" data-testid="vision-MEDICINE_DELIVERED">
+                    <span className="memory-label">{VISION_MEDICINE_DELIVERED.text}</span>
+                  </li>
+                )}
                 {visionListOf(future).map((event) => (
                   <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
                     <span className="memory-label">{memoryEventLabel(event)}</span>

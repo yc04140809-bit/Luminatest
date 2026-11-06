@@ -79,6 +79,8 @@ export interface StagePicture {
   cutout?: boolean;
   /** …and drawn small (the small フウミミ: the same drawing, smaller). */
   small?: boolean;
+  /** One line under the painting (TIME SHIFT's 痛みの一文, 作者 2026-11-06), read before the words beside it. */
+  caption?: { text: string; testId: string } | null;
 }
 
 export function Stage({
@@ -143,12 +145,17 @@ export function Stage({
       )}
       {showPicture && (
         <img
-          className={`stage-figure stage-picture${picture.cutout ? ' stage-cutout' : ''}${picture.small ? ' stage-cutout-small' : ''}`}
+          className={`stage-figure stage-picture${picture.cutout ? ' stage-cutout' : ''}${picture.small ? ' stage-cutout-small' : ''}${picture.caption ? ' has-caption' : ''}`}
           src={picture.src}
           alt={picture.alt}
           data-testid={picture.testId}
           onError={() => setFailed(picture.src)}
         />
+      )}
+      {showPicture && picture.caption && (
+        <p className="stage-picture-caption" data-testid={picture.caption.testId}>
+          {picture.caption.text}
+        </p>
       )}
       <div className="stage-words">{children}</div>
     </div>

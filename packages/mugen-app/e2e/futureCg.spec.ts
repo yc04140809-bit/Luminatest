@@ -235,8 +235,12 @@ for (const [w, h] of [
     await page.getByTestId('future-vision-next').click();
     const cg = await drawn(page, 'future-vision-cg');
     expectWhole(cg);
-    // Not shrunk to make room: the picture keeps the screen's height.
-    expect(cg.bottom - cg.top).toBeGreaterThanOrEqual(h * 0.88);
+    // Large: most of the screen's height — less only the one line under it (痛みの一文, 作者 2026-11-06), which is
+    // whole on screen below it.
+    expect(cg.bottom - cg.top).toBeGreaterThanOrEqual(h * 0.78);
+    const pain = (await page.getByTestId('future-vision-pain').boundingBox())!;
+    expect(pain.y).toBeGreaterThanOrEqual(cg.bottom - 1);
+    expect(pain.y + pain.height).toBeLessThanOrEqual(h);
 
     // つづける is on screen as it stands — nothing scrolled — and the page
     // itself does not scroll.

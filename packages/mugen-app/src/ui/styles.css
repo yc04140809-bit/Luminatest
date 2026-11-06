@@ -1301,6 +1301,24 @@ body {
   overscroll-behavior: contain;
 }
 .vision-see-words > .btn { flex: none; margin-top: 8px; }
+/* 痛みの一文 (作者 2026-11-06): the picture a little shorter, its one line under it, from the picture's left edge —
+   a little smaller than the words beside it, read first. */
+.vision-see .stage-picture.has-caption { height: min(80%, 80vh); }
+.stage-picture-caption {
+  position: absolute;
+  z-index: 1;
+  left: 3%;
+  top: calc(min(4%, 4vh) + min(80%, 80vh) + 6px);
+  /* Never under the words beside it (they start a little left of the middle). */
+  width: 40%;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e9ecf6;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  text-align: left;
+}
+@media (max-height: 330px) { .stage-picture-caption { font-size: 11.5px; line-height: 1.35; } }
 
 /* ── パン屋: the tavern's three layers, with two people ──
    The shop, then the owner and Lina, then the words. Both portraits keep
