@@ -214,6 +214,8 @@ export interface BattleStageProps {
   /** The ♪ control, where this fight has one. */
   bgm?: { label: string; onCycle: () => void };
   testId?: string;
+  /** His name as the player gave it, where the fight names him (the turn order, his card) — B4, 作者 2026-11-06. */
+  heroName?: string;
 }
 
 /**
@@ -275,6 +277,7 @@ export function BattleStage({
   skillSwing = false,
   frost = false,
   testId = 'battle-stage',
+  heroName = '主人公',
 }: BattleStageProps) {
   const { beat, camera, blows, playing } = turn;
   const [magicOpen, setMagicOpen] = useState(false);
@@ -383,7 +386,7 @@ export function BattleStage({
   const plateKey = `${battle.log.length}:${plate?.lead ?? ''}:${plate?.figure ?? ''}`;
 
   const turnRoster: TurnActor[] = [
-    { id: 'hero', name: 'あなた', side: 'ALLY' },
+    { id: 'hero', name: heroName, side: 'ALLY' },
     { id: opponent.artId, name: battle.enemyName, side: 'ENEMY' },
   ];
   const actingSide = actingSideOf(beat === 'NONE' ? null : beat);
@@ -952,7 +955,7 @@ export function BattleStage({
           <PartyHud
             members={[
               {
-                name: 'あなた',
+                name: heroName,
                 role: '剣',
                 art: heroShown,
                 hp: { now: battle.playerHp, max: battle.playerMaxHp, testId: 'bp-player-hp' },

@@ -59,3 +59,33 @@ test('the crash screen on a phone held sideways: all of it on screen, the button
   expect(card.y).toBeGreaterThanOrEqual(0);
   expect(card.y + card.height).toBeLessThanOrEqual(300);
 });
+
+test('B3: an error nothing caught — the game going on — is kept as the last error; a harmless one is not', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.removeItem('mugen-last-error'));
+  await page.getByTestId('theme-intro-skip').click();
+  await expect(page.getByTestId('start-button')).toBeVisible();
+  const kept = () => page.evaluate(() => JSON.parse(localStorage.getItem('mugen-last-error') ?? 'null') as { message: string; kind: string } | null);
+  // A sound not allowed yet: the browser's own word, not kept.
+  await page.evaluate(() => {
+    setTimeout(() => void Promise.reject(new DOMException('play() failed', 'NotAllowedError')));
+  });
+  await page.waitForTimeout(300);
+  expect(await kept()).toBeNull();
+  // Something that finishes later and fails: kept, and the screen as it was.
+  await page.evaluate(() => {
+    setTimeout(() => void Promise.reject(new Error('DEV: a promise nothing caught')));
+  });
+  await expect.poll(async () => (await kept())?.message).toBe('DEV: a promise nothing caught');
+  expect((await kept())?.kind).toBe('PROMISE');
+  // An error thrown in what a button does: kept too.
+  await page.evaluate(() => {
+    setTimeout(() => {
+      throw new Error('DEV: thrown and not caught');
+    });
+  });
+  await expect.poll(async () => (await kept())?.message).toBe('DEV: thrown and not caught');
+  expect((await kept())?.kind).toBe('ERROR');
+  await expect(page.getByTestId('crash-screen')).toHaveCount(0);
+  await expect(page.getByTestId('start-button')).toBeVisible();
+});

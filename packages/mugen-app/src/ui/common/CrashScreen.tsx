@@ -19,17 +19,55 @@ export interface CrashRecord {
   at: string;
   message: string;
   stack: string;
+  /** Where it was caught: a screen being drawn (and the crash screen shown), or one that went unseen (B3). */
+  kind?: CrashKind;
 }
 
-export function recordCrash(error: unknown, componentStack = ''): CrashRecord {
+/** RENDER: a screen broke while drawn. ERROR / PROMISE: an error nothing caught, the game going on (B3). */
+export type CrashKind = 'RENDER' | 'ERROR' | 'PROMISE';
+
+export function recordCrash(error: unknown, componentStack = '', kind: CrashKind = 'RENDER'): CrashRecord {
   const e = error instanceof Error ? error : new Error(String(error));
-  const record = { at: new Date().toISOString(), message: e.message.slice(0, 300), stack: `${e.stack ?? ''}\n${componentStack}`.slice(0, 2000) };
+  const record = {
+    at: new Date().toISOString(),
+    message: e.message.slice(0, 300),
+    stack: `${e.stack ?? ''}\n${componentStack}`.slice(0, 2000),
+    kind,
+  };
   try {
     localStorage.setItem(LAST_ERROR_KEY, JSON.stringify(record));
   } catch {
     /* blocked storage: shown, not kept */
   }
   return record;
+}
+
+/**
+ * NOT EVERYTHING THAT GOES WRONG BREAKS A SCREEN (B3, 作者採用 2026-11-06): an error in what a button does, or in
+ * something that finishes later, leaves the game going and the page as it was — and was kept nowhere. Kept now, as
+ * the last error (the same record), the screen untouched. Not the harmless ones a browser says on its own (a sound
+ * not allowed before the first touch, a sound cut off by the next, a layout's resize loop): those would overwrite
+ * the error worth telling.
+ */
+export function isHarmless(error: unknown): boolean {
+  const name = error instanceof Error || error instanceof DOMException ? error.name : '';
+  const message = error instanceof Error || error instanceof DOMException ? error.message : String(error ?? '');
+  return name === 'NotAllowedError' || name === 'AbortError' || /ResizeObserver loop/.test(message);
+}
+
+let listening = false;
+export function listenForStrayErrors(target: Window = window): void {
+  if (listening) return;
+  listening = true;
+  target.addEventListener('error', (e) => {
+    // A picture or a sound that did not load is an element's own event, not a script error.
+    if (!(e instanceof ErrorEvent)) return;
+    const error = e.error ?? e.message;
+    if (!isHarmless(error)) recordCrash(error, e.filename ? `at ${e.filename}:${e.lineno}:${e.colno}` : '', 'ERROR');
+  });
+  target.addEventListener('unhandledrejection', (e) => {
+    if (!isHarmless(e.reason)) recordCrash(e.reason, '', 'PROMISE');
+  });
 }
 
 /** The last thing that broke on this device, if any (for a report). */

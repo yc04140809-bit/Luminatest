@@ -373,6 +373,7 @@ export function BattleScreen({
 
   return (
     <BattleStage
+      heroName={world.getHeroName()}
       battle={shown}
       opponent={opponent}
       locationId={locationId}

@@ -7,6 +7,7 @@ import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { mugenAliases } from '../shared-aliases.mjs';
 import { webpPictures } from './scripts/webpPictures';
+import { leanerMusic } from './scripts/leanerMusic';
 
 const DEV_DIR = fileURLToPath(new URL('./src/dev/', import.meta.url));
 const DEBUG_STUB = '\0mugen-debug-tools-stub';
@@ -152,7 +153,7 @@ export function buildStamp(now: Date = new Date()): string {
  * concession to a 16 MiB page.
  *
  * Nothing is inlined, nothing is downscaled, and the music is the
- * music as delivered. The pictures keep their size in pixels but are
+ * music as delivered in its length (written again at 128kbps — scripts/leanerMusic.ts, B5). The pictures keep their size in pixels but are
  * written as WebP (scripts/webpPictures.ts — 作者 2026-11-04, A1): the
  * PNGs as delivered stay in mugen-assets, and the dev server shows them. `base: './'` because a Capacitor WebView serves
  * from a local origin and an absolute path would not be found there.
@@ -166,6 +167,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       ...(debugTools ? [react(), forgeAuthoring()] : [react(), withoutDebugTools()]),
       webpPictures({ cacheDir: fileURLToPath(new URL('./node_modules/.cache/mugen-webp/', import.meta.url)) }),
+      leanerMusic({ cacheDir: fileURLToPath(new URL('./node_modules/.cache/mugen-mp3/', import.meta.url)) }),
     ],
     resolve: { alias: mugenAliases() },
     build: { outDir: 'dist' },
