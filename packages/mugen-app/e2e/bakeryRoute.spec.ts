@@ -116,7 +116,9 @@ test('はじめから to the three years and back: the bakery route, once, and t
   // Looking wrote nothing.
   expect(await dev<string[]>(page, `(w) => w.getEvents().map((e) => e.type)`)).toEqual(['PLAYER_HELPED_GALD']);
 
-  // 8. Back to the moment they chose.
+  // 8. The pull back (引く演出), then back to the moment they chose.
+  await page.getByTestId('future-vision-next').click();
+  await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'PULL');
   await page.getByTestId('future-vision-next').click();
   await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'BACK');
   await page.getByTestId('future-vision-done').click();

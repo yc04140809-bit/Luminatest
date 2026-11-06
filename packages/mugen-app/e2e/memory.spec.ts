@@ -337,6 +337,9 @@ test('she says it is one future, and will not say why it cannot be retaken', asy
   await expect(page.getByTestId('future-vision-one')).toContainText('ひとつの未来');
 
   await page.getByTestId('future-vision-next').click();
+  // The pull back (引く演出) between, then her words.
+  await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'PULL');
+  await page.getByTestId('future-vision-next').click();
   const back = page.getByTestId('future-vision-return');
   await expect(back).toContainText('あなたが決めた直後に戻してあげたよ');
   await expect(back).toContainText('それぞれの3年間があるから');

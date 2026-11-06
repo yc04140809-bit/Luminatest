@@ -261,6 +261,9 @@ for (const [w, h] of [
     }
     expect(await page.getByTestId('future-vision-next').boundingBox()).toEqual(next);
     await page.getByTestId('future-vision-next').click();
+    // The pull back (引く演出), then her bringing them back.
+    await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'PULL');
+    await page.getByTestId('future-vision-next').click();
     await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'BACK');
   });
 }

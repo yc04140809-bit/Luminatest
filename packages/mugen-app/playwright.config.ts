@@ -18,7 +18,7 @@ import { defineConfig } from '@playwright/test';
 export const TIMED_SPECS = [
   'aria', 'attack', 'battleSounds', 'battleStage', 'cutin', 'debugPreview', 'finale', 'forgeImport', 'fxDirector',
   'kaosFinisher', 'kaosSkill', 'levi', 'magic', 'music', 'npcTouch', 'partyBattle', 'screenShake', 'slash',
-  'specialFx', 'themeIntro', 'timePass', 'voice', 'zero',
+  'specialFx', 'themeIntro', 'timePass', 'visionPullBack', 'voice', 'zero',
 ].map((name) => `**/${name}.spec.ts`);
 
 export default defineConfig({

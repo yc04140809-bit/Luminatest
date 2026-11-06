@@ -17,6 +17,7 @@ import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
 import { sayKaosLine } from './audio/kaosLineVoice';
 import { Typed } from './common/Typed';
+import { VisionPullBack } from './visionPullBack';
 
 /**
  * She is the one talking through all three beats — asking, showing,
@@ -120,12 +121,15 @@ export function FutureVisionScreen({
   /** Marks the vision seen, then returns to the present. */
   onDone: () => void;
 }) {
-  const [beat, setBeat] = useState<'ASK' | 'SEE' | 'BACK'>('ASK');
+  // SEE, then the pull back from his life to the world's (引く演出, 作者 2026-11-03), then she brings them back.
+  const [beat, setBeat] = useState<'ASK' | 'SEE' | 'PULL' | 'BACK'>('ASK');
   const [leaving, setLeaving] = useState(false);
   const vision = visionCgOf(future);
   const cg = usePicture(vision ? () => eventCg(vision.key) : null, `event-cg:${vision?.key ?? 'none'}`);
   // Her words, heard as each beat comes up (ボイスパック12) — several at once, one after another.
   useEffect(() => {
+    // The pull back has no words of hers: it is looked at.
+    if (beat === 'PULL') return;
     const words =
       beat === 'ASK' ? FUTURE_VISION_INTRO_LINES : beat === 'SEE' ? [{ speaker: 'ケイオス', text: FUTURE_VISION_SEEN_LINE }] : FUTURE_VISION_RETURN_LINES;
     let first = true;
@@ -204,11 +208,19 @@ export function FutureVisionScreen({
               「{FUTURE_VISION_SEEN_LINE}」
             </p>
           </div>
-          <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('BACK')}>
+          <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('PULL')}>
             つづける
           </button>
         </div>
       </Stage>
+    );
+  }
+
+  if (beat === 'PULL') {
+    return (
+      <div data-testid="future-vision" data-beat="PULL">
+        <VisionPullBack picture={vision && cg ? { src: cg, alt: vision.alt } : null} onDone={() => setBeat('BACK')} />
+      </div>
     );
   }
 
