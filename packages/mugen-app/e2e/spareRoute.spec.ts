@@ -109,7 +109,8 @@ test('はじめから to the three years and back: 見逃す, and the let-go wor
   await expect(page.getByTestId('future-vision')).not.toContainText('商会');
   expect(await dev<string[]>(page, `(w) => w.getEvents().map((e) => e.type)`)).toEqual(['PLAYER_SPARED_GALD']);
 
-  // Back to the moment they chose.
+  // The pull back (引く演出), then back to the moment they chose.
+  await page.getByTestId('future-vision-next').click();
   await page.getByTestId('future-vision-next').click();
   await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

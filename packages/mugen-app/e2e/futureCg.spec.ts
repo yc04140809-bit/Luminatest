@@ -113,6 +113,8 @@ test('TIME SHIFT, SPARE: a possibility, still a picture — the roadside healer,
   await expect(page.locator('[data-testid^="vision-"][data-testid*="MERCHANT"]')).toHaveCount(0);
   await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toHaveCount(0);
   await page.getByTestId('future-vision-next').click();
+  // The pull back (引く演出), then her bringing them back.
+  await page.getByTestId('future-vision-next').click();
   await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
   expect(errors).toEqual([]);
@@ -148,9 +150,12 @@ for (const { choice, file } of ROUTES) {
       expect(b.y + b.height, id).toBeLessThanOrEqual(cg.vh);
     }
 
-    // She brings them back; the picture goes with the vision.
+    // The pull back (引く演出): his picture drawn into his page — then she brings them back, the picture gone.
+    await page.getByTestId('future-vision-next').click();
+    await expect(page.getByTestId('vision-pull-his')).toBeVisible();
     await page.getByTestId('future-vision-next').click();
     await expect(page.getByTestId('future-vision-cg')).toHaveCount(0);
+    await page.getByTestId('vision-pull').waitFor({ state: 'detached' });
     await page.getByTestId('future-vision-done').click();
     await expect(page.getByTestId('world-clock')).toBeVisible();
 

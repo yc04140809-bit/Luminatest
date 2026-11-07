@@ -81,6 +81,8 @@ async function decideGald(
   await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'SEE');
   if (vision === 'LOOK') return;
   await page.getByTestId('future-vision-next').click();
+  // The pull back (引く演出), then her bringing them back.
+  await page.getByTestId('future-vision-next').click();
   await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
