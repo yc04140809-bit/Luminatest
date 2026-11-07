@@ -1,0 +1,84 @@
+/* 「また、ここで。」 before the title (themeIntro.tsx): black, the name, the song's title, and SKIP. */
+.screen.theme-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #000;
+  color: #f3ead2;
+  user-select: none;
+}
+.screen.theme-intro[data-phase='TAP'] { cursor: pointer; }
+.ti-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: ti-in 1600ms ease-out both;
+}
+/* The drawn name, on its own black plate (its edges melt into the screen's black). */
+.ti-logo-art {
+  display: block;
+  width: min(82vw, 760px, calc((100vh - 150px) * 4.52));
+  height: auto;
+  aspect-ratio: 1600 / 354;
+  pointer-events: none;
+  /* Its edges feathered out, so no line of the plate is seen against the screen's black. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  mask-composite: intersect;
+}
+.ti-logo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ti-song {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.6vw, 19px);
+  letter-spacing: 0.18em;
+  color: #e9dfc4;
+}
+.ti-tap {
+  margin: 18px 0 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  color: rgba(233, 223, 196, 0.8);
+  animation: ti-breathe 2200ms ease-in-out infinite;
+}
+.ti-skip {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  min-width: 72px;
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid rgba(233, 223, 196, 0.45);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e9dfc4;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+}
+@keyframes ti-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ti-breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ti-words, .ti-tap { animation: none; }
+}

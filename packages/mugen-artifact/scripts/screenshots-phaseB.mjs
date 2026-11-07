@@ -1,0 +1,56 @@
+// Captures Phase B screens (world memory, continue/reset title) against
+// a running `vite preview --port 4173`.
+import { chromium } from '@playwright/test';
+
+const OUT = process.env.SHOT_DIR ?? '.';
+const BASE = 'http://localhost:4173';
+
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+
+// Play a fresh world up to the life choice and spare Gald.
+await page.goto(`${BASE}/`);
+await page.getByTestId('start-button').click();
+await page.getByTestId('prologue-monologue').click();
+const kaos = page.getByTestId('kaos-intro');
+for (let i = 0; i < 6; i++) await kaos.click();
+await page.getByTestId('explore-button').click();
+await page.getByTestId('location-GREENWOOD_FOREST').click();
+const canvas = page.locator('.phaser-wrap canvas');
+await canvas.waitFor();
+await page.waitForTimeout(800);
+const box = await canvas.boundingBox();
+await page.mouse.click(box.x + box.width * (180 / 360), box.y + box.height * (120 / 520));
+const enc = page.getByTestId('gald-encounter');
+await enc.waitFor({ timeout: 15000 });
+await enc.click();
+await enc.click();
+const attack = page.getByTestId('attack-button');
+for (let i = 0; i < 8; i++) {
+  if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
+  if (await attack.isEnabled().catch(() => false)) await attack.click();
+  await page.waitForTimeout(150);
+}
+await page.getByTestId('life-choice-screen').waitFor({ timeout: 10000 });
+await page.getByTestId('choice-SPARE').click();
+const result = page.getByTestId('choice-result-dialogue');
+await result.waitFor();
+await result.click();
+await result.click();
+await result.click();
+await page.getByTestId('choice-recorded-screen').waitFor();
+await page.screenshot({ path: `${OUT}/08-choice-recorded.png` });
+
+// Reload: continue + reset appear.
+await page.reload();
+await page.getByTestId('continue-button').waitFor();
+await page.screenshot({ path: `${OUT}/09-title-continue.png` });
+
+// World memory viewer.
+await page.getByTestId('continue-button').click();
+await page.getByTestId('world-memory-button').click();
+await page.getByTestId('memory-event-PLAYER_SPARED_GALD').waitFor();
+await page.screenshot({ path: `${OUT}/10-world-memory.png` });
+
+await browser.close();
+console.log('done');

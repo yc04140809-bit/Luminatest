@@ -1,0 +1,276 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "characterId": "HUM-000002",
+  "characterType": "human",
+  "encounterRole": null,
+  "status": "CANONIZED",
+  "identity": {
+    "name": "エッダ",
+    "speciesName": null,
+    "individualName": null,
+    "nameStatus": "CANON",
+    "speciesNameStatus": null,
+    "individualNameStatus": null,
+    "nameOrigin": null,
+    "speciesNameOrigin": null,
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "age": "",
+    "gender": "",
+    "origin": "",
+    "currentRegion": "",
+    "family": "",
+    "occupation": "",
+    "role": "",
+    "appearance": "",
+    "affiliation": "",
+    "importance": "",
+    "core": {
+      "personality": [
+        "皮肉屋",
+        "頑固",
+        "短気"
+      ],
+      "values": [
+        "友情",
+        "強さ"
+      ],
+      "weakness": "責任を抱え込みすぎる",
+      "desires": [
+        "故郷を守りたい",
+        "誰かを守れる人になりたい"
+      ],
+      "tendency": "失敗を長く引きずる"
+    },
+    "specialTendency": "失敗を長く引きずる",
+    "notes": "",
+    "recruitment": {
+      "adoptionNotes": "",
+      "adoptionStatus": "",
+      "adoptionReason": "",
+      "roleCandidate": "",
+      "importanceCandidate": "",
+      "seedCandidates": [],
+      "worldLifeHooks": [],
+      "visualNotes": "",
+      "updatedAt": "2026-09-10T22:46:46.660Z",
+      "shortlistedAt": "",
+      "adoptedAt": "2026-09-10T22:45:51.908Z",
+      "rejectedAt": "",
+      "visualizedAt": "2026-09-10T22:46:09.487Z",
+      "canonizedAt": "2026-09-10T22:46:46.660Z",
+      "deployedAt": "",
+      "archivedAt": ""
+    }
+  },
+  "lifeAxis": {
+    "morality": "善寄り",
+    "altruism": 0.33,
+    "ruleCompliance": 0.39,
+    "marriageDesire": "どちらでもよい",
+    "romanceStyle": "普通",
+    "solitudeStyle": "群れへの依存が強い",
+    "familyOrientation": "家族を大切にする",
+    "responsibility": "普通",
+    "recognitionNeed": "高い",
+    "riskStyle": "普通",
+    "trustStyle": "慎重",
+    "forgiveness": "復讐傾向",
+    "dependence": "特定人物に依存しやすい",
+    "changeTolerance": "変化好き",
+    "moneySense": "普通",
+    "powerOrientation": "興味なし",
+    "secrecy": "比較的オープン"
+  },
+  "worldViewAxis": {
+    "homelandLove": "中立",
+    "faith": "関心がない",
+    "statusAwareness": "普通",
+    "otherSpeciesAttitude": "警戒",
+    "magicAttitude": "憧れ",
+    "rulerLoyalty": "中立",
+    "crimeTolerance": "一切許さない",
+    "deathFear": "普通",
+    "honorDesire": "普通",
+    "lineageAttachment": "薄い"
+  },
+  "relationshipPotential": [
+    "家族以外を信用しにくい",
+    "ライバルを作りやすい",
+    "狭く深い"
+  ],
+  "aptitudes": {
+    "magic": 0.91,
+    "sword": 0.28,
+    "healing": 0.45,
+    "commerce": 0.16,
+    "social": 0.51
+  },
+  "aptitudeSemantics": "POTENTIAL_NOT_ACQUIRED_SKILL",
+  "currentSkills": {
+    "magic": "UNLEARNED",
+    "sword": "UNLEARNED",
+    "healing": "UNLEARNED",
+    "commerce": "UNLEARNED",
+    "social": "UNLEARNED"
+  },
+  "equipment": {
+    "requested": "",
+    "environmentBasis": "",
+    "experienceBasis": "",
+    "validation": {
+      "status": "NO_EQUIPMENT_REQUIRED",
+      "permitted": true,
+      "requestedTypes": [],
+      "grounds": [],
+      "missingTypes": [],
+      "potentialAptitudeUsed": false,
+      "message": "武器・魔法具・職業装備は要求されていません。"
+    }
+  },
+  "lifeStage": {
+    "stage": "ADULT",
+    "source": "VISUAL_AGE",
+    "visualAge": "elderly",
+    "adultAxisMode": "CURRENT_TENDENCY",
+    "occupationMode": "UNSET",
+    "futureFields": [],
+    "note": "成人向けLIFE AXISは現在傾向として扱える。"
+  },
+  "visualDiversity": {
+    "engineVersion": "1.0",
+    "generated": true,
+    "ageGroup": "elderly",
+    "genderExpression": "feminine",
+    "bodyBuild": "lean",
+    "heightImpression": "average",
+    "faceShape": "round",
+    "facialImpression": "nervous",
+    "hair": {
+      "color": "black",
+      "length": "shaved",
+      "volume": "thin",
+      "texture": "tight_curl",
+      "trait": "high_hairline",
+      "styling": "bed_hair"
+    },
+    "skinLifeMarks": [
+      "仕事による汚れ",
+      "小さな火傷跡"
+    ],
+    "posture": "relaxed",
+    "clothingCondition": "work_stained",
+    "occupationCue": "地域の気候に合わせた重ね着",
+    "equipmentStyle": "武器なし・日用品中心",
+    "signatures": [
+      "不揃いな前髪",
+      "慎重にすり減らした靴底",
+      "なし"
+    ],
+    "rarityTags": [],
+    "similarity": {
+      "warning": false,
+      "score": 0,
+      "comparedAgainst": []
+    }
+  },
+  "visualDirection": {
+    "overallImpression": "CUTE",
+    "intensity": "STANDARD",
+    "customInstruction": ""
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {},
+  "worldAssignment": {},
+  "productionChecklist": {},
+  "relationshipRefs": [],
+  "characterHistory": [
+    {
+      "event": "GENERATED",
+      "at": "2026-09-10T22:42:36.559Z",
+      "origin": "FORGE",
+      "details": {}
+    },
+    {
+      "event": "ADOPTED",
+      "at": "2026-09-10T22:45:51.908Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "CANDIDATE"
+      }
+    },
+    {
+      "event": "VISUALIZED",
+      "at": "2026-09-10T22:46:09.487Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "ADOPTED"
+      }
+    },
+    {
+      "event": "NAME_CONFIRMED",
+      "at": "2026-09-10T22:46:19.160Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "AUTO_CANDIDATE",
+        "nextStatus": "CANON"
+      }
+    },
+    {
+      "event": "CANONIZED",
+      "at": "2026-09-10T22:46:46.660Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "VISUALIZED"
+      }
+    }
+  ],
+  "ecology": null,
+  "combat": null,
+  "bossEncounter": null,
+  "seeds": [
+    "復讐心",
+    "故郷への愛着",
+    "更生への意志"
+  ],
+  "dramaHooks": [
+    "善くありたい人物だが、受けた傷だけは許せず復讐へ傾く。",
+    "魔法の潜在適性は高いが、現時点では未習得で、才能に本人も周囲も気づいていない可能性がある。"
+  ],
+  "worldMemory": {
+    "registered": false,
+    "events": [],
+    "memo": ""
+  },
+  "worldLifeEngine": {
+    "enabled": true
+  },
+  "assets": [
+    {
+      "assetId": "VIS-HUM-000002-001",
+      "assetType": "CONCEPT",
+      "fileName": "HUM-000002_CONCEPT_001.webp",
+      "internalFileName": "HUM-000002_CONCEPT_001.webp",
+      "originalFileName": "1000084623.png",
+      "originalMimeType": "image/png",
+      "mimeType": "image/webp",
+      "width": 1225,
+      "height": 1284,
+      "originalByteSize": 2847900,
+      "storedByteSize": 355566,
+      "imageStorageKey": "VIS-HUM-000002-001",
+      "memo": "",
+      "createdAt": "2026-09-10T22:46:09.487Z",
+      "approved": true,
+      "primary": false
+    }
+  ],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-09-29T16:52:45.329Z",
+    "deployedVersion": "0.1"
+  }
+}

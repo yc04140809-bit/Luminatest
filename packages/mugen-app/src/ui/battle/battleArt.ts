@@ -1,0 +1,422 @@
+// THE PICTURES THE BATTLE SCREEN DRAWS, AND ONLY THOSE.
+//
+// The Artifact asks `partyArtFor` / `enemyArtFor` / `BATTLE_UI`, all of
+// which import the whole art manifest — and importing the manifest
+// makes the bundler ship every picture it names, which is how the App
+// once grew by 30 MB of art it never showed. So the App names each file
+// the battle screen uses, one import per file, and nothing else.
+//
+// THE BATTLE DRAWINGS OF 2026-10-16 (作者「戦闘画面キャラクター差し替え」): the App's ordinary
+// stance for 主人公・ケイオス・ガルド・グレイヴ・アリア・レヴィ is the new drawing (`*-battle-v2.png`);
+// the Artifact keeps the earlier ones until it is updated. Every other state (her casting and
+// higher form, Gald struck and down) is still the shared drawing.
+//
+// WHICH DRAWING A STATE IS stays the core's: the entries below carry
+// the same facing and face boxes as the shared art table, and are
+// resolved through the same fallback chains (`partyChainFor`,
+// `ENEMY_FALLBACK`). `battleArt.test.ts` holds every entry to the
+// Artifact's own answer, file and metadata, so the two screens cannot
+// draw somebody differently.
+
+import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
+import kaosAwaken from '@mugen/assets/files/characters/kaos/kaos-awaken.png';
+// The battle drawings of 2026-10-16 (作者「戦闘画面キャラクター差し替え」), placed as delivered.
+import heroBattleV2 from '@mugen/assets/files/characters/hero/hero-battle-v2.png';
+import kaosBattleV2 from '@mugen/assets/files/characters/kaos/kaos-battle-v2.png';
+import galdBattleV2 from '@mugen/assets/files/characters/gald/gald-battle-v2.png';
+import graveBattleV2 from '@mugen/assets/files/characters/grave/grave-battle-v2.png';
+import ariaBattleV2 from '@mugen/assets/files/characters/aria/aria-battle-v2.png';
+import leviBattleV2 from '@mugen/assets/files/characters/levi/levi-battle-v2.png';
+import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
+import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
+import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
+import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
+import sekiryuga from '@mugen/assets/files/enemies/sekiryuga.png';
+import fuumimi from '@mugen/assets/files/enemies/fuumimi.png';
+import hyourei from '@mugen/assets/files/enemies/hyourei.png';
+import iwahoro from '@mugen/assets/files/enemies/iwahoro.png';
+import kokemaru from '@mugen/assets/files/enemies/kokemaru.png';
+import valsheelForm1 from '@mugen/assets/files/enemies/valsheel-form1.png';
+import valsheelForm2 from '@mugen/assets/files/enemies/valsheel-form2.png';
+import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
+import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
+import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
+import uiSpeedOff from '@mugen/assets/files/ui/battle/chip-x2-off.png';
+import uiEscapeOn from '@mugen/assets/files/ui/battle/chip-escape-on.png';
+import uiEscapeOff from '@mugen/assets/files/ui/battle/chip-escape-off.png';
+import uiCommandDiamond from '@mugen/assets/files/ui/battle/command-diamond.png';
+import uiTurnSlot from '@mugen/assets/files/ui/battle/turn-slot.png';
+import uiTurnNext from '@mugen/assets/files/ui/battle/turn-next.png';
+import uiPartyCard from '@mugen/assets/files/ui/battle/party-card.png';
+import uiEnemyPlate from '@mugen/assets/files/ui/battle/enemy-plate.png';
+import uiMessageWindow from '@mugen/assets/files/ui/battle/message-window.png';
+import uiMemoryPanel from '@mugen/assets/files/ui/battle/memory-panel.png';
+import uiMemoryStar from '@mugen/assets/files/ui/battle/memory-star.png';
+import uiBarRail from '@mugen/assets/files/ui/battle/bar-rail.png';
+import uiBarHp from '@mugen/assets/files/ui/battle/bar-hp.png';
+import uiBarMp from '@mugen/assets/files/ui/battle/bar-mp.png';
+import {
+  ENEMY_FALLBACK,
+  partyChainFor,
+  resolveArt,
+  type ArtSet,
+  type EnemyArtState,
+  type PartyArtState,
+  type ResolvedArt,
+} from '@mugen/core/art/artStates';
+
+/** The people who can stand on the App's battlefield. */
+const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet<PartyArtState>> = {
+  hero: {
+    id: 'hero',
+    label: 'あなた',
+    states: {
+      battle_idle: {
+        src: heroBattleV2,
+        facing: 'left',
+        face: { fileW: 1086, fileH: 1448, x: 255, y: 160, width: 180, height: 180 },
+      },
+    },
+  },
+  kaos: {
+    id: 'kaos',
+    label: 'ケイオス',
+    states: {
+      battle_idle: {
+        src: kaosBattleV2,
+        facing: 'left',
+        face: { fileW: 1145, fileH: 1374, x: 470, y: 95, width: 180, height: 180 },
+      },
+      /** Casting — for the length of a spell. */
+      battle_cast: {
+        src: kaosCast,
+        facing: 'left',
+        face: { fileW: 1103, fileH: 1426, x: 488, y: 225, width: 165, height: 165 },
+      },
+      /** Her higher form, in the fight she wakes in. */
+      awakened: {
+        src: kaosAwaken,
+        facing: 'left',
+        face: { fileW: 1024, fileH: 1536, x: 470, y: 195, width: 180, height: 180 },
+      },
+    },
+  },
+  /**
+   * グレイヴ — his official battle drawing (2026-10-12): the great sword held
+   * in both hands, facing left (toward the creature, as the hero and Kaos do),
+   * transparent, placed as delivered. For his time fighting beside them (the
+   * fight with ヴァルシール, to come); no fight stands him on the field yet.
+   */
+  grave: {
+    id: 'grave',
+    label: 'グレイヴ',
+    states: {
+      battle_idle: {
+        src: graveBattleV2,
+        facing: 'left',
+        face: { fileW: 1086, fileH: 1448, x: 530, y: 310, width: 170, height: 170 },
+      },
+    },
+  },
+  /**
+   * アリア / レヴィ — they join the party at the end of chapter 1 (作者決定
+   * 2026-10-12: 正式加入前提), so their battle drawings ship in the release
+   * from here (the DEBUG scenes used them alone until now). Both facing left,
+   * toward the creature, placed as delivered. No fight stands them on the
+   * field yet.
+   */
+  aria: {
+    id: 'aria',
+    label: 'アリア',
+    states: {
+      battle_idle: {
+        src: ariaBattleV2,
+        facing: 'left',
+        face: { fileW: 1024, fileH: 1536, x: 470, y: 290, width: 150, height: 150 },
+      },
+    },
+  },
+  levi: {
+    id: 'levi',
+    label: 'レヴィ',
+    states: {
+      battle_idle: {
+        src: leviBattleV2,
+        facing: 'left',
+        face: { fileW: 1122, fileH: 1402, x: 630, y: 270, width: 150, height: 150 },
+      },
+    },
+  },
+  gald: {
+    id: 'gald',
+    label: '盗賊ガルド',
+    states: {
+      battle_idle: {
+        src: galdBattleV2,
+        facing: 'right',
+        face: { fileW: 1122, fileH: 1402, x: 815, y: 215, width: 170, height: 170 },
+      },
+      /** Struck. */
+      battle_damage: { src: galdBattleDamage },
+      /** Beaten, on the ground. */
+      battle_down: { src: galdBattleDown },
+    },
+  },
+};
+
+/** The creatures. */
+const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
+  moss_rabbit: {
+    id: 'moss_rabbit',
+    label: 'モスラビット',
+    states: {
+      front: {
+        src: mossRabbit,
+        box: { fileW: 1024, fileH: 1536, x: 129, y: 387, width: 703, height: 850 },
+        face: { fileW: 1024, fileH: 1536, x: 400, y: 620, width: 380, height: 380 },
+        facing: 'right',
+      },
+      /** Beaten, lying in the grass. */
+      down: {
+        src: mossRabbitDown,
+        box: { fileW: 1536, fileH: 1024, x: 6, y: 218, width: 1523, height: 659 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * セキリュウガ (FORGE MON-000007) — its official art, delivered
+   * 2026-10-06 as a transparent PNG and placed as delivered.
+   *
+   * One drawing: standing. There is no drawing of it brought down, so it
+   * is not given one — at nought it stays this drawing and the stage
+   * lowers and dims it (battle.app.css, `boss-kneel`), never squashing it.
+   */
+  sekiryuga: {
+    id: 'sekiryuga',
+    label: 'セキリュウガ',
+    states: {
+      front: {
+        src: sekiryuga,
+        box: { fileW: 1122, fileH: 1402, x: 9, y: 11, width: 1113, height: 1382 },
+        face: { fileW: 1122, fileH: 1402, x: 870, y: 175, width: 230, height: 230 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * フウミミ (FORGE MON-000002) and ヒョウレイ (MON-000008) — their battle
+   * drawings, delivered 2026-10-10 as transparent PNGs made for the battle
+   * screen and placed as delivered (FORGE's reference sheets are not used).
+   * One drawing each: standing. No drawing of them brought down, so at
+   * nought they stay this drawing, as セキリュウガ does.
+   */
+  fuumimi: {
+    id: 'fuumimi',
+    label: 'フウミミ',
+    states: {
+      front: {
+        src: fuumimi,
+        box: { fileW: 1254, fileH: 1254, x: 15, y: 22, width: 1225, height: 1217 },
+        face: { fileW: 1254, fileH: 1254, x: 840, y: 270, width: 220, height: 220 },
+        facing: 'right',
+      },
+    },
+  },
+  hyourei: {
+    id: 'hyourei',
+    label: 'ヒョウレイ',
+    states: {
+      front: {
+        src: hyourei,
+        box: { fileW: 1448, fileH: 1086, x: 9, y: 0, width: 1431, height: 1080 },
+        face: { fileW: 1448, fileH: 1086, x: 1100, y: 220, width: 170, height: 170 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * イワホロ (FORGE MON-000009) — its drawing, delivered 2026-10-10 as a
+   * transparent PNG and placed as delivered. One drawing: standing (floating),
+   * as フウミミ and ヒョウレイ.
+   */
+  iwahoro: {
+    id: 'iwahoro',
+    label: 'イワホロ',
+    states: {
+      front: {
+        src: iwahoro,
+        box: { fileW: 1536, fileH: 1024, x: 34, y: 16, width: 1492, height: 988 },
+        face: { fileW: 1536, fileH: 1024, x: 1290, y: 350, width: 220, height: 220 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * コケマル (FORGE MON-000010) — its drawing, delivered 2026-10-10 as a
+   * transparent PNG and placed as delivered (the earlier picture, with an
+   * opaque white ground, was never used). One drawing: standing.
+   */
+  /**
+   * ヴァルシール, its first form (2026-10-12) — the armoured sphinx, as
+   * delivered (transparent, facing right toward the party). For the party
+   * fight (its shell to be broken later); no story fight stands it yet.
+   */
+  valsheel: {
+    id: 'valsheel',
+    label: 'ヴァルシール',
+    states: {
+      front: {
+        src: valsheelForm1,
+        box: { fileW: 1122, fileH: 1402, x: 17, y: 44, width: 1105, height: 1323 },
+        face: { fileW: 1122, fileH: 1402, x: 880, y: 250, width: 200, height: 200 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * ヴァルシール, its second form (作者採用 2026-10-12) — the machine angel its
+   * broken shell lays bare: white, black and gold armour, the great wings,
+   * the glowing core in its chest, the floating shards and rings of light.
+   * The base drawing, as delivered (transparent, facing right toward the
+   * party, whole). Registered only: no fight stands it yet — its place and
+   * size in the fight are set when the first form's BREAK leads into it.
+   */
+  valsheel_form2: {
+    id: 'valsheel_form2',
+    label: 'ヴァルシール（第2形態）',
+    states: {
+      front: {
+        src: valsheelForm2,
+        box: { fileW: 1086, fileH: 1448, x: 7, y: 0, width: 1074, height: 1448 },
+        face: { fileW: 1086, fileH: 1448, x: 655, y: 225, width: 140, height: 140 },
+        facing: 'right',
+      },
+    },
+  },
+  kokemaru: {
+    id: 'kokemaru',
+    label: 'コケマル',
+    states: {
+      front: {
+        src: kokemaru,
+        box: { fileW: 1536, fileH: 1024, x: 13, y: 12, width: 1512, height: 1001 },
+        face: { fileW: 1536, fileH: 1024, x: 1210, y: 260, width: 240, height: 240 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * The small フウミミ the one individual shields — the same drawing, shown
+   * small (the author, 2026-10-10: 「そのまま小さくでもいい」). How small is
+   * the scene's to say (ui/creatureChoice.tsx), not a second file.
+   */
+  fuumimi_young: {
+    id: 'fuumimi_young',
+    label: '小さなフウミミ',
+    states: {
+      front: {
+        src: fuumimi,
+        box: { fileW: 1254, fileH: 1254, x: 15, y: 22, width: 1225, height: 1217 },
+        facing: 'right',
+      },
+    },
+  },
+};
+
+/**
+ * HOW AN OPPONENT IS SHOWN IN A FIGHT, beyond its slot — the App's battle
+ * screen only (BattleStage `presence`). Not what it IS: its size in the
+ * world (spriteFrames, FORGE) is unchanged; this is staging.
+ *
+ * セキリュウガ (2026-10-07, author's adjustment): smallish by canon, and
+ * read as standing too far back for a boss. In the fight only, drawn
+ * 1.2× (shape kept) and a step nearer: a twentieth of the field further
+ * in from the edge, and its feet a twentieth further down the field
+ * (its plate still under its feet, lifted only where a short screen
+ * would put it into the commands — BattleStage).
+ */
+export interface BattlePresence {
+  /** How much larger than its world size it is drawn (shape kept). */
+  scale: number;
+  /** Its own step off the slot: further in from the edge, and further down the field (nearer). */
+  inset: number;
+  bottom: number;
+  /** A pose whose drawing is a different file and needs its own number (kneeling, fallen). */
+  stateScale?: Partial<Record<string, number>>;
+}
+
+/**
+ * 人型敵の基準 — HOW A PERSON FOUGHT AS AN ENEMY IS SHOWN (作者 2026-10-16: 「ガルドが小さい。
+ * 人型の小型敵ではなく、序盤の印象に残る相手として」).
+ *
+ * A person in the enemy's place stands a step nearer than a creature does and is drawn so their
+ * HEAD is a little larger than the hero's (about 1.1×) — the same measure the party is sized by
+ * (spriteFrames: by head, not canvas), so a crouched or a standing drawing comes out the same man.
+ * Whole: head and feet on the screen, feet on the ground (the slot's ground line). Any person fought
+ * later takes this, with only their own drawing's numbers.
+ */
+export const HUMANOID_ENEMY_STEP = { inset: 0.04, bottom: -0.07 } as const;
+
+export const BATTLE_PRESENCE: Partial<Record<string, BattlePresence>> = {
+  sekiryuga: { scale: 1.2, inset: 0.05, bottom: -0.05 },
+  // ガルド: the core sizes him for the Artifact's wide lunge drawing (0.44 of the stage); the App draws
+  // his portrait-shaped battle drawing (gald-battle-v2), where that came out a small man far up the
+  // path — under the moss rabbit's weight. ×1.7 and the humanoid step put his head at about 1.1× the
+  // hero's. Struck and fallen are older, wider files already at a man's size: a little only.
+  gald: { scale: 1.7, ...HUMANOID_ENEMY_STEP, stateScale: { battle_damage: 1.12, battle_down: 1.1 } },
+};
+
+/** The scale a presence gives a pose. */
+export function presenceScale(presence: BattlePresence | undefined, state: string | null): number {
+  if (!presence) return 1;
+  return (state ? presence.stateScale?.[state] : undefined) ?? presence.scale;
+}
+
+export type BattlePartyId = keyof typeof PARTY;
+
+/** A party member (or a person fought as one) in a state. */
+export function battlePartyArt(id: BattlePartyId, state: PartyArtState): ResolvedArt<PartyArtState> {
+  return resolveArt(PARTY[id], state, partyChainFor(state));
+}
+
+/** A creature in a state. */
+export function battleEnemyArt(id: string, state: EnemyArtState): ResolvedArt<EnemyArtState> {
+  return resolveArt(ENEMIES[id], state, ENEMY_FALLBACK);
+}
+
+/** What an opponent lies down as — the Artifact's `downPose`. */
+export const DOWN_POSE = { creature: 'down', person: 'battle_down' } as const;
+
+/**
+ * A PERSON FOUGHT AS AN OPPONENT reads the enemy's states in party words.
+ * The same table as the Artifact's `opponent.ts` (AS_PERSON).
+ */
+export const AS_PERSON: Partial<Record<EnemyArtState, PartyArtState>> = {
+  front: 'battle_idle',
+  attack: 'battle_attack',
+  damage: 'battle_damage',
+  down: 'battle_down',
+  portrait: 'portrait',
+};
+
+/** The delivered UI frames, by the same names as the manifest's BATTLE_UI. */
+export const BATTLE_UI_FRAMES = {
+  autoOn: uiAutoOn,
+  autoOff: uiAutoOff,
+  speedOn: uiSpeedOn,
+  speedOff: uiSpeedOff,
+  escapeOn: uiEscapeOn,
+  escapeOff: uiEscapeOff,
+  commandDiamond: uiCommandDiamond,
+  turnSlot: uiTurnSlot,
+  turnNext: uiTurnNext,
+  partyCard: uiPartyCard,
+  enemyPlate: uiEnemyPlate,
+  messageWindow: uiMessageWindow,
+  memoryPanel: uiMemoryPanel,
+  memoryStar: uiMemoryStar,
+  barRail: uiBarRail,
+  barHp: uiBarHp,
+  barMp: uiBarMp,
+} as const;

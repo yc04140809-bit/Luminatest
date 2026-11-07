@@ -1,0 +1,203 @@
+/* THE APP'S LAYERS — its own rules, on top of the Artifact's sheet.
+
+   The battle screen draws, back to front:
+     background → the people on the field (their depth, up to the enemy
+     plate) → HUD and commands → the awakening scene (30)
+     → effects (35: her aura and a spell's landing, magic/SpellFx.tsx)
+     → a choice panel (40, BattlePicker.tsx)
+     → a cut-in (45, cutin/CutIn.tsx) — its name is part of it, so it
+       is drawn with it, over everything else.
+   A choice panel and a cut-in never show together: a panel opens only
+   between turns, a cut-in plays only inside one. */
+
+/* A SPELL HAPPENING — over the people and the HUD, and taking nothing:
+   presses are already refused while a turn is being shown. */
+.bp-effects {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+}
+
+/* A CUT-IN, over the fight. It takes every press while it plays, so
+   nothing underneath — a command, the speed chip, the BGM chip — is
+   reached through it. */
+.bp-cinematic {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+}
+
+.bp-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+}
+
+/* The fight is still there, only quieter. */
+.bp-picker-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 18, 0.46);
+}
+
+/* The panel keeps the command row in sight under the veil — the
+   Artifact's own 78px — and never runs off the top; longer than the
+   room, it scrolls. */
+.bp-picker-panel {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, calc(100% - 28px));
+  top: calc(10px + env(safe-area-inset-top));
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.bp-picker-panel > * {
+  pointer-events: auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The Artifact's spell drawer is placed against the dock; here it is
+   the panel's content, on a ground dark enough to read from its first
+   row (the Artifact's fades in over a quarter of its height). */
+.bp-picker .magic-tray {
+  position: static;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(18, 16, 14, 0.96);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+}
+.bp-picker .bp-tray {
+  align-self: stretch;
+}
+
+/* READABLE MP, SAME LOOK. The Artifact's rows fade from pearl to a 12%
+   gold wash, so over the dark panel the middle of each row — where the
+   MP sits — is a mid grey, and its antique gold on that grey measured
+   about 1.2:1 on a phone. Here the row stays pearl-to-sand all the way
+   down (opaque), and the MP is the same gold, deeper: 6:1 or better
+   against every part of the row. Nothing moves and nothing is renamed. */
+.bp-picker .magic-tray-item {
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, #efe6d2 100%);
+}
+.bp-picker .magic-tray-item:disabled {
+  background: #e9e2d3;
+}
+.bp-picker .magic-tray-cost {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6e5010;
+}
+
+/* THE LINE THAT SAYS WHAT AN ITEM OR A SPELL DID — given a width.
+   The Artifact's said plate is a grid whose middle column may shrink to
+   nothing, inside a plate that is only as wide as its content: together
+   they collapse the sentence to one character per line, a tall dark
+   column across the middle of the field. Here it is as wide as the
+   sentence needs, up to a readable limit, with the name and her line on
+   the first row and the battle's own result under them. */
+.bp-message.bp-said {
+  width: min(92vw, 520px);
+  max-width: min(92vw, 520px);
+}
+.bp-said .bp-said-body {
+  grid-template-columns: auto minmax(0, 1fr);
+  row-gap: 2px;
+}
+.bp-said .bp-said-result {
+  grid-column: 1 / -1;
+}
+/* And its words in the HUD's own light inks: the Artifact colours them
+   for a pearl card (charcoal), and on this navy plate they could not be
+   read at all. */
+.bp-said .bp-said-name {
+  color: var(--bx-gold-lit);
+}
+.bp-said .bp-said-line {
+  color: var(--bx-ink-dim);
+}
+.bp-said .bp-said-result {
+  color: var(--bx-ink);
+  font-weight: 600;
+}
+
+/* WHAT A SPELL DID — one light line where the plate sits (under the
+   place name), in place of the framed plate: the battle's own result
+   sentence and nothing else. No frame and no flavour line, only a thin
+   dark band that fades out at both ends so the white words read over a
+   bright forest; the field, the party and the creature stay in view.
+   It holds long enough to read at ×1 and ×2, then fades away. */
+.bp-told {
+  --bp-told: 3200ms;
+  /* Where the plate sits — centred, under the place name — but on its
+     own, not in the top group the screen dims while a blow lands. */
+  position: absolute;
+  left: 50%;
+  top: calc(6px + 23.5vh);
+  width: max-content;
+  max-width: min(92vw, 560px);
+  margin: 0;
+  padding: 3px 26px 4px;
+  background: linear-gradient(90deg, transparent, rgba(5, 11, 28, 0.62) 16%, rgba(5, 11, 28, 0.62) 84%, transparent);
+  color: #fffdf6;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: bp-told var(--bp-told) ease-out forwards;
+}
+/* Two short lines: the spell, then what it did. */
+.bp-told-name,
+.bp-told-result {
+  display: block;
+}
+.bp-told-name {
+  color: #ffe7a8;
+  letter-spacing: 0.08em;
+}
+
+@keyframes bp-told {
+  0% { opacity: 0; transform: translate(-50%, 4px); }
+  8%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-told { animation-name: bp-told-still; }
+}
+:root[data-reduced-motion='on'] .bp-told { animation-name: bp-told-still; }
+@keyframes bp-told-still {
+  0%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+/* A SCENE ON THE FIELD (scene/fieldScene.ts). Its figures stand among the
+   people — over them, under the HUD — and take nothing. */
+.bp-scene-field {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+/* He steps out of the way while somebody else's scene plays (v18
+   `.hero.is-suppressed`), and back when it is over. */
+.bp-hero {
+  transition:
+    opacity 130ms ease,
+    filter 130ms ease;
+}
+.bp-hero.aside {
+  opacity: 0;
+  filter: blur(3px);
+}

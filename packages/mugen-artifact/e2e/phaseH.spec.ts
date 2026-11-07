@@ -1,0 +1,387 @@
+import { test, expect, type Page } from './fixtures';
+import { advanceDays, devTimeShift, enterDevAdmin, playToLifeChoice } from './helpers';
+
+// PHASE H: the post-play survey. Feedback is a separate layer — it must
+// never touch world canon, never spoil unreached content, and never be
+// lost by a RESET.
+
+interface StoredFeedback {
+  id: string;
+  playSessionId: string;
+  route: string;
+  continueInterest: number;
+  galdFutureInterest: number;
+  reunionRecognition: string;
+  worldImpactFeeling: number;
+  archiveInterest: number;
+  memorableMoment: string;
+  freeComment: string;
+}
+
+function readFeedback(page: Page): Promise<StoredFeedback[]> {
+  return page.evaluate(
+    () =>
+      new Promise<StoredFeedback[]>((resolve, reject) => {
+        const open = indexedDB.open('mugen-zero-save');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('playtest_feedback')) {
+            db.close();
+            resolve([]);
+            return;
+          }
+          const rq = db
+            .transaction('playtest_feedback', 'readonly')
+            .objectStore('playtest_feedback')
+            .getAll();
+          rq.onsuccess = () => {
+            db.close();
+            resolve(rq.result as StoredFeedback[]);
+          };
+          rq.onerror = () => reject(rq.error);
+        };
+      }),
+  );
+}
+
+/**
+ * Choice → three years → the discovery → Kaos's close. Played through 捕らえる
+ * (the workyard): since 2026-10-20 見逃す leaves nowhere to find him (ROUTE D),
+ * so the bakery reunion this used to play is gone.
+ */
+async function completeCoreExperience(page: Page) {
+  await playToLifeChoice(page);
+  await page.getByTestId('choice-CAPTURE').click();
+  const result = page.getByTestId('choice-result-dialogue');
+  await expect(result).toBeVisible();
+  const recorded = page.getByTestId('choice-recorded-screen');
+  for (let i = 0; i < 8 && !(await recorded.isVisible().catch(() => false)); i++) await result.click();
+  await recorded.waitFor();
+  await page.getByTestId('return-home-button').click();
+
+  await advanceDays(page, 3);
+  await devTimeShift(page);
+
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('location-ALDEN_WORKYARD').click();
+  const scene = page.getByTestId('workyard-first-visit');
+  const done = page.getByTestId('workyard-reunion-done');
+  await expect(scene).toBeVisible();
+  for (let i = 0; i < 30 && !(await done.isVisible().catch(() => false)); i++) {
+    if (await scene.isVisible().catch(() => false)) await scene.click();
+  }
+  await expect(done).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('workyard-leave').click();
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-keep-playing').click(); // -> HOME
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+}
+
+/** The archive's survey link now goes through Kaos's closing scene. */
+async function openSurveyFromArchive(page: Page) {
+  await page.getByTestId('open-survey-button').click();
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-survey-button').click();
+}
+
+async function answerSurvey(page: Page, comment = '再会でびっくりした。') {
+  const intro = page.getByTestId('survey-intro');
+  await expect(intro).toBeVisible();
+  await intro.click();
+  await intro.click();
+
+  await expect(page.getByTestId('survey-screen')).toBeVisible();
+  await page.getByTestId('q1-5').click();
+  await page.getByTestId('q2-4').click();
+  await page.getByTestId('q3-IMMEDIATE').click();
+  await page.getByTestId('survey-next').click();
+
+  await page.getByTestId('q4-5').click();
+  await page.getByTestId('q5-3').click();
+  await page.getByTestId('q6-REUNION').click();
+  await page.getByTestId('survey-next').click();
+
+  await page.getByTestId('q7-4').click();
+  await page.getByTestId('q8-3').click();
+  await page.getByTestId('q9-NONE').click();
+  await page.getByTestId('survey-next').click();
+
+  if (comment) await page.getByTestId('q10-input').fill(comment);
+  await page.getByTestId('survey-next').click();
+
+  // Round 3: one rating, then the moment questions, which may be blank.
+  await page.getByTestId('q12-4').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('survey-submit').click();
+  await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
+}
+
+test('the tester can hand their answers back, because nothing else can', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await completeCoreExperience(page);
+  await page.getByTestId('archive-button').click();
+  await openSurveyFromArchive(page);
+  await answerSurvey(page, '再会でびっくりした。');
+
+  // The done screen is honest about where the answers actually are.
+  await expect(page.getByTestId('survey-done')).toContainText('この端末の中だけ');
+  await page.getByTestId('survey-copy-answers').click();
+  await expect(page.getByTestId('survey-copy-status')).toContainText('コピーしました');
+
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toContain('MUGEN ZERO PLAYTEST');
+  expect(text).toContain('route: CAPTURE');
+  expect(text).toContain('再会でびっくりした。');
+  expect(text).toContain('再会に意味を感じた: 4');
+  // The text on screen is the same text, for a browser that refuses the
+  // clipboard: the tester is never left with no way back.
+  expect(await page.getByTestId('survey-answers-text').inputValue()).toBe(text);
+});
+
+test('survey is offered only after the life choice, saves locally, and shows once', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click();
+
+  // Mid-play: no survey entry point anywhere.
+  await page.getByTestId('archive-button').click();
+  await expect(page.getByTestId('open-survey-button')).toHaveCount(0);
+  await page.getByTestId('archive-back').click();
+
+  await completeCoreExperience(page);
+
+  // Reached from the LIFE ARCHIVE, by the player's own choice.
+  await page.getByTestId('archive-button').click();
+  await expect(page.getByTestId('open-survey-button')).toBeVisible();
+  await openSurveyFromArchive(page);
+  await answerSurvey(page);
+
+  const feedback = await readFeedback(page);
+  expect(feedback).toHaveLength(1);
+  expect(feedback[0]).toMatchObject({
+    route: 'CAPTURE',
+    continueInterest: 5,
+    galdFutureInterest: 4,
+    reunionRecognition: 'IMMEDIATE',
+    worldImpactFeeling: 5,
+    archiveInterest: 3,
+    memorableMoment: 'REUNION',
+    freeComment: '再会でびっくりした。',
+  });
+  expect(feedback[0].playSessionId).toBeTruthy();
+
+  // World canon is untouched by answering.
+  const eventTypes = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open('mugen-zero-save');
+        open.onsuccess = () => {
+          const db = open.result;
+          const rq = db.transaction('memory_events', 'readonly').objectStore('memory_events').getAll();
+          rq.onsuccess = () => {
+            db.close();
+            resolve(rq.result.map((e: { type: string }) => e.type));
+          };
+        };
+      }),
+  );
+  expect(eventTypes.sort()).toEqual([
+    'GALD_COMPLETES_SENTENCE',
+    'GALD_STANDS_TRIAL',
+    'GALD_WORKS_FOR_ALDEN',
+    'PLAYER_CAPTURED_GALD',
+    'PLAYER_MET_GALD_IN_ALDEN',
+    'WORLD_TIME_SHIFTED',
+  ]);
+
+  // The archive still shows the five chapters; the survey is now closed.
+  await page.getByTestId('survey-done-archive').click();
+  await expect(page.getByTestId('open-survey-button')).toBeDisabled();
+  await page.getByTestId('archive-entry-GALD').click();
+  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
+  await page.getByTestId('archive-detail-back').click();
+
+  // Reload: still one answer, still marked as answered.
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await page.getByTestId('archive-button').click();
+  await expect(page.getByTestId('open-survey-button')).toBeDisabled();
+  expect(await readFeedback(page)).toHaveLength(1);
+});
+
+test('answers survive RESET WORLD, and the dev admin can read and export them', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click();
+  await completeCoreExperience(page);
+  await page.getByTestId('archive-button').click();
+  await openSurveyFromArchive(page);
+  await answerSurvey(page, '=1+1 という書き出しのコメント');
+  await page.getByTestId('survey-done-home').click();
+
+  // Dev admin shows the answer, its comment and the aggregates.
+  await enterDevAdmin(page);
+  await expect(page.getByTestId('dev-playtest-summary')).toContainText('PLAYTEST RESPONSES: 1');
+  await expect(page.getByTestId('dev-playtest-summary')).toContainText('CONTINUE INTEREST: 5.0');
+  await expect(page.getByTestId('dev-playtest-summary')).toContainText('Immediate 1');
+  await expect(page.getByTestId('playtest-comment')).toContainText('=1+1 という書き出しのコメント');
+
+  // CSV export downloads with a BOM, the header and an escaped formula.
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('playtest-export-csv').click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const csv = Buffer.concat(chunks).toString('utf8');
+  expect(csv.charCodeAt(0)).toBe(0xfeff);
+  expect(csv).toContain('"playSessionId"');
+  expect(csv).toContain(`"'=1+1 という書き出しのコメント"`);
+
+  // RESET WORLD wipes the world but keeps the feedback.
+  await page.getByTestId('reset-world-button').click();
+  await page.getByTestId('confirm-reset-world').click();
+  await expect(page.getByTestId('dev-clock')).toContainText('1年目 1日目');
+  await expect(page.getByTestId('dev-playtest-summary')).toContainText('PLAYTEST RESPONSES: 1');
+  expect(await readFeedback(page)).toHaveLength(1);
+
+  // And so does RESET SCENARIO.
+  await page.getByTestId('reset-scenario-button').click();
+  await page.getByTestId('confirm-reset-scenario').click();
+  await expect(page.getByTestId('dev-status')).toHaveText('完了: RESET SCENARIO');
+  expect(await readFeedback(page)).toHaveLength(1);
+});
+
+test('KILL route reaches the survey without seeing bakery or reunion options', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click();
+
+  await enterDevAdmin(page);
+  await page.getByTestId('preset-KILL').click();
+  await page.getByTestId('time-plus-3y').click();
+  await expect(page.getByTestId('dev-clock')).toContainText('4年目');
+  await page.getByTestId('dev-admin-back').click();
+
+  await page.getByTestId('archive-button').click();
+  await openSurveyFromArchive(page);
+  const intro = page.getByTestId('survey-intro');
+  await intro.click();
+  await intro.click();
+
+  await page.getByTestId('q1-3').click();
+  await page.getByTestId('q2-3').click();
+  await page.getByTestId('q3-NOT_APPLICABLE').click(); // available on every route
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('q4-3').click();
+  await page.getByTestId('q5-3').click();
+
+  // No spoilers: futures this player never reached are not listed.
+  await expect(page.getByTestId('q6-BAKERY')).toHaveCount(0);
+  await expect(page.getByTestId('q6-REUNION')).toHaveCount(0);
+  await expect(page.getByTestId('q6-LIFE_CHOICE')).toBeVisible();
+  await page.getByTestId('q6-LIFE_CHOICE').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('q7-2').click();
+  await page.getByTestId('q8-2').click();
+  await page.getByTestId('q9-SOME').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('q12-3').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('survey-submit').click();
+  await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
+
+  const feedback = await readFeedback(page);
+  expect(feedback).toHaveLength(1);
+  expect(feedback[0].route).toBe('KILL');
+  expect(feedback[0].memorableMoment).toBe('LIFE_CHOICE');
+});
+
+for (const size of [
+  // The same three phones, held the way a landscape game is held.
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
+]) {
+  test(`survey fits ${size.name} with no horizontal scroll`, async ({ page }) => {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await page.goto('/');
+    await page.getByTestId('start-button').click();
+    await page.getByTestId('prologue-monologue').click();
+    const kaos = page.getByTestId('kaos-intro');
+    for (let i = 0; i < 6; i++) await kaos.click();
+
+    await enterDevAdmin(page);
+    await page.getByTestId('preset-CAPTURE_3Y').click();
+    await expect(page.getByTestId('dev-clock')).toContainText('4年目');
+    await page.getByTestId('dev-admin-back').click();
+
+    await page.getByTestId('archive-button').click();
+    await openSurveyFromArchive(page);
+    const intro = page.getByTestId('survey-intro');
+    await intro.click();
+    await intro.click();
+
+    const noOverflow = async () => {
+      const doc = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(doc.scrollWidth).toBeLessThanOrEqual(doc.clientWidth + 1);
+    };
+    await noOverflow();
+
+    // Rating buttons stay inside the viewport and are tappable.
+    const box = await page.getByTestId('q1-5').boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(size.width + 1);
+    expect(box!.height).toBeGreaterThanOrEqual(40);
+
+    await page.getByTestId('q1-5').click();
+    await page.getByTestId('q2-5').click();
+    await page.getByTestId('q3-LATER').click();
+    await page.getByTestId('survey-next').click();
+    await noOverflow();
+    await page.getByTestId('q4-4').click();
+    await page.getByTestId('q5-4').click();
+    // Three years on, the workyard not yet found: the reunion is not offered (no spoilers).
+    await page.getByTestId('q6-LIFE_CHOICE').click();
+    await page.getByTestId('survey-next').click();
+    await noOverflow();
+    await page.getByTestId('q7-4').click();
+    await page.getByTestId('q8-4').click();
+    await page.getByTestId('q9-NONE').click();
+    await page.getByTestId('survey-next').click();
+
+    // A long comment must not blow the layout sideways.
+    await page.getByTestId('q10-input').fill('とても長い感想'.repeat(60));
+    await noOverflow();
+    const textarea = await page.getByTestId('q10-input').boundingBox();
+    expect(textarea!.x + textarea!.width).toBeLessThanOrEqual(size.width + 1);
+
+    // The round-3 pages have to fit too.
+    await page.getByTestId('survey-next').click();
+    await page.getByTestId('q12-3').click();
+    await noOverflow();
+    await page.getByTestId('survey-next').click();
+    await page.getByTestId('q16-input').fill('同じ人ばかり出てきた気がする');
+    await noOverflow();
+  });
+}

@@ -1,0 +1,1027 @@
+import Phaser from 'phaser';
+import { fieldArt, locationBackground } from '../../content/locations/locationVisuals';
+import { ExplorationCharacter, directionFor, type Direction } from './PlayerSprite';
+import { FollowTrail } from './follow';
+import {
+  GREENWOOD_GROUND_SPOTS,
+  nextDiscoverySpot,
+  SIDE_ENCOUNTER_WEIGHTS,
+  spotsOnGround,
+  resolveExplorationEncounter,
+  type DiscoveryCategory,
+  type DiscoverySpot,
+} from './discovery';
+import type { ExplorationSession } from './explorationSession';
+import {
+  EDGE_ZONE_WIDTH,
+  GREENWOOD_FIELD,
+  GREENWOOD_GROUND,
+  clampToGround,
+  edgeZoneAt,
+  fieldForScreen,
+  groundPoint,
+  type EdgeZone,
+  type FieldSize,
+} from './walkable';
+
+export const GAME_WIDTH = GREENWOOD_FIELD.width;
+export const GAME_HEIGHT = GREENWOOD_FIELD.height;
+
+import {
+  COMPANION_MIN_GAP,
+  COMPANION_START_ON_GROUND,
+  FOLLOW_DISTANCE,
+  PLAYER_START_ON_GROUND,
+} from './companionPlacement';
+
+/** The scripted first meeting, well down the path he is walking. */
+const ENCOUNTER_ON_GROUND = { along: 0.28, depth: 0.3 };
+const GALD_POINT_ID = 'GALD_ENCOUNTER';
+const ENCOUNTER_RADIUS = 28;
+const PLAYER_SPEED = 160; // px/sec
+const BACKGROUND_KEY = 'greenwood-bg';
+/** Who the player is walking as. The frames belong to the registry. */
+const PLAYER_CHARACTER = 'HERO' as const;
+// Measured against the field's HEIGHT, which is the same on every
+// phone — a fraction of the width would make him bigger on a wider
+// screen, which is the one thing a character size must not do.
+//
+// Raised from 0.19 with the landscape stabilisation pass. At 0.19 he
+// was a 74px figure in a 390px forest and read as a marker on a map
+// rather than as a person walking through trees; his drawing is 102px
+// of real pixels wide, so 0.19 was also throwing a third of it away.
+// This is about where the file's own resolution lands, so he is bigger
+// AND sharper.
+const PLAYER_DISPLAY_WIDTH = Math.round(GAME_HEIGHT * 0.28);
+
+/**
+ * Kaos walks the forest with him.
+ *
+ * She is not scenery and not a marker: she is the other person in this
+ * story, so she keeps to his path, turns where he turned, and stops
+ * when he stops.
+ */
+const COMPANION_CHARACTER = 'KAOS' as const;
+/**
+ * Her height on screen. A little smaller than him, deliberately.
+ *
+ * A share of the field rather than a bare 58 pixels, for the same
+ * reason as his: a number of pixels means a different-sized person on
+ * every phone, and the field's height is the one thing that does not
+ * move.
+ */
+// Her height, head to sole, as a share of the field — and now simply
+// that, with no correction inside it.
+//
+// THE HISTORY IS WORTH KEEPING, because it is twice now that a number
+// here was asked to fix something that was not a number. 0.3 came from
+// comparing her HEIGHT against his WIDTH and reading it as like for
+// like. 0.42 put her at 96% of his height and she still read as small,
+// because the two were not drawn in the same style: his head was a
+// third of him and hers a fifth of her, so equal heights were not equal
+// presence. 0.50 bought that back at the cost of standing her a head
+// taller than him, and was recorded as a temporary display correction
+// rather than as anything about her.
+//
+// She now has a forest sprite drawn in his style, so there is nothing
+// left to correct. 0.44 puts her head-to-sole height within a pixel of
+// his, which is what this number was always supposed to mean: all four
+// of her directions come out between 158.9 and 164.1 pixels against his
+// 158.4. One of the four sheets needs help to get there — see the note
+// beside KAOS_RIGHT_TEMP_SCALE in explorationSprites.ts.
+//
+// STILL A RENDER SCALE, NOT A HEIGHT. Two characters drawn the same
+// size on a field are not thereby the same height in the story, and
+// nothing about either of them may be read back out of this. Her battle
+// portrait, her event art and her forest sprite each carry their own
+// display scale for their own reasons, and none is evidence about the
+// others.
+const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.44);
+/**
+ * How far back along his path she walks. Far enough that the two of
+ * them read as two people on a path rather than as one figure with
+ * something stuck to it — which, at this size, takes most of a
+ * character's height.
+ */
+/** A little faster than he is, so a gap she has lost can be closed. */
+const COMPANION_SPEED = 178;
+/** Close enough to her place on the path to stop walking. */
+const COMPANION_SETTLE = 1.5;
+
+
+/** How long "you have arrived" takes before the result is handed over. */
+const ARRIVAL_MS = 450;
+/** She notices a beat after he does, because she was behind him. */
+const COMPANION_REACTION_MS = 190;
+/** The gold sparkle before an item card. */
+const SPARKLE_MS = 380;
+/** The moment between "something is coming" and the battle screen. */
+const BATTLE_WARNING_MS = 240;
+
+/**
+ * What is waiting at a discovery point.
+ *
+ * Every kind is drawn EXACTLY the same, on purpose. The player should
+ * walk over because they wondered, not because an icon told them there
+ * was a fight or a box there — finding out what it was is the reward.
+ */
+export type DiscoveryKind = 'event' | 'battle' | 'item' | 'npc' | 'memory' | 'secret';
+
+interface DiscoveryPointDef {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  kind: DiscoveryKind;
+}
+
+/** The ring standing in the forest right now, and the parts it is made of. */
+interface ActiveDiscovery {
+  point: DiscoveryPointDef;
+  parts: Phaser.GameObjects.Shape[];
+  loops: Phaser.Tweens.Tween[];
+  /**
+   * HOW MUCH THIS ONE MATTERS. Never shown as a word.
+   *
+   * Both are real places and both answer when walked to — there is no
+   * such thing here as a ring with nothing behind it. What the two
+   * differ in is weight: MAIN is what the forest most wants to say and
+   * is drawn a little stronger, SIDE is somewhere worth a look and is
+   * drawn quieter, and what each turns out to be follows from that.
+   *
+   * The player is never told which is which. 「何かありそう」 is the
+   * whole of the message; MAIN and SIDE are how the forest decides what
+   * to put there, not a label on the floor.
+   */
+  weight: RingWeight;
+}
+
+export type RingWeight = 'MAIN' | 'SIDE';
+
+/**
+ * HOW MANY PLACES CAN LOOK INTERESTING AT ONCE.
+ *
+ * Two, and the second is quieter than the first — a forest with two
+ * equally bright rings in it is a map with two pins in it, and this is
+ * meant to read as somewhere worth a look rather than as an objective
+ * list.
+ *
+ * NEITHER OF THEM IS A DECOY. Both answer when walked to; the quiet one
+ * simply answers with a moment or a thing rather than a fight. A ring
+ * that turned out to be nothing would teach the player to stop trusting
+ * rings, which is the one thing this cue cannot afford.
+ *
+ * The second is only drawn when the clearing has somewhere far enough
+ * from the first to be a different place rather than the same place
+ * twice.
+ */
+const MOST_RINGS_AT_ONCE = 2;
+/** How far apart two of them have to be to be two places. */
+const RINGS_APART = 150;
+/**
+ * How much of the cue a quieter ring gets. Weight, not truthfulness.
+ *
+ * 0.75, up from 0.62. At 0.62 the side ring was not quieter, it was
+ * gone — on a real screen, against the sunlit floor of the clearing, I
+ * could not find it at all. Quieter has a floor, and the floor is
+ * "still noticeable at the edge of vision".
+ */
+const SIDE_PRESENCE = 0.75;
+
+/**
+ * Where the walk is in its one loop.
+ *
+ * 'walking'    he goes where he is tapped; arrivals are watched for
+ * 'arriving'   he is there; the ring is closing and input is locked
+ * 'handedOver' the result belongs to React now, and still no input
+ *
+ * Three words rather than a state machine: the forest has one thing to
+ * be in the middle of, and giving it a framework would cost more than
+ * it explains.
+ */
+type ExplorationPhase = 'walking' | 'arriving' | 'handedOver';
+
+const GOLD = 0xc9a961;
+
+export interface GreenwoodCallbacks {
+  /** The scripted first meeting on the forest path. Unchanged. */
+  onEncounter: () => void;
+  /**
+   * Walked back out the way they came in.
+   *
+   * The path has two ends and the screen decides what is at each of
+   * them; the scene only says which end somebody is standing at. Today
+   * the right-hand end is the way back — the same thing the 「森を出る」
+   * line does — and the left-hand end is where the forest goes on.
+   */
+  onLeaveField?: () => void;
+  /**
+   * An arrival at a repeatable ring, and what it turned out to be. The
+   * scene has decided the category and nothing else: which event, which
+   * item and which enemy are the world's business, not the canvas's.
+   */
+  onDiscovery: (category: DiscoveryCategory) => void;
+}
+
+export interface GreenwoodOptions {
+  /**
+   * False once Gald's life choice is already recorded in WORLD MEMORY:
+   * the same first encounter must not happen twice in one world. After
+   * that the forest holds repeatable discoveries instead.
+   */
+  encounterEnabled: boolean;
+  /**
+   * The player asked for less movement. Everything a cue says with
+   * motion it must also say standing still, so this only removes the
+   * animation — never the cue.
+   */
+  reducedMotion?: boolean;
+  /**
+   * Where they were standing before a fight took them off this screen.
+   * Without it, winning would undo the walk.
+   */
+  session?: ExplorationSession;
+  /** Development only: force what the next arrival turns out to be. */
+  forcedCategory?: DiscoveryCategory | null;
+  /**
+   * The world's size, so the field can be the shape of the screen it is
+   * being drawn on. Everything about the ground is written in fractions
+   * of this, so nothing else has to know.
+   */
+  field?: FieldSize;
+}
+
+/**
+ * Greenwood Forest — the exploration loop.
+ *
+ * LOOK → NOTICE → WONDER → APPROACH → ARRIVE → FIND OUT → LOOK AGAIN.
+ * The forest is drawn at its own colour and never washed out, the two
+ * travellers are their own drawn art rather than markers, and the place
+ * worth walking to is a disturbance in the world instead of an icon
+ * saying "press here".
+ *
+ * The one rule that shapes the code: nothing happens because a ring was
+ * tapped. Things happen because somebody walked there. So the ring is
+ * not interactive, the tap only ever means "go", and the result is
+ * decided on arrival — which is also why input locks the moment he
+ * arrives and does not come back until the result has been seen.
+ *
+ * The scene owns coordinates and timing. It owns no content: which
+ * event, which item, which enemy, and what any of it means to the world
+ * are decided outside and never imported here.
+ */
+export class GreenwoodScene extends Phaser.Scene {
+  private player!: ExplorationCharacter;
+  private facing: Direction = 'back';
+  private companion!: ExplorationCharacter;
+  private companionFacing: Direction = 'back';
+  /** The ground he has walked, which is the ground she walks. */
+  private trail = new FollowTrail();
+  private target: Phaser.Math.Vector2 | null = null;
+  private phase: ExplorationPhase = 'walking';
+  /**
+   * Every ring standing in the forest, in the order they were drawn.
+   *
+   * A list rather than one: walking to ANY of them is a real arrival.
+   * What happens to the OTHERS depends on what was found — a fight or
+   * the scripted meeting takes the player off this screen and every
+   * ring goes with them, while a moment or a thing on the ground is
+   * read and closed with the forest still standing, so the place the
+   * player did not walk to is still there to walk to.
+   */
+  private active: ActiveDiscovery[] = [];
+  /** Decided at hand-over, so a trip to the battle screen cannot move it. */
+  private nextSpotId: string | null = null;
+  /** How much the ring he just walked to mattered. Decides what is in it. */
+  private weightArrivedAt: RingWeight = 'MAIN';
+  private lastCategory: DiscoveryCategory | null = null;
+  private callbacks: GreenwoodCallbacks;
+  private options: GreenwoodOptions;
+  /** This field, at this size. Fractions of it are what the rules speak. */
+  private field: FieldSize;
+  /** The eight rings, standing on this field's clearing floor. */
+  private spots: DiscoverySpot[];
+
+  constructor(callbacks: GreenwoodCallbacks, options: GreenwoodOptions) {
+    super('greenwood');
+    this.callbacks = callbacks;
+    this.options = options;
+    this.field = options.field ?? GREENWOOD_FIELD;
+    this.spots = spotsOnGround(GREENWOOD_GROUND_SPOTS, this.field);
+  }
+
+  /** Somewhere on this field's clearing floor. */
+  private onGround(along: number, depth: number) {
+    return groundPoint(GREENWOOD_GROUND, this.field, along, depth);
+  }
+
+  /** The scripted first meeting. Its place on the path is part of the story. */
+  private galdPoint(): DiscoveryPointDef {
+    const at = this.onGround(ENCOUNTER_ON_GROUND.along, ENCOUNTER_ON_GROUND.depth);
+    return { id: GALD_POINT_ID, x: at.x, y: at.y, radius: ENCOUNTER_RADIUS, kind: 'event' };
+  }
+
+  preload(): void {
+    // The same registry the React screens read: the forest walked through
+    // and the forest fought in are one location.
+    // The field painting: the same forest as the battle backdrop, drawn
+    // wide with a clearing floor along the bottom. The ground band in
+    // walkable.ts is measured against THIS picture, which is why the
+    // walk and the fight read from different entries.
+    const art = fieldArt('GREENWOOD_FOREST') ?? locationBackground('GREENWOOD_FOREST');
+    if (art) this.load.image(BACKGROUND_KEY, art);
+    // His frames: sixteen transparent PNGs, one per pose and direction.
+    ExplorationCharacter.preload(this, PLAYER_CHARACTER);
+    // Hers: one transparent PNG holding her four views.
+    ExplorationCharacter.preload(this, COMPANION_CHARACTER);
+  }
+
+  create(): void {
+    this.cameras.main.setBackgroundColor('#12241a');
+
+    // Layer 1: the forest itself, at its own colour. SCENE ART IS THE
+    // WORLD — nothing lightens it to match the menus.
+    if (this.textures.exists(BACKGROUND_KEY)) {
+      const bg = this.add.image(this.field.width / 2, this.field.height / 2, BACKGROUND_KEY);
+      const scale = Math.max(this.field.width / bg.width, this.field.height / bg.height);
+      bg.setScale(scale).setScrollFactor(0).setDepth(0);
+    } else {
+      // The art failed to load: fall back to the original shapes rather
+      // than a blank screen.
+      const treeSpots = [
+        [60, 90], [300, 70], [80, 230], [290, 250], [50, 380], [310, 400], [200, 300],
+      ];
+      for (const [x, y] of treeSpots) {
+        this.add.circle(x, y, 18, 0x1e3a28);
+        this.add.rectangle(x, y + 20, 6, 14, 0x2c2418);
+      }
+    }
+
+    // Where they left off, if a fight interrupted the walk.
+    const held = this.options.session?.read() ?? null;
+    const playerAt =
+      held?.player ?? this.onGround(PLAYER_START_ON_GROUND.along, PLAYER_START_ON_GROUND.depth);
+    const companionAt =
+      held?.companion ??
+      this.onGround(COMPANION_START_ON_GROUND.along, COMPANION_START_ON_GROUND.depth);
+    this.facing = held?.facing ?? 'back';
+    this.companionFacing = held?.companionFacing ?? 'back';
+    this.lastCategory = held?.lastCategory ?? null;
+
+    // Layer 2: the traveller. His coordinates are where his feet are.
+    this.player = new ExplorationCharacter(this, {
+      characterId: PLAYER_CHARACTER,
+      x: playerAt.x,
+      y: playerAt.y,
+      displaySize: PLAYER_DISPLAY_WIDTH,
+      depth: 20,
+      reducedMotion: this.options.reducedMotion === true,
+    });
+    this.player.setDirection(this.facing);
+    this.trail.reset(playerAt.x, playerAt.y);
+
+    // Layer 2b: Kaos, a step behind him.
+    this.companion = new ExplorationCharacter(this, {
+      characterId: COMPANION_CHARACTER,
+      x: companionAt.x,
+      y: companionAt.y,
+      displaySize: COMPANION_DISPLAY_HEIGHT,
+      depth: 22,
+      reducedMotion: this.options.reducedMotion === true,
+    });
+    this.companion.setDirection(this.companionFacing);
+
+    // Layer 2c: the way back, at the end of the path they came in by.
+    // Drawn quietly and standing on the ground, so it reads as a place
+    // rather than as a button laid over the forest.
+    this.drawWayBack();
+
+    // Layer 3: what is worth walking over to. One at a time, always.
+    this.createDiscovery(this.openingPoint(held?.spotId ?? null, playerAt));
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Arriving and everything after it is not a moment to be
+      // interrupted, and a second tap must never start a second result.
+      if (this.phase !== 'walking') return;
+      // The forest is a painting: most of it is trees, canopy and a far
+      // bank, and none of that is floor. A tap anywhere still means
+      // something — the nearest piece of ground to it — rather than
+      // being swallowed, which is how a field starts feeling broken
+      // exactly where people press.
+      const to = clampToGround(GREENWOOD_GROUND, this.field, {
+        x: pointer.worldX,
+        y: pointer.worldY,
+      });
+      this.target = new Phaser.Math.Vector2(to.x, to.y);
+    });
+  }
+
+  /**
+   * Back to walking, with a new ring somewhere else.
+   *
+   * Called by the screen once the player has finished reading whatever
+   * they found. The spot was decided when the result was handed over,
+   * so it is the same one whether they came back from a card, a scene,
+   * or a fight on another screen.
+   */
+  resumeExploration(): void {
+    if (this.phase !== 'handedOver') return;
+    // A PLACE NOBODY IS ALREADY STANDING. The ring the player did not
+    // walk to is still out there when what they found was a moment or
+    // a thing on the ground, and the next one must not be drawn on top
+    // of it — two rings in one spot is one ring that will not close.
+    const held = this.spotById(this.nextSpotId);
+    const clear = held && this.noRingAt(held) ? held : this.freshPoint();
+    this.createDiscovery(this.noRingAt(clear) ? clear : this.freshPoint());
+    this.phase = 'walking';
+  }
+
+  private noRingAt(point: DiscoveryPointDef): boolean {
+    return this.active.every(
+      (r) =>
+        r.point.id !== point.id &&
+        Phaser.Math.Distance.Between(point.x, point.y, r.point.x, r.point.y) >= RINGS_APART,
+    );
+  }
+
+  /**
+   * Whether he is standing at the end of the path he came in by.
+   *
+   * Asked only once he has stopped, so that walking THROUGH the end of
+   * the path on the way to something does not throw the player out of
+   * the forest.
+   */
+  private atWayBack(): boolean {
+    const where: EdgeZone | null = edgeZoneAt(GREENWOOD_GROUND, this.field, {
+      x: this.player.x,
+      y: this.player.y,
+    });
+    return where === 'RIGHT' && this.callbacks.onLeaveField !== undefined;
+  }
+
+  /** A quiet mark on the ground where the path leaves the clearing. */
+  private drawWayBack(): void {
+    if (!this.callbacks.onLeaveField) return;
+    const at = this.onGround(1 - EDGE_ZONE_WIDTH / 2, 0.78);
+    const mark = this.add.ellipse(at.x, at.y, 40, 14);
+    mark.setStrokeStyle(1, GOLD, 0.35);
+    mark.setDepth(5);
+    const arrow = this.add.triangle(at.x + 13, at.y, 0, -5, 0, 5, 7, 0, GOLD, 0.45);
+    arrow.setDepth(5);
+  }
+
+  /** Where they are standing, for the session to hold. */
+  private saveSession(): void {
+    this.options.session?.save({
+      player: { x: this.player.x, y: this.player.y },
+      companion: { x: this.companion.x, y: this.companion.y },
+      facing: this.facing,
+      companionFacing: this.companionFacing,
+      spotId: this.nextSpotId ?? this.spots[0].id,
+      lastCategory: this.lastCategory,
+    });
+  }
+
+  /** The ring to draw when the forest opens. */
+  private openingPoint(heldSpotId: string | null, playerAt: { x: number; y: number }): DiscoveryPointDef {
+    // The first meeting on the path is a story beat, not a discovery:
+    // while it is still ahead of the player it is the only thing in the
+    // forest, at the coordinates it has always been at.
+    if (this.options.encounterEnabled) return this.galdPoint();
+    const spot = this.spotById(heldSpotId);
+    return spot ?? this.freshPoint(playerAt);
+  }
+
+  private spotById(id: string | null): DiscoveryPointDef | null {
+    const spot = this.spots.find((s) => s.id === id);
+    return spot ? this.pointFor(spot) : null;
+  }
+
+  private freshPoint(from?: { x: number; y: number }): DiscoveryPointDef {
+    // Anywhere a ring is already standing is not somewhere to put one.
+    const free = this.spots.filter((s) => this.noRingAt(this.pointFor(s)));
+    return this.pointFor(
+      nextDiscoverySpot({
+        spots: free.length > 0 ? free : this.spots,
+        previousId: this.active[0]?.point.id ?? null,
+        from: from ?? { x: this.player.x, y: this.player.y },
+      }),
+    );
+  }
+
+  private pointFor(spot: DiscoverySpot): DiscoveryPointDef {
+    return { id: spot.id, x: spot.x, y: spot.y, radius: ENCOUNTER_RADIUS, kind: 'secret' };
+  }
+
+  /**
+   * A disturbance in the world, not a button on top of it.
+   *
+   * Four quiet layers: light caught on the ground, a ring of it that has
+   * not finished closing, two motes drifting up, and a slow ripple. The
+   * first two are drawn whether or not anything moves, so the place is
+   * still noticeable when the player has asked for less motion.
+   */
+  private createDiscovery(point: DiscoveryPointDef): void {
+    this.createRing(point, 1, 'MAIN');
+    // THE SCRIPTED MEETING STANDS ALONE. While it is still ahead of the
+    // player it is the only thing the forest has to say, and a second
+    // place to be somewhere else is a way of missing it. Two rings are
+    // for ordinary exploration, which is where 「気になる場所」 is
+    // guidance rather than a distraction from the one scene.
+    if (this.options.encounterEnabled) return;
+    // AND A SECOND PLACE, quieter, when the clearing has one far enough
+    // away to be a different place rather than the same place twice.
+    // Quieter means less important, not less real: walking to it is a
+    // true arrival and the forest answers.
+    if (this.active.length >= MOST_RINGS_AT_ONCE) return;
+    const taken = new Set(this.active.map((r) => r.point.id));
+    const second = this.spots.find(
+      (s) =>
+        s.id !== point.id &&
+        !taken.has(s.id) &&
+        this.farFromEveryRing(s) &&
+        Phaser.Math.Distance.Between(s.x, s.y, point.x, point.y) >= RINGS_APART,
+    );
+    if (second) this.createRing(this.pointFor(second), SIDE_PRESENCE, 'SIDE');
+  }
+
+  /** Far enough from everything already standing to read as elsewhere. */
+  private farFromEveryRing(spot: DiscoverySpot): boolean {
+    return this.active.every(
+      (r) => Phaser.Math.Distance.Between(spot.x, spot.y, r.point.x, r.point.y) >= RINGS_APART,
+    );
+  }
+
+  /**
+   * One ring, at a given brightness.
+   *
+   * `presence` scales every layer at once rather than each being tuned
+   * twice: the second ring is the same cue, quieter, and nothing about
+   * it is a different shape.
+   */
+  private createRing(point: DiscoveryPointDef, presence: number, weight: RingWeight): void {
+    const still = this.options.reducedMotion === true;
+    const parts: Phaser.GameObjects.Shape[] = [];
+    const loops: Phaser.Tweens.Tween[] = [];
+
+    // A SHADE, UNDER EVERYTHING, and the part that actually made this
+    // work. Looking at the real screen, both rings were nearly invisible
+    // on the sunlit stone of the clearing — and not because they were
+    // too faint: the stroke was already at 0.95 alpha. Gold on sunlit
+    // sand is the same VALUE, so more gold only makes more of the same
+    // brightness. What a pale line needs on a pale floor is something
+    // darker directly behind it, exactly as text on a photograph needs
+    // a shadow. This is that shadow, and it is why the ring can stay
+    // quiet: it reads by contrast rather than by shouting.
+    const shade = this.add.ellipse(
+      point.x,
+      point.y + 7,
+      point.radius * 3.6,
+      point.radius * 2.05,
+      0x1a160f,
+      0.17 * presence,
+    );
+    shade.setDepth(4);
+
+    // A HALO, outside everything else and very soft. It is what makes
+    // the cue findable at arm's length on a phone: a wide, weak wash
+    // that lifts the line off whatever it is standing on.
+    const halo = this.add.ellipse(
+      point.x,
+      point.y + 6,
+      point.radius * 4.2,
+      point.radius * 2.4,
+      GOLD,
+      0.13 * presence,
+    );
+    halo.setDepth(5);
+
+    // Light on the ground. Soft, warm, wider than it is tall — the shape
+    // sunlight makes when it falls through leaves. Raised from 0.22:
+    // the same light, enough of it to read in daylight.
+    const glow = this.add.ellipse(
+      point.x,
+      point.y + 6,
+      point.radius * 2.8,
+      point.radius * 1.6,
+      GOLD,
+      0.32 * presence,
+    );
+    glow.setDepth(6);
+
+    // The ring: the MUGEN mark, laid flat on the forest floor. A little
+    // thicker and a little brighter than it was, and no larger — this
+    // is meant to read as "something is here", not as a quest pin.
+    const ring = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
+    ring.setStrokeStyle(2.2, GOLD, 0.97 * presence);
+    ring.setDepth(7);
+
+    // A second, fainter one just inside it, so the cue reads as made
+    // rather than as a lens flare.
+    const inner = this.add.ellipse(point.x, point.y + 6, point.radius * 1.1, point.radius * 0.62);
+    inner.setStrokeStyle(1.4, GOLD, 0.66 * presence);
+    inner.setDepth(7);
+    parts.push(shade, halo, glow, ring, inner);
+
+    this.active.push({ point, parts, loops, weight });
+    if (still) return;
+
+    // The ring breathes rather than blinks.
+    loops.push(
+      this.tweens.add({
+        targets: [ring, inner],
+        scaleX: 1.06,
+        scaleY: 1.06,
+        alpha: 0.85,
+        duration: 1900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      }),
+    );
+
+    // The ground light breathes with it, slower and much less far. It
+    // is the part that is seen out of the corner of an eye, and a wash
+    // that pulses as hard as the line it is under reads as a beacon.
+    loops.push(
+      this.tweens.add({
+        targets: [shade, halo, glow],
+        scaleX: 1.1,
+        scaleY: 1.1,
+        alpha: { from: 0.72, to: 1 },
+        duration: 2600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      }),
+    );
+
+    // A ripple leaving the point every few seconds — the world still
+    // remembering something that happened here.
+    const ripple = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
+    ripple.setStrokeStyle(1.2, GOLD, 0.6 * presence);
+    ripple.setDepth(7);
+    parts.push(ripple);
+    loops.push(
+      this.tweens.add({
+        targets: ripple,
+        scaleX: 2.1,
+        scaleY: 2.1,
+        alpha: 0,
+        duration: 2600,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      }),
+    );
+
+    // Two motes of light, drifting.
+    for (let i = 0; i < 2; i++) {
+      const mote = this.add.circle(
+        point.x + (i === 0 ? -7 : 8),
+        point.y + 4,
+        1.7,
+        GOLD,
+        0.9 * presence,
+      );
+      mote.setDepth(8);
+      parts.push(mote);
+      loops.push(
+        this.tweens.add({
+          targets: mote,
+          y: point.y - 22 - i * 6,
+          alpha: 0,
+          duration: 2200 + i * 700,
+          delay: i * 900,
+          repeat: -1,
+          ease: 'Sine.easeOut',
+        }),
+      );
+    }
+  }
+
+  /**
+   * "Found it." The ring gathers itself, gives out one pulse, and is
+   * gone — about four hundred milliseconds in total, because this is a
+   * hand on a shoulder and not a prize ceremony.
+   *
+   * ONE RING, the one walked to. What becomes of the others is decided
+   * by what was found, not by the arrival: see `handOver`.
+   */
+  private dismissRing(arrivedAt: DiscoveryPointDef): void {
+    const ring = this.active.find((r) => r.point.id === arrivedAt.id);
+    if (!ring) return;
+    this.active = this.active.filter((r) => r !== ring);
+    this.closeRings([ring], ring.point);
+  }
+
+  /**
+   * EVERY ring, because the forest is about to stop being the screen.
+   *
+   * A fight and the scripted meeting both take the player somewhere
+   * else, and a ring left glowing beside a scene that has already
+   * happened is a promise the forest did not keep. The pulse is given
+   * where the player is standing.
+   */
+  private dismissAllRings(arrivedAt?: DiscoveryPointDef): void {
+    const rings = this.active;
+    if (rings.length === 0) return;
+    this.active = [];
+    const at =
+      rings.find((r) => r.point.id === arrivedAt?.id) ??
+      rings.find((r) => r.weight === 'MAIN') ??
+      rings[0];
+    this.closeRings(rings, at.point);
+  }
+
+  private closeRings(rings: ActiveDiscovery[], pulseAt: DiscoveryPointDef): void {
+    for (const ring of rings) for (const loop of ring.loops) loop.stop();
+    const parts = rings.flatMap((ring) => ring.parts);
+    const active = { point: pulseAt };
+
+    if (this.options.reducedMotion === true) {
+      for (const part of parts) part.destroy();
+      return;
+    }
+
+    // Gathers itself in…
+    this.tweens.add({ targets: parts, scaleX: 0.86, scaleY: 0.86, duration: 130, ease: 'Sine.easeIn' });
+
+    // …lets go of one ring…
+    const pulse = this.add.ellipse(
+      active.point.x,
+      active.point.y + 6,
+      active.point.radius * 1.6,
+      active.point.radius * 0.9,
+    );
+    pulse.setStrokeStyle(2, GOLD, 0.9);
+    pulse.setDepth(30);
+    this.tweens.add({
+      targets: pulse,
+      scaleX: 2.2,
+      scaleY: 2.2,
+      alpha: 0,
+      duration: 330,
+      delay: 120,
+      ease: 'Cubic.easeOut',
+      onComplete: () => pulse.destroy(),
+    });
+
+    // …and is not there any more.
+    this.tweens.add({
+      targets: parts,
+      alpha: 0,
+      duration: 260,
+      delay: 120,
+      onComplete: () => {
+        for (const part of parts) part.destroy();
+      },
+    });
+  }
+
+  /** Small gold, close to the ground: something was here to pick up. */
+  private itemSparkle(point: DiscoveryPointDef): void {
+    if (this.options.reducedMotion === true) return;
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i) / 6 + 0.3;
+      const mote = this.add.circle(point.x + Math.cos(angle) * 4, point.y + 4, 1.5, GOLD, 0.9);
+      mote.setDepth(9);
+      this.tweens.add({
+        targets: mote,
+        x: point.x + Math.cos(angle) * 17,
+        y: point.y - 8 + Math.sin(angle) * 7,
+        alpha: 0,
+        duration: SPARKLE_MS,
+        delay: i * 26,
+        ease: 'Sine.easeOut',
+        onComplete: () => mote.destroy(),
+      });
+    }
+  }
+
+  /**
+   * Something came. Not a red flash and not a white one: the ground
+   * moves under them for a sixth of a second and the light goes.
+   * The forest picture itself is never touched.
+   */
+  private battleWarning(onDone: () => void): void {
+    if (this.options.reducedMotion !== true) this.cameras.main.shake(140, 0.005);
+    this.cameras.main.fadeOut(BATTLE_WARNING_MS, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, onDone);
+  }
+
+  /**
+   * He is there.
+   *
+   * Everything stops: the walk, the input, the ring. He reacts, she
+   * reacts a beat later because she was behind him, and only then does
+   * the forest say what was here.
+   */
+  private arriveAt(point: DiscoveryPointDef): void {
+    this.phase = 'arriving';
+    this.target = null;
+    this.player.setState('idle');
+    // THE ONE HE WALKED TO. Whether the other place survives is decided
+    // by what turns out to be here, which is not known yet — so it is
+    // left standing until `handOver` knows.
+    this.weightArrivedAt = this.active.find((r) => r.point.id === point.id)?.weight ?? 'MAIN';
+    this.dismissRing(point);
+    this.player.hop();
+    this.time.delayedCall(COMPANION_REACTION_MS, () => this.companion.hop());
+    this.time.delayedCall(ARRIVAL_MS, () => this.handOver(point));
+  }
+
+  /** What was here, and who deals with it. Runs exactly once per ring. */
+  private handOver(point: DiscoveryPointDef): void {
+    if (this.phase !== 'arriving') return;
+    this.phase = 'handedOver';
+
+    if (point.id === GALD_POINT_ID) {
+      // The scripted meeting, exactly as it always was. It leaves the
+      // forest, so nothing may be left glowing behind it.
+      this.dismissAllRings(point);
+      this.cameras.main.fadeOut(350, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.callbacks.onEncounter();
+      });
+      return;
+    }
+
+    // A QUIETER RING ANSWERS QUIETER. Both are real arrivals; what
+    // differs is what the forest is willing to put at each. The side
+    // one is a moment or a thing on the ground and never an ambush —
+    // a player jumped at the ring the game drew faintly would learn to
+    // stop taking detours, which is the one lesson this cue cannot
+    // afford to teach.
+    const category = resolveExplorationEncounter({
+      previous: this.lastCategory,
+      forced: this.options.forcedCategory ?? null,
+      weights: this.weightArrivedAt === 'SIDE' ? SIDE_ENCOUNTER_WEIGHTS : undefined,
+    });
+    this.lastCategory = category;
+    // Decide where the next ring goes now, while the forest still knows
+    // where everybody is: a fight happens on another screen, and this
+    // scene will be rebuilt from the session rather than from here.
+    this.nextSpotId = nextDiscoverySpot({
+      previousId: point.id,
+      from: { x: this.player.x, y: this.player.y },
+    }).id;
+    this.saveSession();
+
+    if (category === 'ITEM') {
+      this.itemSparkle(point);
+      this.time.delayedCall(SPARKLE_MS, () => this.callbacks.onDiscovery('ITEM'));
+      return;
+    }
+    if (category === 'BATTLE') {
+      // A fight happens on another screen. Everything goes with it.
+      this.dismissAllRings(point);
+      this.battleWarning(() => this.callbacks.onDiscovery('BATTLE'));
+      return;
+    }
+    this.callbacks.onDiscovery('EVENT');
+  }
+
+  /**
+   * Kaos walks his path, a set distance back.
+   *
+   * Not straight at him: a companion who steers at the person they are
+   * following cuts every corner and ends up walking beside them. She
+   * aims at the ground he actually covered, so she turns where he
+   * turned and arrives where he came from.
+   *
+   * Two rules keep her a person rather than a shadow. She never closes
+   * to within arm's length of him, whatever the path says, so they are
+   * always two figures and never one. And whoever is further up the
+   * path stands behind the other, so a step apart still reads as a step
+   * apart rather than as a sticker.
+   */
+  private updateCompanion(delta: number): void {
+    const place = this.trail.behind(FOLLOW_DISTANCE);
+    let walking = false;
+
+    if (place) {
+      const gap = Phaser.Math.Distance.Between(
+        this.companion.x,
+        this.companion.y,
+        place.x,
+        place.y,
+      );
+      if (gap > COMPANION_SETTLE) {
+        const step = Math.min(gap, (COMPANION_SPEED * delta) / 1000);
+        const angle = Phaser.Math.Angle.Between(
+          this.companion.x,
+          this.companion.y,
+          place.x,
+          place.y,
+        );
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        const x = this.companion.x + dx * step;
+        const y = this.companion.y + dy * step;
+        // Never onto him. If the path would take her inside his
+        // shoulder — he doubled back, or she was catching up when he
+        // stopped — she waits instead.
+        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= COMPANION_MIN_GAP) {
+          this.companion.setPosition(x, y);
+          this.companionFacing = directionFor(dx, dy, this.companionFacing);
+          this.companion.setDirection(this.companionFacing);
+          walking = true;
+        }
+      }
+    }
+
+    this.companion.setState(walking ? 'walk' : 'idle');
+    this.companion.update(delta);
+    this.companion.setDepth(this.companion.y <= this.player.y ? 18 : 22);
+  }
+
+  update(_time: number, delta: number): void {
+    const walkable = this.phase === 'walking';
+
+    if (walkable && this.target) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
+      const step = (PLAYER_SPEED * delta) / 1000;
+      if (dist <= step) {
+        this.player.setPosition(this.target.x, this.target.y);
+        this.target = null;
+      } else {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.target.x, this.target.y);
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        this.player.setPosition(this.player.x + dx * step, this.player.y + dy * step);
+        // Turn to the way he is going. The bigger axis decides, so he
+        // keeps his back to us unless he is really walking sideways —
+        // which is what walking into a forest looks like.
+        this.facing = directionFor(dx, dy, this.facing);
+        this.player.setDirection(this.facing);
+      }
+    }
+
+    this.player.setState(walkable && this.target ? 'walk' : 'idle');
+    this.player.update(delta);
+    // Nearer the camera means in front. A step of depth per pixel down
+    // the field is enough to keep two people who pass each other from
+    // swapping which is in front — it is the whole of the "back and
+    // forth" the field needs, and it costs one line.
+    this.player.setDepth(20 + Math.round(this.player.y));
+    // She keeps coming for a moment after he has stopped, which is what
+    // having walked behind him looks like.
+    this.trail.record(this.player.x, this.player.y);
+    this.updateCompanion(delta);
+    this.companion.setDepth(22 + Math.round(this.companion.y));
+
+    if (!walkable) return;
+
+    // Walked off the end of the path they came in by.
+    if (this.target === null && this.atWayBack()) {
+      this.phase = 'handedOver';
+      this.saveSession();
+      this.callbacks.onLeaveField?.();
+      return;
+    }
+
+    // WHICHEVER OF THEM HE REACHES. Every ring standing here is a real
+    // place and the forest answers at all of them — a ring with nothing
+    // behind it would teach the player to stop trusting rings, and this
+    // cue has nothing else to work with. What differs between them is
+    // how much the forest had to say, not whether it had anything.
+    const reached = this.active.find(
+      (ring) =>
+        Phaser.Math.Distance.Between(
+          this.player.x,
+          this.player.y,
+          ring.point.x,
+          ring.point.y,
+        ) <=
+        ring.point.radius + 10,
+    );
+    if (reached) this.arriveAt(reached.point);
+  }
+}
+
+export function createGreenwoodGame(
+  parent: HTMLElement,
+  callbacks: GreenwoodCallbacks,
+  options: GreenwoodOptions,
+): { game: Phaser.Game; scene: GreenwoodScene } {
+  // The field takes the shape of the room it is given, so a phone that
+  // is a slightly different shape gets a slightly wider forest rather
+  // than bars down both sides of a fixed one.
+  const field = options.field ?? fieldForScreen(parent.clientWidth, parent.clientHeight);
+  const scene = new GreenwoodScene(callbacks, { ...options, field });
+  const game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent,
+    width: field.width,
+    height: field.height,
+    backgroundColor: '#12241a',
+    scale: {
+      // The field is the same shape as the screen now, so FIT fills it
+      // instead of leaving bars either side.
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    scene,
+  });
+  return { game, scene };
+}

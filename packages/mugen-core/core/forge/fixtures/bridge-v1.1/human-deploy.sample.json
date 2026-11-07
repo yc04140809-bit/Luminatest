@@ -1,0 +1,252 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "characterId": "HUM-900001",
+  "characterType": "human",
+  "encounterRole": null,
+  "status": "CANONIZED",
+  "identity": {
+    "name": "セラ",
+    "speciesName": null,
+    "individualName": null,
+    "nameStatus": "CANON",
+    "speciesNameStatus": null,
+    "individualNameStatus": null,
+    "nameOrigin": "作者命名",
+    "speciesNameOrigin": null,
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "age": "38",
+    "gender": "女性",
+    "origin": "アルデン地方",
+    "currentRegion": "アルデン村",
+    "family": "母と弟",
+    "occupation": "薬草採集人",
+    "role": "森の道を知る一般住民",
+    "appearance": "日焼けした肌、作業で荒れた手、修繕した上着",
+    "affiliation": "アルデン村",
+    "importance": "一般NPC",
+    "core": {
+      "personality": [
+        "慎重",
+        "世話焼き",
+        "負けず嫌い"
+      ],
+      "values": [
+        "家族第一",
+        "約束を守る"
+      ],
+      "weakness": "責任を抱え込みすぎる",
+      "desires": [
+        "家族を幸せにしたい",
+        "外の世界を見たい"
+      ],
+      "tendency": "一度受けた恩を忘れない"
+    },
+    "specialTendency": "一度受けた恩を忘れない",
+    "notes": "サンプルデータ。本番登録禁止。",
+    "recruitment": {
+      "adoptionNotes": "",
+      "adoptionStatus": "ADOPTED",
+      "adoptionReason": "森の生活導線を支える人物候補",
+      "roleCandidate": "",
+      "importanceCandidate": "",
+      "seedCandidates": [],
+      "worldLifeHooks": [],
+      "visualNotes": "",
+      "updatedAt": "",
+      "shortlistedAt": "",
+      "adoptedAt": "",
+      "rejectedAt": "",
+      "visualizedAt": "",
+      "canonizedAt": "",
+      "deployedAt": "",
+      "archivedAt": ""
+    }
+  },
+  "lifeAxis": {
+    "morality": "善寄り",
+    "altruism": 0.16,
+    "ruleCompliance": 0.47,
+    "marriageDesire": "ある",
+    "romanceStyle": "普通",
+    "solitudeStyle": "集団を好む",
+    "familyOrientation": "普通",
+    "responsibility": "普通",
+    "recognitionNeed": "高い",
+    "riskStyle": "臆病",
+    "trustStyle": "普通",
+    "forgiveness": "条件付き",
+    "dependence": "相互依存",
+    "changeTolerance": "普通",
+    "moneySense": "守銭傾向",
+    "powerOrientation": "普通",
+    "secrecy": "隠しやすい"
+  },
+  "worldViewAxis": {
+    "homelandLove": "愛着がある",
+    "faith": "関心がない",
+    "statusAwareness": "自分の身分を意識",
+    "otherSpeciesAttitude": "警戒",
+    "magicAttitude": "実用的",
+    "rulerLoyalty": "条件付き忠誠",
+    "crimeTolerance": "事情次第",
+    "deathFear": "受け入れる",
+    "honorDesire": "少し求める",
+    "lineageAttachment": "大切にする"
+  },
+  "relationshipPotential": [
+    "友人を作りやすい",
+    "特定人物へ依存しやすい",
+    "なし"
+  ],
+  "aptitudes": {
+    "magic": 0.29,
+    "sword": 0.46,
+    "healing": 0.45,
+    "commerce": 0.37,
+    "social": 0.87
+  },
+  "aptitudeSemantics": "POTENTIAL_NOT_ACQUIRED_SKILL",
+  "currentSkills": {
+    "magic": "UNLEARNED",
+    "sword": "UNLEARNED",
+    "healing": "PRACTICAL",
+    "commerce": "BASIC",
+    "social": "BASIC"
+  },
+  "equipment": {
+    "requested": "薬草籠と小型の採集鎌",
+    "environmentBasis": "森で薬草を採集する生活",
+    "experienceBasis": "母から薬草の見分け方と採集方法を学んだ",
+    "validation": {
+      "status": "EVIDENCE_CONFIRMED",
+      "permitted": true,
+      "requestedTypes": [
+        "specified"
+      ],
+      "grounds": [
+        "生活環境: 森で薬草を採集する生活",
+        "明示経験: 母から薬草の見分け方と採集方法を学んだ",
+        "職業: 薬草採集人",
+        "現在技能: 治療 実用可能",
+        "現在技能: 商才 基礎習得",
+        "現在技能: 社交性 基礎習得",
+        "所属: アルデン村"
+      ],
+      "missingTypes": [],
+      "potentialAptitudeUsed": false,
+      "message": "職業・現在技能・所属・生活環境・明示経験のいずれかに装備根拠があります。"
+    }
+  },
+  "lifeStage": {
+    "stage": "ADULT",
+    "source": "VISUAL_AGE",
+    "visualAge": "adult",
+    "adultAxisMode": "CURRENT_TENDENCY",
+    "occupationMode": "CURRENT_OR_AGE_APPROPRIATE",
+    "futureFields": [],
+    "note": "成人向けLIFE AXISは現在傾向として扱える。"
+  },
+  "visualDiversity": {
+    "engineVersion": "1.0",
+    "generated": true,
+    "ageGroup": "adult",
+    "genderExpression": "feminine",
+    "bodyBuild": "slim",
+    "heightImpression": "tall",
+    "faceShape": "oval",
+    "facialImpression": "friendly",
+    "hair": {
+      "color": "dark_brown",
+      "length": "very_short",
+      "volume": "very_thick",
+      "texture": "wavy",
+      "trait": "work_cut",
+      "styling": "bed_hair"
+    },
+    "skinLifeMarks": [
+      "目立たないほくろ",
+      "なし"
+    ],
+    "posture": "relaxed",
+    "clothingCondition": "ordinary",
+    "occupationCue": "地域の気候に合わせた重ね着",
+    "equipmentStyle": "手ぶら",
+    "signatures": [
+      "古い布で補修した袖",
+      "白髪混じり",
+      "なし"
+    ],
+    "rarityTags": [],
+    "similarity": {
+      "warning": false,
+      "score": null,
+      "comparedAgainst": []
+    }
+  },
+  "visualDirection": {
+    "overallImpression": "PLAIN",
+    "intensity": "STANDARD",
+    "customInstruction": "森で働く生活感を優先"
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {},
+  "worldAssignment": {},
+  "productionChecklist": {},
+  "relationshipRefs": [],
+  "characterHistory": [
+    {
+      "event": "GENERATED",
+      "at": "2026-10-04T18:51:57.186Z",
+      "origin": "FORGE",
+      "details": {}
+    }
+  ],
+  "ecology": null,
+  "combat": null,
+  "bossEncounter": null,
+  "seeds": [
+    "独立したい",
+    "外の世界への憧れ",
+    "魔法への憧れ"
+  ],
+  "dramaHooks": [
+    "外へ出たい気持ちがある一方、家族を置いていけない。"
+  ],
+  "worldMemory": {
+    "registered": false,
+    "events": [],
+    "memo": ""
+  },
+  "worldLifeEngine": {
+    "enabled": true
+  },
+  "assets": [
+    {
+      "assetId": "VIS-HUM-900001-001",
+      "assetType": "FULL_BODY",
+      "fileName": "HUM-900001_FULL_BODY_001.webp",
+      "internalFileName": "HUM-900001_FULL_BODY_001.webp",
+      "originalFileName": "sera-fullbody.png",
+      "originalMimeType": "image/png",
+      "mimeType": "image/webp",
+      "width": 900,
+      "height": 1400,
+      "originalByteSize": 1800000,
+      "storedByteSize": 420000,
+      "imageStorageKey": "VIS-HUM-900001-001",
+      "memo": "全身立ち絵",
+      "createdAt": "2026-10-02T00:20:00.000Z",
+      "approved": true
+    }
+  ],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-10-02T01:00:00.000Z",
+    "deployedVersion": "0.1"
+  },
+  "sampleOnly": true
+}

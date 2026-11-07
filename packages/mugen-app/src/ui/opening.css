@@ -1,0 +1,82 @@
+/* ---- 触る漫画形式のオープニング (ui/opening.tsx) ---- */
+.screen.opening-comic {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+/* The picture whole, its own shape, as large as the screen allows. */
+.opening-page {
+  position: relative;
+  width: min(100vw, calc(100dvh * var(--op-ratio)));
+  max-height: 100dvh;
+}
+.opening-picture { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+/* The man, a glimpse: drawn standing on black, a little short of the screen. */
+.opening-k-glimpse .opening-page { width: min(100vw, calc(92dvh * var(--op-ratio))); }
+
+/* The choice page: the right-hand panels dark until an answer is given; the answers are the drawn ones. */
+.opening-panel-veil { position: absolute; background: #000; transition: opacity 0.2s ease; }
+.opening-choice {
+  position: absolute;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.opening-choice:active, .opening-choice:focus-visible { background: rgba(255, 255, 255, 0.18); outline: none; }
+
+/* プツン: a white line across the black, collapsing to nothing. */
+.opening-k-power_off .opening-picture { visibility: hidden; }
+.opening-poweroff-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  margin-top: -1.5px;
+  background: #fff;
+  box-shadow: 0 0 12px 4px rgba(255, 255, 255, 0.8);
+  animation: opening-poweroff 0.42s ease-in forwards;
+}
+@keyframes opening-poweroff {
+  0% { transform: scaleY(30); opacity: 1; }
+  40% { transform: scale(1, 1); opacity: 1; }
+  85% { transform: scale(0.02, 1); opacity: 1; }
+  100% { transform: scale(0, 1); opacity: 0; }
+}
+
+.opening-tap-hint {
+  position: fixed;
+  left: 50%;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+  animation: opening-tap 1.6s ease-in-out infinite;
+}
+@keyframes opening-tap { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { .opening-tap-hint { animation: none; } }
+
+.opening-debug-skip {
+  position: fixed;
+  top: max(6px, env(safe-area-inset-top));
+  right: max(6px, env(safe-area-inset-right));
+  padding: 4px 10px;
+  border: 1px solid #e0b84a;
+  border-radius: 14px;
+  background: rgba(60, 20, 0, 0.85);
+  color: #ffd76a;
+  font: 11px system-ui, sans-serif;
+}

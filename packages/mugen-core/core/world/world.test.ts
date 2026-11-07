@@ -1,0 +1,503 @@
+import 'fake-indexeddb/auto';
+import { describe, it, expect } from 'vitest';
+import { World } from './world';
+import { openSaveThatLivedTheRetiredSpareChain } from './retiredSpareChain.testkit';
+import { IdbMemoryStore } from '../memory/idbStore';
+import type { LifeChoiceId } from '../flow/types';
+import type { GaldLifeChoiceEventType } from '../memory/types';
+
+let dbCounter = 0;
+function freshDbName(): string {
+  return `world-test-${++dbCounter}`;
+}
+
+async function openWorld(dbName: string): Promise<World> {
+  return World.open(new IdbMemoryStore(dbName));
+}
+
+const CHOICE_TO_TYPE: Array<[LifeChoiceId, GaldLifeChoiceEventType]> = [
+  ['KILL', 'PLAYER_KILLED_GALD'],
+  ['SPARE', 'PLAYER_SPARED_GALD'],
+  ['HELP', 'PLAYER_HELPED_GALD'],
+  ['CAPTURE', 'PLAYER_CAPTURED_GALD'],
+];
+
+describe('World — life choice persistence (Phase B behavior preserved)', () => {
+  it.each(CHOICE_TO_TYPE)('persists %s as %s and restores it on reopen', async (choice, type) => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    const event = await world.recordGaldLifeChoice(choice);
+    expect(event.type).toBe(type);
+    expect(event.worldYear).toBe(1);
+    expect(event.worldDay).toBe(1);
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getGaldLifeChoice()).toBe(choice);
+    expect(reopened.hasEventOfType(type)).toBe(true);
+  });
+
+  it('refuses a contradictory second life choice (exclusivity)', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    await expect(world.recordGaldLifeChoice('KILL')).rejects.toThrow(/already recorded/);
+    expect(world.getGaldLifeChoice()).toBe('SPARE');
+    expect(world.getEvents()).toHaveLength(1);
+  });
+
+  it('records the choice with the CURRENT world day', async () => {
+    const world = await openWorld(freshDbName());
+    await world.advanceDay();
+    await world.advanceDay();
+    const event = await world.recordGaldLifeChoice('SPARE');
+    expect(event.worldDay).toBe(3);
+  });
+});
+
+describe('World — WORLD CLOCK', () => {
+  it('starts at year 1, day 1', async () => {
+    const world = await openWorld(freshDbName());
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
+  });
+
+  it('hasProgress covers a moved clock, not just recorded events', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    expect(world.hasProgress()).toBe(false);
+
+    await world.advanceDay(); // rested; no memory event yet
+    expect(world.getEvents()).toHaveLength(0);
+    expect(world.hasProgress()).toBe(true);
+
+    // And a reopened world still offers to continue.
+    const reopened = await openWorld(dbName);
+    expect(reopened.hasProgress()).toBe(true);
+
+    await reopened.resetWorld();
+    expect(reopened.hasProgress()).toBe(false);
+  });
+
+  it('advanceDay increments the day and persists it across reopen', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.advanceDay();
+    await world.advanceDay();
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 3 });
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getClock()).toEqual({ worldYear: 1, worldDay: 3 });
+  });
+});
+
+describe('World — GALD_LEAVES_BANDITS causality', () => {
+  it('does not fire before 3 days have elapsed since SPARE', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // day 1
+    expect(await world.advanceDay()).toEqual([]); // day 2
+    expect(await world.advanceDay()).toEqual([]); // day 3
+    expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+    expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+  });
+
+  it('fires exactly once after 3 elapsed days, with causedBy and state effects', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // day 1
+    await world.advanceDay(); // 2
+    await world.advanceDay(); // 3
+    const fired = await world.advanceDay(); // 4 -> elapsed 3
+
+    expect(fired).toHaveLength(1);
+    const event = fired[0];
+    expect(event.type).toBe('GALD_LEAVES_BANDITS');
+    expect(event.causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(event.actors).toEqual(['GALD']);
+    expect(event.importance).toBe('MAJOR');
+    expect(event.worldDay).toBe(4);
+
+    // CHARACTER STATE (current) updated; the past stays in WORLD MEMORY.
+    const gald = world.getCharacter('GALD')!;
+    expect(gald.occupation).toBe('NONE');
+    expect(gald.location).toBe('OUTSIDE_ALDEN');
+    expect(gald.alive).toBe(true);
+    // The sparing event itself is untouched.
+    expect(world.getEvents().find((e) => e.type === 'PLAYER_SPARED_GALD')).toBeTruthy();
+  });
+
+  it('elapsed days are measured from the sparing day, not worldDay >= 4', async () => {
+    const world = await openWorld(freshDbName());
+    await world.advanceDay(); // day 2
+    await world.advanceDay(); // day 3
+    await world.advanceDay(); // day 4
+    await world.advanceDay(); // day 5
+    await world.recordGaldLifeChoice('SPARE'); // spared on day 5
+    expect(await world.advanceDay()).toEqual([]); // 6
+    expect(await world.advanceDay()).toEqual([]); // 7
+    expect((await world.advanceDay()).map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS']); // 8
+  });
+
+  it.each(['KILL', 'HELP', 'CAPTURE'] as const)(
+    'never fires on the %s route even after many days',
+    async (choice) => {
+      const world = await openWorld(freshDbName());
+      await world.recordGaldLifeChoice(choice);
+      for (let i = 0; i < 6; i++) await world.advanceDay();
+      // These routes have futures of their own; what they must never have
+      // is the SPARE chain.
+      expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+      expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
+      expect(world.getCharacter('GALD')?.occupation).not.toBe('BAKER');
+    },
+  );
+
+  it('once: repeated advances never register it twice', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 8; i++) await world.advanceDay();
+    const occurrences = world.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS');
+    expect(occurrences).toHaveLength(1);
+  });
+
+  it('once survives a restart: a reopened world does not re-fire it', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 3; i++) await world.advanceDay();
+    expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(true);
+
+    const reopened = await openWorld(dbName);
+    for (let i = 0; i < 4; i++) await reopened.advanceDay();
+    expect(reopened.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+  });
+
+  it('restores both events AND Gald\'s updated state after a restart', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 3; i++) await world.advanceDay();
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.hasEventOfType('PLAYER_SPARED_GALD')).toBe(true);
+    expect(reopened.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(true);
+    const gald = reopened.getCharacter('GALD')!;
+    expect(gald.occupation).toBe('NONE');
+    expect(gald.location).toBe('OUTSIDE_ALDEN');
+    expect(reopened.getClock()).toEqual({ worldYear: 1, worldDay: 4 });
+  });
+});
+
+describe('World — TIME SYSTEM (Phase D)', () => {
+  it('REST rolls over the year: day 365 + 1 becomes year 2 day 1', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    for (let i = 0; i < 364; i++) await world.advanceDay();
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 365 });
+    await world.advanceDay();
+    expect(world.getClock()).toEqual({ worldYear: 2, worldDay: 1 });
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getClock()).toEqual({ worldYear: 2, worldDay: 1 });
+  });
+
+  it('TIME SHIFT +3 years moves the clock and ages Gald 27 -> 30', async () => {
+    const world = await openWorld(freshDbName());
+    await world.advanceDay(); // day 2, so the shift lands mid-year
+    const { shift } = await world.timeShift(3);
+
+    expect(world.getClock()).toEqual({ worldYear: 4, worldDay: 2 });
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+
+    expect(shift.type).toBe('WORLD_TIME_SHIFTED');
+    expect(shift.from).toEqual({ worldYear: 1, worldDay: 2 });
+    expect(shift.to).toEqual({ worldYear: 4, worldDay: 2 });
+    expect(shift.yearsElapsed).toBe(3);
+    expect(shift.importance).toBe('MAJOR');
+  });
+
+  it('the shift API takes arbitrary year spans', async () => {
+    const world = await openWorld(freshDbName());
+    await world.timeShift(1);
+    await world.timeShift(10);
+    expect(world.getClock()).toEqual({ worldYear: 12, worldDay: 1 });
+    expect(world.getCharacter('GALD')?.age).toBe(27 + 11);
+  });
+
+  it('rejects a re-entrant TIME SHIFT (double-tap cannot shift twice)', async () => {
+    const world = await openWorld(freshDbName());
+    const first = world.timeShift(3);
+    await expect(world.timeShift(3)).rejects.toThrow(/already in progress/);
+    await first;
+    expect(world.getClock().worldYear).toBe(4);
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+    // Sequential shifts (after the first completes) still work.
+    await world.timeShift(3);
+    expect(world.getClock().worldYear).toBe(7);
+  });
+
+  it('rejects invalid shift lengths', async () => {
+    const world = await openWorld(freshDbName());
+    await expect(world.timeShift(0)).rejects.toThrow(/Invalid/);
+    await expect(world.timeShift(-3)).rejects.toThrow(/Invalid/);
+    await expect(world.timeShift(1.5)).rejects.toThrow(/Invalid/);
+  });
+
+  it('TIME SHIFT does not swallow events due mid-span: SPARE then immediate shift', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // year 1 day 1
+    const { lifeEvents } = await world.timeShift(3);
+
+    // The whole chained life fires, each event dated the day it actually
+    // became due — never the post-shift date.
+    // (ROUTE D, 2026-10-20: he leaves, and outside the village helps the merchants.)
+    expect(lifeEvents.map((e) => [e.type, e.worldYear, e.worldDay])).toEqual([
+      ['GALD_LEAVES_BANDITS', 1, 4],
+      ['GALD_SAVES_MERCHANTS', 1, 6],
+      ['MERCHANTS_LEARN_OF_ELNA', 1, 6],
+    ]);
+    expect(lifeEvents[0].causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(world.getCharacter('GALD')?.location).toBe('OUTSIDE_ALDEN');
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+
+    // World-chronological order: spared -> life chain -> shift.
+    const types = world.getEvents().map((e) => e.type);
+    expect(types).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_SAVES_MERCHANTS',
+      'MERCHANTS_LEARN_OF_ELNA',
+      'WORLD_TIME_SHIFTED',
+    ]);
+  });
+
+  it('once holds across REST firing followed by a TIME SHIFT', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 3; i++) await world.advanceDay(); // leaves fires on day 4
+    const { lifeEvents } = await world.timeShift(3);
+    // Only the not-yet-fired chain continues; leaves is not re-fired.
+    expect(lifeEvents.map((e) => e.type)).toEqual(['GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA']);
+    expect(world.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+  });
+
+  it('KILL marks Gald dead; the dead do not age and his life never moves on', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('KILL');
+    expect(world.getCharacter('GALD')?.alive).toBe(false);
+
+    await world.timeShift(3);
+    expect(world.getCharacter('GALD')?.age).toBe(27); // no aging after death
+    expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+    // The past facts are untouched.
+    expect(world.hasEventOfType('PLAYER_KILLED_GALD')).toBe(true);
+  });
+
+  it('restores clock, age and all events after a simulated restart', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getClock()).toEqual({ worldYear: 4, worldDay: 1 });
+    expect(reopened.getCharacter('GALD')?.age).toBe(30);
+    expect(reopened.getCharacter('GALD')?.location).toBe('OUTSIDE_ALDEN');
+    expect(reopened.getEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_SAVES_MERCHANTS',
+      'MERCHANTS_LEARN_OF_ELNA',
+      'WORLD_TIME_SHIFTED',
+    ]);
+    // And the reopened world does not re-fire anything.
+    await reopened.timeShift(3);
+    expect(reopened.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+    expect(reopened.getEvents().filter((e) => e.type === 'MERCHANTS_LEARN_OF_ELNA')).toHaveLength(1);
+  });
+});
+
+describe('World — Gald bakery life chain (Phase E)', () => {
+  // SINCE ROUTE D (作者 2026-10-20) no new world takes this chain: the let-go
+  // man does not stay near the village. The bakery of his own survives only
+  // in saves that already lived it (retiredSpareChain.testkit.ts), and those
+  // must still read it — the reunion and the record below.
+  it('walks the let-go life day by day: he leaves, and never reaches Alden or a bakery', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // day 1
+
+    await world.advanceDays(3); // day 4: leaves
+    expect(world.getCharacter('GALD')).toMatchObject({ occupation: 'NONE', location: 'OUTSIDE_ALDEN' });
+
+    await world.advanceDays(2); // day 6: the merchants, and what they learn
+    expect(world.hasEventOfType('GALD_SAVES_MERCHANTS')).toBe(true);
+    expect(world.hasEventOfType('MERCHANTS_LEARN_OF_ELNA')).toBe(true);
+
+    await world.advanceDays(100);
+    expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+    expect(world.isBakeryOpen()).toBe(false);
+    expect(world.getCharacter('GALD')).toMatchObject({
+      alive: true,
+      occupation: 'NONE',
+      location: 'OUTSIDE_ALDEN',
+      age: 27, // no year passed — REST never ages
+    });
+
+    // Full causal chain is traceable from WORLD MEMORY.
+    const byType = Object.fromEntries(world.getEvents().map((e) => [e.type, e]));
+    expect(byType.GALD_LEAVES_BANDITS.causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(byType.GALD_SAVES_MERCHANTS.causedBy).toEqual(['GALD_LEAVES_BANDITS']);
+    expect(byType.MERCHANTS_LEARN_OF_ELNA.causedBy).toEqual(['GALD_SAVES_MERCHANTS']);
+  });
+
+  it('a save that already lived the retired chain keeps it, and nothing new is laid over it', async () => {
+    const world = await openSaveThatLivedTheRetiredSpareChain(freshDbName(), { shifted: true });
+    expect(world.isBakeryOpen()).toBe(true);
+    expect(world.getCharacter('GALD')).toMatchObject({ occupation: 'BAKER', location: 'ALDEN_VILLAGE' });
+    // He is in Alden in that world: not also on a road outside it.
+    expect(world.hasEventOfType('GALD_SAVES_MERCHANTS')).toBe(false);
+  });
+
+  it.each(['KILL', 'HELP', 'CAPTURE'] as const)(
+    '%s route never produces the bakery life, even after 100 years',
+    async (choice) => {
+      const world = await openWorld(freshDbName());
+      await world.recordGaldLifeChoice(choice);
+      await world.timeShift(100);
+      expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+      expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
+      expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+      expect(world.isBakeryOpen()).toBe(false);
+      expect(world.getCharacter('GALD')?.occupation).not.toBe('BAKER');
+      if (choice === 'KILL') {
+        expect(world.getCharacter('GALD')?.alive).toBe(false);
+        expect(world.getCharacter('GALD')?.age).toBe(27); // the dead do not age
+        // Nothing that happens after his death is HIS state.
+        expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+      }
+    },
+  );
+
+  it('the bakery alone never creates the reunion; only recordGaldReunion does', async () => {
+    const dbName = freshDbName();
+    const world = await openSaveThatLivedTheRetiredSpareChain(dbName, { shifted: true });
+    expect(world.isBakeryOpen()).toBe(true);
+    expect(world.hasReunitedWithGald()).toBe(false);
+    expect(world.hasEventOfType('PLAYER_REUNITED_WITH_GALD')).toBe(false);
+
+    const reunion = await world.recordGaldReunion();
+    expect(reunion.type).toBe('PLAYER_REUNITED_WITH_GALD');
+    expect(reunion.causedBy).toEqual(['GALD_BECOMES_BAKER']);
+    expect(reunion.actors).toEqual(['PLAYER', 'GALD']);
+    expect(reunion.location).toBe('ALDEN_BAKERY');
+    expect(reunion.importance).toBe('MAJOR');
+    expect(reunion.worldYear).toBe(4); // recorded when it actually happened
+
+    // once: a revisit returns the same fact, never a duplicate.
+    const again = await world.recordGaldReunion();
+    expect(again).toEqual(reunion);
+    expect(
+      world.getEvents().filter((e) => e.type === 'PLAYER_REUNITED_WITH_GALD'),
+    ).toHaveLength(1);
+
+    // Persisted across a restart.
+    const reopened = await openWorld(dbName);
+    expect(reopened.hasReunitedWithGald()).toBe(true);
+    expect(reopened.getCharacter('GALD')?.occupation).toBe('BAKER');
+  });
+
+  it('refuses a reunion in a world without the bakery', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    await expect(world.recordGaldReunion()).rejects.toThrow(/GALD_BECOMES_BAKER/);
+  });
+
+  it('getKnownEvents hides the undiscovered life and reveals it after the reunion', async () => {
+    const world = await openSaveThatLivedTheRetiredSpareChain(freshDbName(), { shifted: true });
+
+    // Before the reunion: the player knows their own acts and the time
+    // shift — not Gald's off-screen life.
+    expect(world.getKnownEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'WORLD_TIME_SHIFTED',
+    ]);
+
+    await world.recordGaldReunion();
+    expect(world.getKnownEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+      'WORLD_TIME_SHIFTED',
+      'PLAYER_REUNITED_WITH_GALD',
+    ]);
+  });
+});
+
+describe('World — RESET WORLD', () => {
+  it('resets memory, clock, age and character state, in memory and on disk', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 3; i++) await world.advanceDay();
+    await world.timeShift(3);
+    expect(world.getCharacter('GALD')?.location).toBe('OUTSIDE_ALDEN');
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+
+    await world.resetWorld();
+    expect(world.getEvents()).toEqual([]);
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
+    expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+    expect(world.getCharacter('GALD')?.location).toBe('GREENWOOD_FOREST');
+    expect(world.getCharacter('GALD')?.age).toBe(27);
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getEvents()).toEqual([]);
+    expect(reopened.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
+    expect(reopened.getCharacter('GALD')?.occupation).toBe('BANDIT');
+    expect(reopened.getCharacter('GALD')?.age).toBe(27);
+  });
+});
+
+describe('アルデンの新しい住人 — セーブ互換と年齢', () => {
+  it('appears in a world that was saved before they existed', async () => {
+    // A save made before Lina was a character has no stored row for
+    // her. `World.open` walks INITIAL_CHARACTERS and falls back to the
+    // initial state for anybody it has nothing stored about, so adding
+    // people is save-compatible by construction — this is the test that
+    // says so rather than the comment.
+    const dbName = freshDbName();
+    const first = await openWorld(dbName);
+    await first.recordGaldLifeChoice('SPARE');
+
+    const reopened = await openWorld(dbName);
+    const lina = reopened.getCharacter('LINA');
+    expect(lina, 'a save with no Lina row still has Lina').toBeDefined();
+    expect(lina!.age).toBe(14);
+    expect(lina!.occupation).toBe('BAKERY_HELPER');
+    // And the character that WAS stored is still what the save said.
+    expect(reopened.getGaldLifeChoice()).toBe('SPARE');
+  });
+
+  it('records the father listing his daughter', async () => {
+    const world = await openWorld(freshDbName());
+    expect(world.getCharacter('BAKERY_OWNER')?.childrenIds).toEqual(['LINA']);
+    // Stored one way round only. Finding a parent is a scan, so the two
+    // directions cannot disagree.
+    expect(world.getCharacter('LINA')?.childrenIds).toEqual([]);
+  });
+
+  it('ages the girl three years and leaves the undecided age alone', async () => {
+    // THE TRAP THIS TEST EXISTS FOR: `null + 3` is `3` in JavaScript, so
+    // a character whose age nobody has decided would come out of a
+    // three-year shift aged exactly three — a number no author chose,
+    // and indistinguishable a month later from one who did.
+    const world = await openWorld(freshDbName());
+    expect(world.getCharacter('LINA')?.age).toBe(14);
+    expect(world.getCharacter('BAKERY_OWNER')?.age).toBeNull();
+
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+
+    expect(world.getCharacter('LINA')?.age, 'she is seventeen').toBe(17);
+    expect(world.getCharacter('BAKERY_OWNER')?.age, 'still undecided').toBeNull();
+  });
+});

@@ -1,0 +1,118 @@
+// WHAT IS MET IN THE FOREST — the ordinary fights (作者判断 2026-10-10).
+//
+// Every ordinary creature FORGE sends is, unless there is a reason not, a
+// part of the forest's life: met in ordinary fights, at a rate set against
+// the others. A creature's one story (a particular individual, met once) is
+// a different thing and does not take the species out of the forest.
+//
+//   モスラビット  always
+//   フウミミ      once the one individual (IND-43452DFD) has been answered —
+//                 its kind is first met as that one, then as itself; or, if
+//                 the one has never been answered, from 12 points anyway
+//                 (作者判断 2026-10-11, A: a player who never stops at the
+//                 forest's edge still meets the kind). The one's story stays
+//                 waiting until it is answered, and stays once.
+//   イワホロ      from the signs' second phase (6 points): hungry, bolder,
+//                 nearer the edge than it should be
+//   ヒョウレイ    a little after it is first talked about: the rumour comes
+//                 with the signs' second phase (6 points); it is met from 8,
+//                 two steps of the player's on — never by reading the rumour
+//   コケマル      from the signs' third phase (10 points), when the forest's
+//                 creatures are said to be running from something and stray
+//                 nearer the village than they should
+//
+// The rabbit stays the commonest; the newer ones are rarer. Which one comes is a roll the caller makes (0 ≤ roll < 1).
+
+import type { SekiryugaStage } from '../../core/world/storyArc';
+import type { DialogueLine } from '../dialogue/prologue';
+import type { SpeciesId } from './species';
+import { HYOUREI_FIRST_SIGHT } from './hyourei';
+import { IWAHORO_FIRST_SIGHT } from './iwahoro';
+import { KOKEMARU_FIRST_SIGHT } from './kokemaru';
+
+export interface WildFacts {
+  stage: SekiryugaStage;
+  /** ALDEN INCIDENT's hidden point. */
+  point: number;
+  /** Whether フウミミ's one individual has been answered. */
+  fuumimiAnswered: boolean;
+}
+
+/** ヒョウレイ is met from this point on (its rumour comes at 6). */
+export const HYOUREI_MET_FROM_POINT = 8;
+/** イワホロ is met from this point on (the signs' second phase). */
+export const IWAHORO_MET_FROM_POINT = 6;
+/** コケマル is met from this point on (the signs' third phase). */
+export const KOKEMARU_MET_FROM_POINT = 10;
+/** フウミミ's kind is met from this point on even if its one individual was never answered. */
+export const FUUMIMI_KIND_FROM_POINT = 12;
+
+export interface WildEntry {
+  speciesId: SpeciesId;
+  /** Relative weight among those open now. */
+  weight: number;
+  opens: (facts: WildFacts) => boolean;
+}
+
+export const GREENWOOD_ENCOUNTERS: readonly WildEntry[] = [
+  { speciesId: 'moss_rabbit', weight: 6, opens: () => true },
+  {
+    speciesId: 'fuumimi',
+    weight: 2,
+    opens: (f) => f.fuumimiAnswered || (f.stage === 'SETTLED' && f.point >= FUUMIMI_KIND_FROM_POINT),
+  },
+  { speciesId: 'hyourei', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= HYOUREI_MET_FROM_POINT },
+  { speciesId: 'iwahoro', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= IWAHORO_MET_FROM_POINT },
+  { speciesId: 'kokemaru', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= KOKEMARU_MET_FROM_POINT },
+];
+
+/** The creatures that can be met in the forest now. */
+export function wildOpenIn(facts: WildFacts): readonly WildEntry[] {
+  return GREENWOOD_ENCOUNTERS.filter((e) => e.opens(facts));
+}
+
+/** Which one comes, for a roll in [0, 1). */
+export function wildSpeciesFor(facts: WildFacts, roll: number): SpeciesId {
+  const open = wildOpenIn(facts);
+  const total = open.reduce((n, e) => n + e.weight, 0);
+  let at = Math.min(Math.max(roll, 0), 0.999999) * total;
+  for (const e of open) {
+    if (at < e.weight) return e.speciesId;
+    at -= e.weight;
+  }
+  return open[open.length - 1].speciesId;
+}
+
+/** A few lines the first time a kind is met in an ordinary fight (none for the rabbit). */
+export const FIRST_SIGHT: Partial<Record<SpeciesId, readonly DialogueLine[]>> = {
+  hyourei: HYOUREI_FIRST_SIGHT,
+  iwahoro: IWAHORO_FIRST_SIGHT,
+  kokemaru: KOKEMARU_FIRST_SIGHT,
+  fuumimi: [
+    { speaker: null, text: '翅の音。あの時と同じ姿の生き物が、茂みから飛び出してきた。' },
+    { speaker: 'ケイオス', text: '……別の子だね。この子は、ただ気が立ってるだけみたい。', kaosFace: 'TROUBLED' },
+  ],
+};
+
+/**
+ * フウミミ's first sight when its one individual has NOT been answered (met
+ * from 12 points anyway): nothing of "the same as that time" — there was no
+ * that time.
+ */
+export const FUUMIMI_FIRST_SIGHT_UNMET: readonly DialogueLine[] = [
+  { speaker: null, text: '翅の音。見たことのない生き物が、茂みから飛び出してきた。' },
+  { speaker: 'ケイオス', text: '……初めて見る子だね。体が硬そう。気をつけて！', kaosFace: 'SURPRISED' },
+];
+
+/**
+ * The lines for the first time a kind is met in an ordinary fight, or null
+ * for a kind with none (the rabbit). フウミミ's depend on whether its one
+ * individual has been answered.
+ */
+export function firstSightLines(speciesId: SpeciesId, facts: { fuumimiAnswered: boolean }): readonly DialogueLine[] | null {
+  if (speciesId === 'fuumimi' && !facts.fuumimiAnswered) return FUUMIMI_FIRST_SIGHT_UNMET;
+  return FIRST_SIGHT[speciesId] ?? null;
+}
+
+/** readMarks id: the first sight of a kind, seen. */
+export const firstSightMark = (speciesId: SpeciesId): string => `note:FIRST_SIGHT_${speciesId}`;

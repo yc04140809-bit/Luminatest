@@ -1,0 +1,90 @@
+# MUGEN ZERO v0.1
+
+人生収集RPG / Narrative Life RPG — Vertical Slice
+
+> 「すべてのキャラクターに、MUGENのストーリーを。」
+
+検証する問い: **一度出会ったキャラクターの“その後”を、プレイヤーはもっと見たいと思うか？**
+
+## 技術構成
+
+- TypeScript / React / Vite（UI層）
+- Phaser（探索・ゲーム演出層）
+- IndexedDB（ローカル保存 — PHASE Bで導入予定）
+- バックエンド・外部APIなし（APIコスト0円）
+
+## アーキテクチャ
+
+```
+React UI  →  MUGEN CORE (src/core — React/Phaser非依存)  →  Phaser Game Layer (src/game)
+```
+
+- `src/core/` — ゲームロジック（フロー、将来: WORLD MEMORY / EVENT ENGINE / TIME）
+- `src/game/` — 探索（Phaser）・戦闘ロジック
+- `src/content/` — キャラクター・台詞・場所などのコンテンツデータ
+- `src/ui/` — React画面（**横画面固定**。`ui/layout/LandscapeStage` が窓を測る唯一の場所で、
+  各画面は `--stage-w` / `--stage-h` を読む。回転は使わない — 縦持ちの窓では縮小して中央に置く）
+- `assets/reference/` — コンセプトアート等の参照資料（ビルドには含まない）
+
+## 開発
+
+```bash
+npm install
+npm run dev        # 開発サーバー
+npm run build      # 型チェック + ビルド
+npm test           # ユニットテスト (vitest)
+npm run test:e2e   # E2E (Playwright)
+
+# 本番ビルドの検証（PWA / オフライン / DEV ADMIN非表示）
+npm run build && npx vite preview --port 4173 &
+node scripts/check-production.mjs
+
+# ビジュアルベースライン14枚（要 dev サーバー: npx vite --port 4174）
+SHOT_DIR=docs/baseline node scripts/screenshots-baseline.mjs
+```
+
+## ビルド構成
+
+| チャンク | サイズ | 読み込み |
+|---|---|---|
+| app (index) | 47 KB | 初期 |
+| react | 142 KB | 初期 |
+| Phaser (GreenwoodScreen) | 1,485 KB | 森へ入る時のみ |
+| DEV ADMIN | 9 KB | 開発ビルドで管理画面を開いた時のみ |
+
+DEV ADMINは `import.meta.env.DEV` または `VITE_ENABLE_DEV_ADMIN=1` のときだけ有効です。
+
+## 開発フェーズ状況
+
+- [x] **PHASE A — SKELETON**: TITLE → PROLOGUE → HOME → EXPLORE → GREENWOOD → GALD ENCOUNTER → BATTLE → LIFE CHOICE の一気通貫画面遷移
+- [x] **PHASE B — WORLD MEMORY**: 4択のMEMORY_EVENTをIndexedDBへ永続化。排他・write-once・再起動復元・RESET WORLD
+- [x] **PHASE C — EVENT ENGINE**: WORLD CLOCK、SPARE+3日経過→GALD_LEAVES_BANDITS、causedBy因果記録、CHARACTER STATE原子的更新
+- [x] **PHASE D — TIME SYSTEM**: 365日カレンダー・年跨ぎ、REST(+1日)、TIME SHIFT +3年（確認画面・取りこぼし防止キャッチアップ・NPC加齢・WORLD_TIME_SHIFTED正史記録）
+- [x] **PHASE D.5 — DEV ADMIN**: 開発者用管理画面（LOCK 0909、ダッシュボード、TIME CONTROL、正規フロー再現プリセット、RESET SCENARIO/WORLD、イベントタイムライン）。devビルドのみ有効（本番は `VITE_ENABLE_DEV_ADMIN=1` を付けない限り非表示）
+- [x] **PHASE E — FIRST REUNION**: ガルドの人生連鎖（離脱→アルデン到着→パン屋）、探索での「？？？」発見、再会「……見るな。」、PLAYER_REUNITED_WITH_GALD記録、再訪、最小PLAYER KNOWLEDGEフィルタ（未発見の人生をUIでネタバレしない）
+- [x] **PHASE F — LIFE ARCHIVE**: 人生記録の射影（WORLD MEMORY → PLAYER KNOWLEDGE → LIFE ARCHIVE PROJECTION → UI）。既知章のみ表示＋単一「？？？」カード、再会で一本の人生記録に接続。DEV ADMINにKNOWN/UNKNOWNデバッグ
+- [x] **PHASE G — POLISH**: デザイントークン、スマホ最適化（360/390/412）、ケイオス立ち絵・台詞演出、記憶/選択/時渡り/再会の演出、AudioManager・haptics・設定、ローディング/Error Boundary、PWA（manifest・SW・オフラインシェル）、バンドル分割（初期188KB / Phaser遅延）
+- [x] **PHASE H — PLAYTEST**: プレイ後アンケート（7問・匿名・ローカル保存）、DEV ADMINでの集計/コメント閲覧/CSV書き出し。手順は `docs/PLAYTEST.md`
+
+## 採用済みの画面仕様
+
+**LANDSCAPE VISUAL STABILIZATION PASS v1.0 — 正式採用（2026-09-07）。**
+
+- **横画面で描く。**`transform: rotate(90deg)` による擬似横画面は廃止。窓が縦のときは
+  16:9のステージを一様に `scale` して中央に置き、余白はレターボックスにする。
+  UI・文字・画像を回転させない。回転が存在しないことをE2Eが計算後の
+  transform行列で確認する。
+- **ステージは1つ。**窓を測るのは `ui/layout/LandscapeStage` だけ。
+- **キャラクターの大きさはステージから取る。**`content/art/spriteFrames.ts` が
+  「ステージ高さに対する割合」を持つ。元画像のピクセルサイズは表示サイズに使わない。
+  帯は 通常人型 55〜70% / 小型 25〜40% / 大型 50〜75% / ボスは個別。
+- **足元基準。**ポーズを差し替えても上下に飛ばない。
+- **納品された素材を加工しない。**再エンコードするのは artifact 公開用の複製だけで、
+  ゲーム・テスト・スクリーンショットは納品ファイルをそのまま使う。
+- **パーティーは1つの描画単位。**誰がいるかは `game/party/battleParty.ts`、
+  どこに立つかは `ui/battle/formation.ts`（1〜4人分）。画面はキャラクターを
+  1人ずつ書かない。
+
+## 方針
+
+LESS FEATURES. BETTER EXECUTION. COMPLETE THE LOOP.

@@ -1,0 +1,377 @@
+// Asset manifest. Official art is imported so Vite fingerprints and
+// caches it; everything not yet drawn or recorded stays null, and the UI
+// falls back to a placeholder rather than breaking.
+
+// The names of the art, which carry no art with them. Re-exported at
+// the bottom of this file so that a screen already importing the
+// manifest does not need a second import to name a key.
+import type { BackgroundKey, EventCgKey, FieldArtKey } from './keys';
+
+import kaosNormal from '../files/characters/kaos/kaos-normal.webp';
+import kaosSmile from '../files/characters/kaos/kaos-smile.webp';
+import galdReady from '../files/characters/gald/gald-ready.png';
+import galdDefeated from '../files/characters/gald/gald-defeated.png';
+import galdBaker from '../files/characters/gald/gald-baker.png';
+import galdHealer from '../files/characters/gald/gald-healer.png';
+import galdWorker from '../files/characters/gald/gald-worker.png';
+import galdBattleDamage from '../files/characters/gald/gald-battle-damage.png';
+import galdBattleDown from '../files/characters/gald/gald-battle-down.png';
+import galdBattleIdle from '../files/characters/gald/gald-battle-idle.png';
+import linaFullbody from '../files/characters/lina/lina-fullbody.png';
+import bakeryOwnerFullbody from '../files/characters/bakery-owner/bakery-owner-fullbody.png';
+import heroBattleIdle from '../files/characters/hero/hero-battle-idle.png';
+import kaosMenu from '../files/characters/kaos/kaos-menu.png';
+import kaosTalkDefault from '../files/characters/kaos/kaos-talk-default.png';
+import kaosTalkRinsen from '../files/characters/kaos/kaos-talk-rinsen.png';
+import kaosBattleDefault from '../files/characters/kaos/kaos-battle-default.png';
+import kaosCast from '../files/characters/kaos/kaos-cast.png';
+import kaosAwaken from '../files/characters/kaos/kaos-awaken.png';
+import galdGrave from '../files/events/event-gald-grave.webp';
+import greenwoodForest from '../files/backgrounds/location-greenwood-forest.webp';
+import greenwoodField from '../files/backgrounds/field-greenwood.png';
+import aldenVillage from '../files/backgrounds/location-alden-village.webp';
+import aldenTavern from '../files/backgrounds/location-alden-tavern.webp';
+import titleKaosKeyVisual from '../files/backgrounds/title-kaos-keyvisual.webp';
+import themeSongCover from '../files/backgrounds/theme-song-cover.webp';
+import battleUiAutoOn from '../files/ui/battle/chip-auto-on.png';
+import battleUiAutoOff from '../files/ui/battle/chip-auto-off.png';
+import battleUiSpeedOn from '../files/ui/battle/chip-x2-on.png';
+import battleUiSpeedOff from '../files/ui/battle/chip-x2-off.png';
+import battleUiEscapeOn from '../files/ui/battle/chip-escape-on.png';
+import battleUiEscapeOff from '../files/ui/battle/chip-escape-off.png';
+import battleUiCommandDiamond from '../files/ui/battle/command-diamond.png';
+import battleUiTurnSlot from '../files/ui/battle/turn-slot.png';
+import battleUiTurnNext from '../files/ui/battle/turn-next.png';
+import battleUiPartyCard from '../files/ui/battle/party-card.png';
+import battleUiEnemyPlate from '../files/ui/battle/enemy-plate.png';
+import battleUiMessageWindow from '../files/ui/battle/message-window.png';
+import battleUiMemoryPanel from '../files/ui/battle/memory-panel.png';
+import battleUiMemoryStar from '../files/ui/battle/memory-star.png';
+import battleUiBarRail from '../files/ui/battle/bar-rail.png';
+import battleUiBarHp from '../files/ui/battle/bar-hp.png';
+import battleUiBarMp from '../files/ui/battle/bar-mp.png';
+import battleUiBarAlt from '../files/ui/battle/bar-alt.png';
+
+/**
+ * THE PEOPLE OF ALDEN, as delivered.
+ *
+ * One standing figure each, transparent, used exactly as it came — no
+ * crop, no recolour, no regeneration. Both were delivered alongside
+ * reference sheets, and the sheets are NOT here on purpose: a reference
+ * sheet is for checking that a later drawing is still the same person,
+ * and anything written on one (ages, dreams, lines of dialogue) is the
+ * image generator talking, not canon. What is canon is in
+ * `src/content/characters/`.
+ */
+export const ALDEN_FIGURES = {
+  /** リナ — the baker's daughter, with the morning's basket. */
+  lina: linaFullbody,
+  /** パン屋の主人 — her father, in his apron. */
+  bakeryOwner: bakeryOwnerFullbody,
+} as const;
+
+/**
+ * KAOS, IN ONE PLACE — the six standing pictures and what each is for.
+ *
+ * Delivered as a set, with a role for every one of them, and this is
+ * the only place in the project that names their files. Which ROLE gets
+ * which of these is content/characters/kaosPortraits; which scene asks
+ * for which role is the screens. Nothing anywhere else says
+ * `kaos-cast.png`.
+ *
+ *   menu           kaos-menu.png           still and lit, over the
+ *                                          crystal hall. The picture a
+ *                                          player looks at while they
+ *                                          are reading their own
+ *                                          numbers.
+ *   talkDefault    kaos-talk-default.png   how she stands when she is
+ *                                          talking to you. The opening
+ *                                          is this one.
+ *   talkRinsen     kaos-talk-rinsen.png    臨戦 — the same girl with the
+ *                                          air gone tight. Anger, guard,
+ *                                          meaning it.
+ *   battleDefault  kaos-battle-default.png on the field, between
+ *                                          actions.
+ *   cast           kaos-cast.png           a circle open beside her and
+ *                                          the dark coming off her arms.
+ *                                          Magic, an arcana, a skill.
+ *   awaken         kaos-awaken.png         the star dress and the staff.
+ *                                          NOT an ordinary fight.
+ *
+ * `awaken` was `kaos-battle-idle.png` until this set arrived, which
+ * means every moss rabbit in the forest has been fought by her
+ * awakened form. That is what the roles are for.
+ */
+export const KAOS_FIGURES = {
+  menu: kaosMenu,
+  talkDefault: kaosTalkDefault,
+  talkRinsen: kaosTalkRinsen,
+  battleDefault: kaosBattleDefault,
+  cast: kaosCast,
+  awaken: kaosAwaken,
+} as const;
+
+export type KaosExpression = 'normal' | 'smile';
+
+/**
+ * Her two small face portraits, from before the standing set.
+ *
+ * Still used by the screens that want a round face in a corner — the
+ * time shift, the ending, the survey. The standing pictures above are
+ * a different thing and go through the role map.
+ */
+export const KAOS_PORTRAITS: Record<KaosExpression, string | null> = {
+  normal: kaosNormal,
+  smile: kaosSmile,
+};
+
+export function kaosPortrait(expression: KaosExpression = 'normal'): string | null {
+  return KAOS_PORTRAITS[expression] ?? null;
+}
+
+/**
+ * GALD, IN ONE PLACE — the checklist for redrawing him.
+ *
+ * Every picture of him the game can show, and what each one is for. He
+ * is the character most likely to be redrawn as a set, and until this
+ * table existed his files were named in three separate exports below,
+ * so "replace Gald" meant finding all three and hoping.
+ *
+ * Replacing his design is: drop files with these names into
+ * assets/characters/gald/ (and events/ for the last one). Nothing else
+ * in the game names any of them — content/art/partyArt.ts maps these
+ * onto art states, and every screen asks the art layer.
+ *
+ *   ready        gald-ready.png          standing, before the fight —
+ *                                        his encounter / talk picture.
+ *                                        TRANSPARENT
+ *   defeated     gald-defeated.png       beaten, on one knee, still
+ *                                        looking at you. The framed
+ *                                        card the four answers are
+ *                                        asked over. OPAQUE, on black,
+ *                                        and meant to be
+ *   battleDamage gald-battle-damage.png  the same moment, cut out, for
+ *                                        the battlefield. TRANSPARENT
+ *   battleIdle   gald-battle-idle.png    his fighting pose on the
+ *                                        battlefield. TRANSPARENT, and
+ *                                        used exactly as delivered
+ *   battleDown   gald-battle-down.png    face down where the fight left
+ *                                        him. TRANSPARENT. STILL THE
+ *                                        OLD DESIGN — no replacement
+ *                                        has been drawn for it yet
+ *   baker        gald-baker.png      ┐   three years on, one per
+ *   healer       gald-healer.png     ├   surviving route. Event CGs:
+ *   worker       gald-worker.png     ┘   whole scenes with their own
+ *                                        light and their own signage,
+ *                                        so opaque is right for them
+ *   graveEventCg event-gald-grave.webp    the KILL route, where there
+ *                                        is no Gald left to draw
+ *
+ * WHICH OF THEM ARE CUT OUT, and why it matters: a battlefield figure
+ * with a background baked into it cannot stand on the forest floor.
+ * `battleIdle`, `ready` and `battleDown` are transparent and are the
+ * ones drawn over the field and over a backdrop.
+ *
+ * `defeated` is NOT — deliberately. It is the framed card, where the
+ * black it is drawn on IS the frame, and it is the best-looking of the
+ * set there. The same moment cut out for the field is `battleDamage`,
+ * a separate file, because a figure standing on ground has to be cut
+ * out and a card does not. Two mattes of one drawing, each where it
+ * belongs.
+ *
+ * WHAT IS STILL THE OLD MAN: `battleDown` alone. Everything else here
+ * is the redesign — met, fought, beaten, and living each of the three
+ * lives the player can leave him in.
+ */
+const GALD_FILES = {
+  ready: galdReady,
+  defeated: galdDefeated,
+  baker: galdBaker,
+  healer: galdHealer,
+  worker: galdWorker,
+  battleIdle: galdBattleIdle,
+  battleDamage: galdBattleDamage,
+  battleDown: galdBattleDown,
+  graveEventCg: galdGrave,
+} as const;
+
+/**
+ * Gald, the same man at several points of one life. 'defeated' means
+ * beaten, NOT dead — whether he lives is the player's choice; the last
+ * three are where each surviving route leaves him three years on. Same
+ * CHARACTER, same id in the DB: only the visual state differs, and the
+ * DB decides which one is true.
+ */
+export type GaldState = 'ready' | 'defeated' | 'baker' | 'healer' | 'worker';
+
+export const GALD_PORTRAITS: Record<GaldState, string | null> = {
+  ready: GALD_FILES.ready,
+  defeated: GALD_FILES.defeated,
+  baker: GALD_FILES.baker,
+  healer: GALD_FILES.healer,
+  worker: GALD_FILES.worker,
+};
+
+/**
+ * Face down where the fight left him.
+ *
+ * A battlefield state rather than a stage of his life, so it is not one
+ * of GALD_PORTRAITS above: 'defeated' is beaten and looking at you with
+ * the question still open, and this is the moment before that.
+ */
+export const GALD_BATTLE_DOWN: string = GALD_FILES.battleDown;
+
+/** The same man on one knee, cut out, for the field rather than a card. */
+export const GALD_BATTLE_DAMAGE: string = GALD_FILES.battleDamage;
+
+/**
+ * THE THREE BATTLE FIGURES.
+ *
+ * Delivered as transparent PNGs, used exactly as delivered. Each one is
+ * a whole person on a clear background, which is what a battlefield
+ * needs and what the exploration sprites were standing in for until
+ * these arrived.
+ */
+export const BATTLE_FIGURES = {
+  hero: heroBattleIdle,
+  kaos: KAOS_FIGURES.battleDefault,
+  gald: GALD_FILES.battleIdle,
+} as const;
+
+export function galdPortrait(state: GaldState): string | null {
+  return GALD_PORTRAITS[state] ?? null;
+}
+
+/**
+ * EVENT CG — art for a moment rather than for a person.
+ *
+ * The grave is the only one so far: on the KILL route there is no Gald to
+ * draw, so the picture is of what the world kept. Adding a rare or
+ * hand-drawn event later means one more entry here and one field on the
+ * event's own definition — no new system.
+ */
+export const EVENT_CG = {
+  GALD_GRAVE: GALD_FILES.graveEventCg,
+} as const;
+
+/**
+ * Location backdrops, keyed by location id. content/locations/
+ * locationVisuals.ts maps these onto places; screens go through that map
+ * instead of importing an image directly.
+ */
+export const BACKGROUNDS = {
+  ALDEN_VILLAGE: aldenVillage,
+  ALDEN_TAVERN: aldenTavern,
+  GREENWOOD_FOREST: greenwoodForest,
+} as const;
+
+/**
+ * The forest as a field to walk across, rather than as a backdrop.
+ *
+ * A landscape painting of the same place with a clearing floor along
+ * the bottom: the ground band in walkable.ts is measured against this,
+ * which is why it is a separate entry and not a second use of the
+ * backdrop above. The battle screen is unchanged and still uses
+ * BACKGROUNDS.GREENWOOD_FOREST.
+ */
+export const FIELD_ART = {
+  GREENWOOD_FOREST: greenwoodField,
+} as const;
+
+/** The Kaos key visual behind the title. Not a place: a cover image. */
+export const TITLE_KEY_VISUAL: string = titleKaosKeyVisual;
+
+/**
+ * 「また、ここで。」 — the theme song's own cover.
+ *
+ * Shown on the one screen that is ABOUT the song, while it is playing.
+ * The art carries the title and the lyric itself, so the screen over it
+ * draws neither: what the UI still owes the player is the one line the
+ * picture cannot say, which is what happens when the song ends.
+ */
+export const THEME_SONG_COVER: string = themeSongCover;
+
+// THE MUSIC lives in ./music.ts — BgmId, BGM_ASSETS, MusicId,
+// MUSIC_ASSETS, SeId, SE_ASSETS — and is re-exported here unchanged, so
+// everything that imports it from the manifest still does. It is a
+// module of its own so that the App's player can import the music
+// WITHOUT importing every picture this file names (see music.ts).
+export * from './music';
+
+/**
+ * THE BATTLE UI, as delivered.
+ *
+ * Cut from the BATTLE UI ASSET PACK v0.1 sheets. Each entry is one
+ * piece of that pack lifted out at its own aspect ratio and scaled
+ * down — nothing is redrawn, recoloured or recomposed, and nothing is
+ * stretched out of shape at the point of use: frames are nine-sliced so
+ * their ornaments keep their proportions, and meters are REVEALED
+ * rather than squashed.
+ *
+ * Provenance is in src/assets/ui/battle/README.md, with the source
+ * sheet and the exact rectangle each piece came from.
+ */
+export const BATTLE_UI = {
+  /** AUTO / ×2 / 逃走, in the two states the pack draws them in. */
+  autoOn: battleUiAutoOn,
+  autoOff: battleUiAutoOff,
+  speedOn: battleUiSpeedOn,
+  speedOff: battleUiSpeedOff,
+  escapeOn: battleUiEscapeOn,
+  escapeOff: battleUiEscapeOff,
+  /** The command plate — one diamond, the label goes on top. */
+  commandDiamond: battleUiCommandDiamond,
+  /** A turn order portrait frame, and the mark that points at the next. */
+  turnSlot: battleUiTurnSlot,
+  turnNext: battleUiTurnNext,
+  /** The three frames: a party member, the creature, and what is said. */
+  partyCard: battleUiPartyCard,
+  enemyPlate: battleUiEnemyPlate,
+  messageWindow: battleUiMessageWindow,
+  /** WORLD MEMORY's own panel, and the star it is headed with. */
+  memoryPanel: battleUiMemoryPanel,
+  memoryStar: battleUiMemoryStar,
+  /** And the meters, cap to cap. */
+  barRail: battleUiBarRail,
+  barHp: battleUiBarHp,
+  barMp: battleUiBarMp,
+  barAlt: battleUiBarAlt,
+} as const;
+
+// ---- NAMES INTO PICTURES ----
+//
+// The content layer names art with a key from `keys.ts` and imports no
+// picture at all (see the note at the top of that file). These turn a
+// key into something a `src` will accept, EAGERLY — every branch is a
+// value that was imported above, so anything importing this module
+// still gets the whole manifest, which is exactly right for the
+// Artifact: it ships every asset anyway and inlines them all into one
+// file. A front end that wants them one at a time resolves the same
+// keys through its own lazy resolver instead of this one.
+
+/** The event CG for one of the four futures, or null if undrawn. */
+export function eventCgSrc(key: EventCgKey | null): string | null {
+  if (!key) return null;
+  switch (key) {
+    case 'GALD_BAKER':
+      return GALD_PORTRAITS.baker;
+    case 'GALD_HEALER':
+      return GALD_PORTRAITS.healer;
+    case 'GALD_WORKER':
+      return GALD_PORTRAITS.worker;
+    case 'GALD_GRAVE':
+      return EVENT_CG.GALD_GRAVE;
+  }
+}
+
+/** A place's backdrop, or null where the place has none drawn yet. */
+export function backgroundSrc(key: BackgroundKey | null): string | null {
+  return key ? (BACKGROUNDS[key] ?? null) : null;
+}
+
+/** The walkable painting of a place, or null where there is no field. */
+export function fieldArtSrc(key: FieldArtKey | null): string | null {
+  return key ? (FIELD_ART[key] ?? null) : null;
+}
+
+export type { BackgroundKey, BattleBackgroundKey, EventCgKey, FieldArtKey } from './keys';

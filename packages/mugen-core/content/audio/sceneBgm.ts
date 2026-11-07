@@ -1,0 +1,193 @@
+// WHAT IS PLAYING, AND WHY.
+//
+// One function, no React, no Audio, no side effects: given where the
+// player is, which of the six pieces belongs there. It is a decision
+// about the GAME — that the tavern sounds different from the street
+// outside it, that a fight is a fight whoever it is against — and
+// decisions about the game live in content, where they can be read and
+// argued with, rather than scattered through the screens as
+// `playBgm(...)` calls nobody can enumerate.
+//
+// A screen never says what to play. It says where the player is, and
+// this says what that sounds like.
+
+import type { Screen } from '../../core/flow/types';
+import type { LocationId } from '../locations/locationVisuals';
+import type { BgmId } from '@mugen/assets';
+import { DEFAULT_BATTLE_BGM, isBattleBgm } from './battleBgm';
+
+/**
+ * Where the player is, in the only three terms the music cares about.
+ */
+export interface SceneCue {
+  /** Which screen is up. */
+  screen: Screen;
+  /**
+   * The place the screen is about, where it is about a place.
+   *
+   * The tavern and the street outside it are the same SCREEN — a talk
+   * spot — and they are not the same room, so the screen alone cannot
+   * answer this.
+   */
+  locationId: LocationId | null;
+  /**
+   * Whether Kaos is the one talking.
+   *
+   * The prologue is two scenes wearing one screen: a man alone with his
+   * thoughts, and then her. Only the second is her event.
+   */
+  kaosSpeaking?: boolean;
+  /**
+   * Which fighting piece the player has chosen.
+   *
+   * Passed in rather than read, because this function must stay a
+   * function: the choice lives in localStorage and is the caller's to
+   * fetch. Absent means the default, which is what a save with no
+   * choice in it and a first-ever fight both amount to.
+   */
+  battleBgmId?: BgmId | null;
+  /**
+   * THE VILLAGE'S CHOSEN PIECE (酒場ハブ化 Phase 1, the bard's archive):
+   * played in Alden's ordinary places in place of its own. Never at an
+   * event, a fight, the look ahead or the future site. Absent or null:
+   * the village's own piece, as always (the Artifact never passes one).
+   */
+  villageBgmId?: BgmId | null;
+  /**
+   * THE WINNINGS' OWN PIECE (2026-10-11, App only): which result this is —
+   * an ordinary fight's or a boss's. Absent (the Artifact): the fight's
+   * piece carries on over its winnings, as it always did.
+   */
+  result?: 'NORMAL' | 'BOSS' | null;
+}
+
+/** The places that are the greenwood rather than Alden. */
+const IN_THE_FOREST = new Set<LocationId>([
+  'GREENWOOD_FOREST',
+  'GREENWOOD_WAYSTATION',
+  'GREENWOOD_GRAVE',
+]);
+
+/**
+ * The piece of music this moment belongs to, or null for silence.
+ *
+ * Null is a real answer and not a gap: the developer screens are not
+ * part of the game and scoring them would mean the music changed
+ * because somebody opened a debug panel.
+ */
+export function bgmForScene(cue: SceneCue): BgmId | null {
+  const { screen, locationId } = cue;
+  switch (screen) {
+    /**
+     * BEFORE THE TITLE, and silent until the player says otherwise.
+     *
+     * The whole point of the screen is that nothing has sounded yet:
+     * it is the first thing anybody touches, and what they touch is a
+     * choice about whether to hear the song at all. Answering 「聴く」
+     * is what starts it.
+     */
+    case 'THEME_CHOICE':
+      return null;
+
+    /**
+     * TITLE_SCREEN — the MUGEN ZERO logo and 「はじめる」 — HAS ITS OWN
+     * PIECE, and nothing else plays it.
+     *
+     * For a while it played the village-home piece instead. That came
+     * from one word read two ways: 「タイトル画面曲」, then "HOME曲",
+     * meant the screen with the logo, and was taken to mean the house
+     * in Alden. The recording's own title tag was right all along:
+     * 「MUGEN ZERO タイトル画面」. The fixed vocabulary is in
+     * docs/BGM_MAP.md so it cannot happen twice.
+     */
+    case 'TITLE':
+      return 'TITLE_MAIN';
+    case 'PROLOGUE':
+      return cue.kaosSpeaking ? 'KAOS_EVENT' : 'OPENING';
+
+    // HER. The four answers are the same kind of moment as the scene
+    // she arrives in: somebody's life being talked about rather than a
+    // fight or a village going about its day.
+    case 'LIFE_CHOICE':
+    case 'CREATURE_LIFE_CHOICE':
+    case 'CHOICE_RESULT':
+      return 'KAOS_EVENT';
+
+    // A FIGHT IS A FIGHT. The story's own and the forest's alike — one
+    // screen, one piece, and the prototype door into it as well so that
+    // what a developer hears is what a player hears.
+    case 'BATTLE':
+    case 'BATTLE_UI_PROTOTYPE':
+    // AND THE SCREEN THAT COUNTS UP WHAT IT WAS WORTH. The same piece,
+    // still playing: the fight's music carries over its own winnings
+    // rather than cutting to silence for a moment and then to the
+    // forest. A fanfare of its own would be a new recording, and there
+    // is not one — so the honest answer is "the fight is not over
+    // yet", which is also how it feels.
+    case 'BATTLE_RESULT':
+      // Its own piece now, where the caller says which result it is (the App).
+      // (The fight itself shares these lines: only the winnings screen.)
+      if (screen === 'BATTLE_RESULT' && cue.result === 'BOSS') return 'RESULT_BOSS';
+      if (screen === 'BATTLE_RESULT' && cue.result === 'NORMAL') return 'RESULT_NORMAL';
+      // Whichever piece the fight resolved to — the caller passes
+      // `battleBgmFor(...)` (forced boss piece, else the ♪ choice if
+      // unlocked, else the default). Anything else falls back here.
+      return isBattleBgm(cue.battleBgmId) ? cue.battleBgmId : DEFAULT_BATTLE_BGM;
+
+    // THE FOREST, walked — and the man standing in the road is still
+    // the forest until the first blow.
+    case 'GREENWOOD':
+    case 'ENCOUNTER':
+      return 'GREENWOOD_FOREST';
+
+    // A PLACE. Which place decides, because 月光亭 is not the street.
+    case 'TALK_SPOT':
+    case 'FUTURE_SITE':
+      if (locationId === 'MOONLIGHT_TAVERN') return 'TAVERN';
+      if (locationId && IN_THE_FOREST.has(locationId)) return 'GREENWOOD_FOREST';
+      // A talk spot in Alden (the bakery) is the village; the future site is not.
+      return screen === 'TALK_SPOT' ? (cue.villageBgmId ?? 'ALDEN_VILLAGE') : 'ALDEN_VILLAGE';
+
+    /**
+     * ALDEN, ONE PIECE: the house (ALDEN_HOME), every page read from
+     * it, the map and the shop (ALDEN_VILLAGE) — all アルデン村のテーマ.
+     *
+     * The house has no piece of its own, by decision rather than by
+     * gap: it is a room in the village, and the village sounds like the
+     * village. What that buys is the thing that matters most here —
+     * ONE id across the whole group means `playBgm` is handed what is
+     * already playing and refuses it, so walking out to the map,
+     * opening the status page or coming home again never stops,
+     * restarts or crossfades the music. It carries on from where it is.
+     *
+     * TIME_SHIFT stays here too. In the Artifact it is the developer's
+     * year-skipper; in the App it is Kaos's one look ahead. Neither
+     * wants the music changing under it.
+     */
+    case 'HOME':
+    case 'WORLD_NEWS':
+    case 'WORLD_MEMORY':
+    case 'ARCHIVE':
+    case 'ARCANA':
+    case 'STATUS':
+    case 'BAG':
+    case 'SETTINGS':
+    case 'EXPLORE':
+    case 'ITEM_SHOP':
+      return cue.villageBgmId ?? 'ALDEN_VILLAGE';
+    // Kaos's look ahead is hers: never the chosen piece.
+    case 'TIME_SHIFT':
+      return 'ALDEN_VILLAGE';
+
+    // NOT THE GAME. The ending has no piece of its own yet and the
+    // developer screens must never have one: music that changed
+    // because somebody opened a debug panel would be telling the
+    // player something about a place they are not in.
+    case 'ENDING':
+    case 'PLAYTEST_SURVEY':
+    case 'DEV_LOCK':
+    case 'DEV_ADMIN':
+    case 'CINEMATIC_PREVIEW':
+      return null;
+  }
+}

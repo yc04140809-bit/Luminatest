@@ -1,0 +1,246 @@
+import { useState } from 'react';
+import type { World } from '@mugen/core/world/world';
+import { itemDef } from '@mugen/content/economy/itemDefs';
+import { categoryLabel, type ItemDef, type ItemStack } from '@mugen/core/economy/items';
+import { itemRefusalLine, refuseUse } from '@mugen/game/battle/battleLogic';
+import { BATTLE_HP_HOLDER, BATTLE_MP_HOLDER } from '@mugen/core/party/condition';
+import { breadBuffLabel, loavesOf } from '@mugen/core/economy/bread';
+
+/**
+ * THE BAG — what is being carried, and whether it can be used here.
+ *
+ * Every judgement on this screen is the shared core's. What may be
+ * used is `refuseUse`, the same function the fight's own tray asks;
+ * the REASON it may not is `itemRefusalLine`, so the sentence a player
+ * reads here and the sentence they read mid-fight are one string in
+ * one file. The use itself is `world.useItemFromBag`, which is a
+ * single commit covering the effect, the count and the save together.
+ *
+ * Nothing here decides anything. If this screen and the battle ever
+ * disagreed about whether a herb can be drunk, it would be a bug in
+ * the core rather than a difference of opinion between two screens —
+ * which is the entire reason it is written this way.
+ */
+/**
+ * THE BAG'S THREE SHELVES (2026-10-07): 回復 (things to use), 素材 (things
+ * to sell or keep for later), 大事なもの (never sold — the key-item flag).
+ * Within a shelf, the order things were first picked up.
+ */
+export type BagGroup = 'RECOVERY' | 'BREAD' | 'MATERIAL' | 'KEY';
+
+export const BAG_GROUPS: readonly { id: BagGroup; label: string }[] = [
+  { id: 'RECOVERY', label: '回復' },
+  // パン屋 MVP (2026-10-09): Lina's bread — eaten here, goes stale with rest.
+  { id: 'BREAD', label: 'パン' },
+  { id: 'MATERIAL', label: '素材' },
+  { id: 'KEY', label: '大事なもの' },
+];
+
+export function bagGroupOf(def: ItemDef): BagGroup {
+  if (def.isKeyItem || def.category === 'KEY_ITEM') return 'KEY';
+  if (def.category === 'CONSUMABLE') return 'RECOVERY';
+  if (def.bread || def.category === 'FOOD') return 'BREAD';
+  return 'MATERIAL';
+}
+
+export function BagScreen({ world, onBack }: { world: World; onBack: () => void }) {
+  const [said, setSaid] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const party = world.getPartyCondition();
+  const bag = world.getInventory();
+  const fresh = world.getBreadFreshness();
+  const buff = world.getBreadBuff();
+
+  /**
+   * ONE LOAF EATEN (パン屋 MVP): `world.eatBread` — the health, the lift,
+   * one fewer and its age, in one commit. Eaten for its lift too, so being
+   * whole does not refuse it; a stale loaf is never offered.
+   */
+  const eat = (itemId: string) => {
+    if (busy) return;
+    setBusy(true);
+    void world
+      .eatBread(itemId)
+      .then((r) => {
+        const def = itemDef(itemId);
+        setSaid(
+          r.ok && r.buff
+            ? `${def?.use?.line ?? `${r.name}を食べた。`}${r.given > 0 ? `HPが${r.given}回復した。` : ''}${breadBuffLabel(r.buff.buffType, r.buff.buffValue)}（次の休息まで）`
+            : r.refusal === 'STALE'
+              ? `${r.name}は期限切れで食べられない。`
+              : `${r.name}は持っていない。`,
+        );
+      })
+      .catch(() => setSaid('食べられなかった。'))
+      .finally(() => setBusy(false));
+  };
+
+  /**
+   * Who an item would go to, and what state they are in.
+   *
+   * The same choice `useItemFromBag` makes internally — health to the
+   * front rank, magic to her — read here so the button can say
+   * beforehand what the world would answer afterwards.
+   */
+  const situationFor = (def: ItemDef) => {
+    if (!def.use) return null;
+    const on = def.use.kind === 'HEAL' ? BATTLE_HP_HOLDER : BATTLE_MP_HOLDER;
+    const them = party[on];
+    if (!them) return null;
+    return {
+      place: 'FIELD' as const,
+      hp: them.currentHp,
+      maxHp: them.maxHp,
+      mp: them.currentMp,
+      maxMp: them.maxMp,
+    };
+  };
+
+  const use = (itemId: string) => {
+    if (busy) return;
+    setBusy(true);
+    void world
+      .useItemFromBag(itemId)
+      .then((result) => {
+        setSaid(
+          result.ok
+            ? `${result.name}をつかった。${result.stat}が${result.given}回復した。`
+            : result.refusal
+              ? itemRefusalLine(result.refusal, result.name)
+              : `${result.name}はつかえなかった。`,
+        );
+      })
+      .catch(() => setSaid('つかえなかった。'))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="screen bag paper" data-testid="bag-screen">
+      <div className="paper-sheet bag-sheet">
+        <h1 className="place">持ち物</h1>
+        {bag.length === 0 && (
+          <p className="line" data-testid="bag-empty">
+            なにも持っていない。
+          </p>
+        )}
+        <div className="bag-shelves" data-testid="bag-shelves">
+          {BAG_GROUPS.map((group) => {
+            const rows = bag.filter((stack: ItemStack) => {
+              const def = itemDef(stack.itemId);
+              return !!def && bagGroupOf(def) === group.id;
+            });
+            if (rows.length === 0) return null;
+            return (
+              <section className="bag-group" key={group.id} data-testid={`bag-group-${group.id}`}>
+                <h2 className="bag-group-title">{group.label}</h2>
+                {group.id === 'BREAD' && (
+                  <p className="bag-bread-buff" data-testid="bag-bread-buff">
+                    {buff
+                      ? `パンの効果：${breadBuffLabel(buff.buffType, buff.buffValue)}（次の休息まで）`
+                      : 'パンの効果：なし'}
+                  </p>
+                )}
+                <ul className="bag-list">
+                  {rows.map((stack) => {
+                    const def = itemDef(stack.itemId);
+                    if (!def) return null;
+                    if (def.bread) {
+                      const loaves = loavesOf(fresh, stack.itemId);
+                      return (
+                        <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
+                          <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
+                            {def.name}
+                          </span>
+                          <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
+                            ×{stack.quantity}
+                          </span>
+                          <span className="bag-category">{categoryLabel(def.category)}</span>
+                          <span className="bag-fresh" data-testid={`bag-fresh-${stack.itemId}`}>
+                            {[
+                              loaves.fresh > 0 ? `あと休息${loaves.soonest}回` : '',
+                              loaves.stale > 0 ? `【期限切れ】×${loaves.stale}` : '',
+                            ]
+                              .filter(Boolean)
+                              .join('　')}
+                          </span>
+                          <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
+                            {def.description}
+                          </span>
+                          {loaves.fresh > 0 ? (
+                            <button
+                              className="btn"
+                              data-testid={`bag-eat-${stack.itemId}`}
+                              disabled={busy}
+                              onClick={() => eat(stack.itemId)}
+                            >
+                              食べる
+                            </button>
+                          ) : (
+                            <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
+                              期限切れで食べられない。
+                            </span>
+                          )}
+                        </li>
+                      );
+                    }
+                    const where = situationFor(def);
+                    // No `use` block at all is a thing that is carried and not
+                    // drunk — the acorn. That is not a refusal, so it is not
+                    // phrased as one.
+                    const refusal = def.use && where ? refuseUse(where, def.use, stack.quantity) : null;
+                    const usableHere = Boolean(def.use) && where !== null && refusal === null;
+                    return (
+                      <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
+                        <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
+                          {def.name}
+                        </span>
+                        <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
+                          ×{stack.quantity}
+                        </span>
+                        <span className="bag-category">{categoryLabel(def.category)}</span>
+                        <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
+                          {def.description}
+                        </span>
+                        {/* What it might be for — a nudge, never the answer (2026-10-10). */}
+                        {def.useHint && (
+                          <span className="bag-hint" data-testid={`bag-hint-${stack.itemId}`}>
+                            {def.useHint}
+                          </span>
+                        )}
+                        {usableHere ? (
+                          <button
+                            className="btn"
+                            data-testid={`bag-use-${stack.itemId}`}
+                            disabled={busy}
+                            onClick={() => use(stack.itemId)}
+                          >
+                            使う
+                          </button>
+                        ) : (
+                          <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
+                            {def.use && where
+                              ? itemRefusalLine(refusal!, def.name)
+                              : 'ここでは使えない。'}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+        {said && (
+          <p className="say" data-testid="bag-message">
+            {said}
+          </p>
+        )}
+        <button className="btn primary" data-testid="bag-back" onClick={onBack}>
+          もどる
+        </button>
+      </div>
+    </div>
+  );
+}

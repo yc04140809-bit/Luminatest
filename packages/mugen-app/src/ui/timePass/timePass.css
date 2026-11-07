@@ -1,0 +1,134 @@
+/* 時が流れる (TimePass.tsx): over everything — dark, the sky, the clock and the date. Gold, navy and white,
+   as the title's name. Every moving part is set frame by frame from timePass.ts. */
+.time-pass {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #02040c;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  cursor: pointer;
+  --tp-gold: #e5cb91;
+  --tp-gold-deep: #c9a45c;
+  --tp-white: #f7f2e6;
+}
+.tp-sky {
+  position: absolute;
+  inset: 0;
+}
+/* The sky's own light, a little stronger at the middle, so the clock sits in it. */
+.tp-sky::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0) 45%, rgba(2, 4, 16, 0.55) 100%);
+}
+.tp-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 2.6vh, 18px);
+}
+.tp-dial {
+  position: relative;
+  width: min(54vh, 42vw, 280px);
+  aspect-ratio: 1;
+}
+.tp-swirl {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(229, 203, 145, 0) 0deg, rgba(229, 203, 145, 0.22) 70deg, rgba(229, 203, 145, 0) 150deg,
+      rgba(247, 242, 230, 0.12) 220deg, rgba(229, 203, 145, 0) 300deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 40%, #000 52%, #000 60%, transparent 71%);
+  mask-image: radial-gradient(circle, transparent 40%, #000 52%, #000 60%, transparent 71%);
+  filter: blur(3px);
+}
+.tp-clock {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgba(229, 203, 145, 0.35));
+}
+.tp-ring {
+  fill: rgba(6, 12, 36, 0.6);
+  stroke: var(--tp-gold);
+  stroke-width: 1.6;
+}
+.tp-ring-in {
+  fill: none;
+  stroke: rgba(229, 203, 145, 0.35);
+  stroke-width: 0.6;
+}
+.tp-mark {
+  stroke: rgba(229, 203, 145, 0.55);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+}
+.tp-mark-major {
+  stroke: var(--tp-gold);
+  stroke-width: 1.8;
+}
+.tp-hand {
+  stroke-linecap: round;
+}
+.tp-hour {
+  stroke: var(--tp-gold);
+  stroke-width: 4.2;
+}
+.tp-minute {
+  stroke: var(--tp-white);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 3px rgba(247, 242, 230, 0.6));
+}
+.tp-pin {
+  fill: var(--tp-gold);
+  stroke: #0a1430;
+  stroke-width: 1.2;
+}
+.tp-date {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.18em;
+  font-family: var(--font-display);
+  color: var(--tp-white);
+  font-size: clamp(18px, 5.2vh, 30px);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 10px rgba(229, 203, 145, 0.45), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.tp-unit {
+  font-size: 0.62em;
+  color: var(--tp-gold);
+  margin-right: 0.35em;
+}
+.tp-unit:last-child { margin-right: 0; }
+/* A number on its flap: a gold-edged navy plate, so the turning is seen. */
+.tp-flip {
+  position: relative;
+  display: inline-grid;
+  min-width: 1.15em;
+  padding: 0.04em 0.22em;
+  border: 1px solid rgba(229, 203, 145, 0.7);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(20, 32, 72, 0.92) 0%, rgba(20, 32, 72, 0.92) 49%, rgba(10, 18, 44, 0.95) 51%, rgba(10, 18, 44, 0.95) 100%);
+  perspective: 240px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.tp-num {
+  grid-area: 1 / 1;
+  display: block;
+  line-height: 1.1;
+  backface-visibility: hidden;
+}
+.tp-hold { visibility: hidden; }
+.tp-face { transform-origin: 50% 50%; }

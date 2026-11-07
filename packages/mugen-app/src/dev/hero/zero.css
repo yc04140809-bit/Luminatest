@@ -1,0 +1,739 @@
+/* 零閃・天衝 — debug preview only (STEP 9).
+   v18's .hero-skill-* and .hero-moon-* rules (styles.css), rebuilt for the
+   App's battle screen and driven by the steps of ZeroScene.tsx. `zr-` so
+   nothing here can touch a rule of the game's. Loaded only with the
+   preview. The field carries --zr-dx/--zr-dy (where he runs to), --zr-x /
+   --zr-y (where the cut lands) and the steps' lengths. */
+
+/* ── The field, while it plays ─────────────────────────────────── */
+
+.bp-stage[data-scene='zero'] .bp-bg {
+  transition: filter 200ms ease;
+}
+.bp-stage[data-scene='zero']:not([data-scene-step='recover']):not([data-scene-step='return']) .bp-bg {
+  filter: brightness(0.32) saturate(0.45) contrast(1.24);
+}
+/* Lighter as the cut lands, so the black blood reads against the field. */
+.bp-stage[data-scene='zero'][data-scene-step='break'] .bp-bg {
+  filter: brightness(0.55) saturate(0.6) contrast(1.15);
+}
+
+/* HIM — his own drawing, moved (v18 heroMotion / hero). Every place he
+   holds is a transform of its own, so a step shows where he is even
+   without the travel between (less motion). */
+.bp-stage[data-scene='zero'] .bp-hero {
+  animation: none;
+}
+.bp-hero[data-scene-hero='charge'] {
+  transform: translate3d(5px, -3px, 0) rotate(-4deg) scale(1.035);
+  filter: brightness(1.6) drop-shadow(0 0 13px rgba(209, 31, 56, 0.78));
+  transition:
+    transform var(--zr-charge) cubic-bezier(0.22, 0.72, 0.18, 1),
+    filter var(--zr-charge) ease;
+}
+/* Through and past it — a streak of him. */
+.bp-hero[data-scene-hero='dash'] {
+  transform: translate3d(var(--zr-dx), var(--zr-dy), 0) rotate(-8deg) scale(1.02);
+  transition: transform var(--zr-dash) cubic-bezier(0.08, 0.8, 0.13, 1);
+  animation: zr-dash-glow var(--zr-dash) linear both;
+}
+@keyframes zr-dash-glow {
+  0% { opacity: 1; filter: brightness(1.6); }
+  12% { opacity: 1; filter: brightness(1.8); }
+  58% { opacity: 0.45; filter: brightness(3.8) blur(1.4px); }
+  100% { opacity: 1; filter: brightness(1.15) blur(0); }
+}
+.bp-hero[data-scene-hero='away'] {
+  transform: translate3d(var(--zr-dx), var(--zr-dy), 0) rotate(-8deg) scale(1.02);
+  filter: brightness(1.1);
+}
+/* Past it, he stands BEHIND it — the creature stays in front, seen, as
+   the cut lands on it (his own depth is an inline placement, hence
+   !important; only while he is over there). */
+.bp-hero:is([data-scene-hero='away'], [data-scene-hero='recover']) {
+  z-index: 0 !important;
+}
+.bp-stage[data-scene='zero'] .bp-enemy {
+  z-index: 5 !important;
+}
+.bp-hero[data-scene-hero='recover'] {
+  transform: translate3d(var(--zr-dx), var(--zr-dy), 0);
+  transition: transform var(--zr-recover) ease-out;
+}
+/* Home, in a flicker (v18's return). */
+.bp-hero[data-scene-hero='return'] {
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--zr-return) cubic-bezier(0.2, 0.74, 0.18, 1);
+  animation: zr-return-glow var(--zr-return) linear both;
+}
+@keyframes zr-return-glow {
+  0% { opacity: 1; filter: brightness(1); }
+  32% { opacity: 0.22; filter: brightness(2.8) blur(1px); }
+  72% { opacity: 0.72; filter: brightness(1.5); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+/* The creature, as the cut lands (v18 showHeroSkillImpact). */
+.bp-enemy[data-scene-enemy='broken'] {
+  animation: zr-recoil var(--zr-break) cubic-bezier(0.16, 0.78, 0.16, 1) both;
+}
+.bp-enemy[data-scene-enemy='broken'] .bp-art {
+  animation: zr-whiteout var(--zr-break) linear both;
+}
+@keyframes zr-recoil {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  12% { transform: translate3d(1px, 0, 0) scale(0.91); }
+  23% { transform: translate3d(-24px, -7px, 0) rotate(-9deg) scale(1.1); }
+  37% { transform: translate3d(12px, 5px, 0) rotate(5deg) scale(0.95); }
+  55% { transform: translate3d(-7px, -2px, 0) rotate(-3deg) scale(1.02); }
+  76% { transform: translate3d(3px, 1px, 0) rotate(1deg) scale(0.99); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+}
+@keyframes zr-whiteout {
+  0% { filter: brightness(1); }
+  7% { filter: drop-shadow(0 0 12px rgba(90, 0, 20, 0.9)) brightness(0.035) contrast(4) saturate(0); }
+  13% { filter: drop-shadow(0 0 30px #fff) brightness(5.6) contrast(1.5) saturate(0); }
+  25% { filter: drop-shadow(-9px 0 14px rgba(93, 0, 21, 0.95)) drop-shadow(9px 0 14px rgba(206, 13, 43, 0.9)) brightness(0.03) contrast(4.2) saturate(0); }
+  58% { filter: drop-shadow(0 0 17px rgba(159, 0, 35, 0.7)) brightness(0.42) contrast(1.7) saturate(0.35); }
+  100% { filter: brightness(1); }
+}
+
+/* The field and the layer over it shake together as the cut lands. */
+.bp-stage[data-scene='zero'][data-scene-step='break'],
+.bp-scene-over[data-scene='zero'][data-scene-step='break'] {
+  transform-origin: var(--zr-x) var(--zr-y);
+  animation: zr-camera var(--zr-break) ease-out both;
+}
+@keyframes zr-camera {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  7% { transform: translate3d(0, 0, 0) scale(1.018); }
+  13% { transform: translate3d(-12px, 6px, 0) scale(1.05); }
+  19% { transform: translate3d(12px, -6px, 0) scale(1.046); }
+  27% { transform: translate3d(-9px, -3px, 0) scale(1.04); }
+  37% { transform: translate3d(6px, 4px, 0) scale(1.032); }
+  52% { transform: translate3d(-4px, 2px, 0) scale(1.024); }
+  72% { transform: translate3d(2px, -1px, 0) scale(1.014); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ── Over the field ────────────────────────────────────────────── */
+
+.zr-over {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.zr-over > *,
+.zr-break > * {
+  position: absolute;
+  pointer-events: none;
+}
+.zr-vignette {
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at var(--zr-x) var(--zr-y), transparent 0 9%, rgba(8, 2, 8, 0.3) 27%, rgba(1, 2, 5, 0.7) 78%),
+    rgba(3, 2, 7, 0.3);
+  transition: opacity 180ms ease;
+}
+.zr-over:is([data-step='dash'], [data-step='hitstop'], [data-step='pause']) .zr-vignette {
+  opacity: 1;
+}
+.zr-over[data-step='break'] .zr-vignette {
+  opacity: 0.5;
+}
+
+/* His dash, as a streak across the creature's line (v18 .hero-dash-streak). */
+.zr-streak {
+  left: 0;
+  top: var(--zr-y);
+  width: 100%;
+  height: 30px;
+  margin-top: -15px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent 2%, rgba(180, 26, 35, 0.18) 18%, #ffdf9a 48%, #fff 57%, rgba(182, 25, 40, 0.58) 72%, transparent 98%);
+  box-shadow: 0 0 14px rgba(255, 244, 210, 0.9), 0 0 34px rgba(198, 29, 45, 0.72);
+  filter: blur(1px);
+  transform-origin: 100% 50%;
+  animation: zr-streak var(--zr-dash) cubic-bezier(0.08, 0.8, 0.16, 1) both;
+}
+@keyframes zr-streak {
+  0% { opacity: 0; transform: translate3d(24%, 0, 0) scaleX(0.08) skewX(-25deg); }
+  18% { opacity: 1; }
+  66% { opacity: 0.96; transform: translate3d(-4%, 0, 0) scaleX(1.08) skewX(-25deg); }
+  100% { opacity: 0; transform: translate3d(-27%, 0, 0) scaleX(0.72) skewX(-25deg); }
+}
+
+/* ── 紅月: a scene of its own, off the field (v18 .hero-moon-cinematic) ── */
+
+.zr-moon-scene {
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  animation: zr-moon-shock max(190ms, calc(var(--zr-moon) * 0.16)) cubic-bezier(0.18, 0.8, 0.2, 1)
+    calc(var(--zr-moon) * 0.3) both;
+}
+@keyframes zr-moon-shock {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  18% { transform: translate3d(-5px, 2px, 0) scale(1.012); }
+  34% { transform: translate3d(6px, -3px, 0) scale(1.012); }
+  56% { transform: translate3d(-3px, 1px, 0) scale(1.008); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+/* 暗転, in two halves along the cut: when the moon has fallen they part,
+   and the field is back between them (復帰). */
+.zr-black {
+  position: absolute;
+  inset: -2%;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(136, 0, 20, 0.17), transparent 38%),
+    radial-gradient(ellipse at 50% 110%, rgba(68, 0, 12, 0.28), transparent 45%),
+    linear-gradient(180deg, #000 0 68%, #080002 100%);
+}
+.zr-black-upper {
+  clip-path: polygon(0 0, 100% 0, 100% calc(47% - 7.9vw), 0 calc(47% + 7.9vw));
+  animation: zr-black-upper var(--zr-moon) linear both;
+}
+.zr-black-lower {
+  clip-path: polygon(0 calc(47% + 7.9vw), 100% calc(47% - 7.9vw), 100% 100%, 0 100%);
+  animation: zr-black-lower var(--zr-moon) linear both;
+}
+@keyframes zr-black-upper {
+  0% { opacity: 0; transform: translate3d(0, 0, 0); }
+  7%, 86% { opacity: 1; transform: translate3d(0, 0, 0); }
+  100% { opacity: 1; transform: translate3d(-3%, -62%, 0); }
+}
+@keyframes zr-black-lower {
+  0% { opacity: 0; transform: translate3d(0, 0, 0); }
+  7%, 86% { opacity: 1; transform: translate3d(0, 0, 0); }
+  100% { opacity: 1; transform: translate3d(3%, 62%, 0); }
+}
+.zr-haze {
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 19%, rgba(185, 8, 30, 0.18) 27%, transparent 48%),
+    radial-gradient(ellipse at 50% 94%, rgba(115, 0, 17, 0.2), transparent 58%);
+  filter: blur(8px);
+  animation: zr-haze var(--zr-moon) ease-out both;
+}
+@keyframes zr-haze {
+  0%, 8% { opacity: 0; transform: scale(0.72); }
+  22%, 48% { opacity: 1; transform: scale(1); }
+  76% { opacity: 0.38; transform: scale(1.34); }
+  100% { opacity: 0; transform: scale(1.58); }
+}
+.zr-moon {
+  --moon: min(64vh, 340px);
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: var(--moon);
+  height: var(--moon);
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(255, 62, 77, 0.68)) drop-shadow(0 0 52px rgba(105, 0, 20, 0.82));
+  animation: zr-moon-reveal var(--zr-moon) cubic-bezier(0.18, 0.72, 0.16, 1) both;
+}
+@keyframes zr-moon-reveal {
+  0%, 7% { opacity: 0; transform: translate(-50%, -50%) scale(0.62); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.045); }
+  31%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  92% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.01); }
+}
+.zr-moon > * {
+  position: absolute;
+  pointer-events: none;
+}
+.zr-moon-half,
+.zr-moon-trail {
+  inset: 0;
+  border-radius: 50%;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+.zr-moon-half {
+  z-index: 1;
+  filter: contrast(1.08) saturate(1.08);
+}
+/* The cut's hot edge along each half. */
+.zr-moon-half::after {
+  content: '';
+  position: absolute;
+  left: -16%;
+  top: 50%;
+  width: 132%;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #9e001e 9%, #ff5a58 27%, #fff7da 49%, #ffb16f 58%, #9a001e 91%, transparent);
+  box-shadow: 0 0 4px 1px rgba(255, 250, 226, 0.96), 0 0 14px 5px rgba(255, 52, 64, 0.82), 0 0 29px 11px rgba(119, 0, 27, 0.72);
+  transform: translateY(-50%) rotate(-9deg) scaleX(0.04);
+  mix-blend-mode: screen;
+  animation: zr-cut-edge var(--zr-moon) cubic-bezier(0.06, 0.82, 0.14, 1) both;
+}
+.zr-upper {
+  clip-path: polygon(0 0, 100% 0, 100% 42%, 0 58%);
+}
+.zr-lower {
+  clip-path: polygon(0 58%, 100% 42%, 100% 100%, 0 100%);
+}
+.zr-moon-half.zr-upper {
+  animation: zr-upper-fall var(--zr-moon) cubic-bezier(0.24, 0.64, 0.3, 1) both;
+}
+.zr-moon-half.zr-lower {
+  animation: zr-lower-fall var(--zr-moon) cubic-bezier(0.24, 0.64, 0.3, 1) both;
+}
+.zr-moon-trail {
+  z-index: 0;
+  opacity: 0;
+  filter: blur(11px) brightness(1.32) saturate(1.8);
+  mix-blend-mode: screen;
+}
+.zr-moon-trail.zr-upper {
+  animation: zr-trail-upper var(--zr-moon) ease-out both;
+}
+.zr-moon-trail.zr-lower {
+  animation: zr-trail-lower var(--zr-moon) ease-out both;
+}
+.zr-shockwave {
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  width: 112%;
+  height: 74%;
+  opacity: 0;
+  border: 2px solid rgba(255, 226, 190, 0.92);
+  border-right-color: rgba(223, 17, 50, 0.82);
+  border-left-color: rgba(145, 0, 30, 0.68);
+  border-radius: 50%;
+  box-shadow: 0 0 15px rgba(255, 85, 88, 0.8), inset 0 0 15px rgba(144, 0, 31, 0.54);
+  animation: zr-shockwave var(--zr-moon) ease-out both;
+}
+.zr-burst {
+  z-index: 9;
+  left: 50%;
+  top: 50%;
+  width: 58%;
+  height: 58%;
+  opacity: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0 3%, rgba(255, 241, 203, 0.98) 6%, rgba(255, 49, 65, 0.58) 21%, rgba(133, 0, 29, 0.22) 42%, transparent 67%),
+    conic-gradient(from 81deg, transparent 0 43%, rgba(255, 234, 195, 0.88) 48%, transparent 53% 100%);
+  mix-blend-mode: screen;
+  animation: zr-burst var(--zr-moon) ease-out both;
+}
+.zr-moon-slash,
+.zr-afterline {
+  z-index: 8;
+  left: -42%;
+  top: 50%;
+  width: 184%;
+  opacity: 0;
+  transform-origin: 50% 50%;
+}
+.zr-moon-slash {
+  height: 7px;
+  background: linear-gradient(90deg, transparent, #b50927 12%, #ffbc92 32%, #fff 49%, #ffe8bd 56%, #c20a2c 83%, transparent);
+  box-shadow: 0 0 4px 2px #fff, 0 0 16px 6px rgba(255, 80, 88, 0.92), 0 0 34px 13px rgba(179, 0, 31, 0.72);
+  animation: zr-moon-slash var(--zr-moon) cubic-bezier(0.04, 0.82, 0.12, 1) both;
+}
+.zr-afterline {
+  z-index: 7;
+  height: 1px;
+  background: #ffced0;
+  box-shadow: 0 0 10px 3px rgba(226, 16, 49, 0.8);
+  animation: zr-afterline var(--zr-moon) ease-out both;
+}
+.zr-moon-shards {
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+}
+.zr-moon-shards i {
+  --x: 0px;
+  --y: -70px;
+  --s: 7px;
+  --r: 0deg;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--s);
+  height: calc(var(--s) * 1.9);
+  opacity: 0;
+  background: linear-gradient(145deg, #fff0c8 0 8%, #df233e 24%, #4d0013 72%, #090006);
+  box-shadow: 0 0 8px rgba(237, 31, 57, 0.86);
+  clip-path: polygon(50% 0, 100% 100%, 0 72%);
+  animation: zr-moon-shard var(--zr-moon) cubic-bezier(0.12, 0.7, 0.2, 1) both;
+}
+.zr-moon-shards i:nth-child(1) { --x: -142px; --y: -58px; --s: 7px; --r: -74deg; }
+.zr-moon-shards i:nth-child(2) { --x: -112px; --y: 58px; --s: 10px; --r: -118deg; }
+.zr-moon-shards i:nth-child(3) { --x: -76px; --y: -94px; --s: 6px; --r: -42deg; }
+.zr-moon-shards i:nth-child(4) { --x: -51px; --y: 106px; --s: 8px; --r: -164deg; }
+.zr-moon-shards i:nth-child(5) { --x: -17px; --y: -122px; --s: 5px; --r: -12deg; }
+.zr-moon-shards i:nth-child(6) { --x: 18px; --y: 119px; --s: 9px; --r: 171deg; }
+.zr-moon-shards i:nth-child(7) { --x: 49px; --y: -108px; --s: 8px; --r: 27deg; }
+.zr-moon-shards i:nth-child(8) { --x: 71px; --y: 94px; --s: 6px; --r: 143deg; }
+.zr-moon-shards i:nth-child(9) { --x: 104px; --y: -77px; --s: 10px; --r: 59deg; }
+.zr-moon-shards i:nth-child(10) { --x: 126px; --y: 56px; --s: 7px; --r: 112deg; }
+.zr-moon-shards i:nth-child(11) { --x: -162px; --y: 7px; --s: 5px; --r: -91deg; }
+.zr-moon-shards i:nth-child(12) { --x: 161px; --y: -4px; --s: 6px; --r: 87deg; }
+.zr-moon-shards i:nth-child(13) { --x: -89px; --y: 16px; --s: 11px; --r: -101deg; }
+.zr-moon-shards i:nth-child(14) { --x: 92px; --y: -15px; --s: 9px; --r: 79deg; }
+/* The same cut, across the whole screen — the screen split in two. */
+.zr-screen-cut {
+  left: 50%;
+  top: 47%;
+  width: 150vw;
+  height: 3px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #a0061f 10%, #ffd2b0 40%, #fff 50%, #ffd2b0 60%, #a0061f 90%, transparent);
+  box-shadow: 0 0 5px 1px #fff, 0 0 18px 6px rgba(226, 30, 58, 0.8);
+  animation: zr-screen-cut var(--zr-moon) cubic-bezier(0.04, 0.82, 0.12, 1) both;
+}
+@keyframes zr-screen-cut {
+  0%, 27% { opacity: 0; transform: translate(-50%, -50%) rotate(-9deg) scaleX(0.01); }
+  31% { opacity: 1; transform: translate(-50%, -50%) rotate(-9deg) scaleX(1); }
+  80% { opacity: 0.85; transform: translate(-50%, -50%) rotate(-9deg) scaleX(1); }
+  88%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-9deg) scaleX(1); }
+}
+.zr-moon-flash {
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.96) 0 4%, rgba(255, 94, 105, 0.56) 17%, transparent 46%),
+    linear-gradient(171deg, transparent 42%, rgba(255, 235, 220, 0.82) 49%, rgba(205, 8, 42, 0.52) 51%, transparent 58%);
+  mix-blend-mode: screen;
+  animation: zr-moon-flash var(--zr-moon) linear both;
+}
+@keyframes zr-cut-edge {
+  0%, 28% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(0.04); }
+  32% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scaleX(1.05); }
+  39%, 55% { opacity: 0.95; transform: translateY(-50%) rotate(-9deg) scaleX(1); }
+  72% { opacity: 0.42; }
+  88%, 100% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(1.01); }
+}
+@keyframes zr-trail-upper {
+  0%, 39% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  46% { opacity: 0.65; transform: translate3d(-4px, 4px, 0) rotate(-1deg) scale(1.01); }
+  70% { opacity: 0.28; transform: translate3d(-22px, 76px, 0) rotate(-6deg) scale(1.04); }
+  100% { opacity: 0; transform: translate3d(-48px, 196px, 0) rotate(-13deg) scale(1.08); }
+}
+@keyframes zr-trail-lower {
+  0%, 39% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  46% { opacity: 0.62; transform: translate3d(5px, 8px, 0) rotate(1deg) scale(1.01); }
+  70% { opacity: 0.26; transform: translate3d(27px, 99px, 0) rotate(7deg) scale(1.05); }
+  100% { opacity: 0; transform: translate3d(58px, 236px, 0) rotate(15deg) scale(1.09); }
+}
+@keyframes zr-shockwave {
+  0%, 28% { opacity: 0; transform: translate(-50%, -50%) rotate(-9deg) scale(0.12); }
+  34% { opacity: 1; transform: translate(-50%, -50%) rotate(-9deg) scale(0.55); }
+  58% { opacity: 0.55; transform: translate(-50%, -50%) rotate(-6deg) scale(1.8); }
+  78%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(2.9); }
+}
+@keyframes zr-burst {
+  0%, 28% { opacity: 0; transform: translate(-50%, -50%) scale(0.08); }
+  32% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  37% { opacity: 0.28; transform: translate(-50%, -50%) scale(1.5); }
+  49%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); }
+}
+@keyframes zr-moon-shard {
+  0%, 30% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--r)) scale(0.08); }
+  38% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r)) scale(1.2); }
+  67% {
+    opacity: 0.96;
+    transform: translate3d(calc(-50% + var(--x)), calc(-50% + var(--y)), 0) rotate(calc(var(--r) + 80deg)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--x)), calc(-50% + var(--y) + 55px), 0) rotate(calc(var(--r) + 180deg)) scale(0.55);
+  }
+}
+/* 落下: the two halves fall away from the cut. */
+@keyframes zr-upper-fall {
+  0%, 38% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); }
+  45% { transform: translate3d(-7px, -3px, 0) rotate(-1deg); }
+  59% { opacity: 1; transform: translate3d(-25px, 31px, 0) rotate(-4deg); }
+  83% { opacity: 0.92; transform: translate3d(-57px, 188px, 0) rotate(-13deg); }
+  100% { opacity: 0; transform: translate3d(-78px, 274px, 0) rotate(-19deg); }
+}
+@keyframes zr-lower-fall {
+  0%, 38% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); }
+  45% { transform: translate3d(8px, 5px, 0) rotate(1deg); }
+  59% { opacity: 1; transform: translate3d(29px, 52px, 0) rotate(5deg); }
+  83% { opacity: 0.88; transform: translate3d(69px, 224px, 0) rotate(15deg); }
+  100% { opacity: 0; transform: translate3d(94px, 318px, 0) rotate(22deg); }
+}
+@keyframes zr-moon-slash {
+  0%, 27% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(0.015); }
+  31% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scaleX(1.08); }
+  36% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scaleX(1); filter: brightness(1.8); }
+  47% { opacity: 0.88; transform: translateY(-50%) rotate(-9deg) scaleX(1.02); }
+  59%, 100% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(1.05); }
+}
+@keyframes zr-afterline {
+  0%, 29% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(0.04); }
+  34% { opacity: 1; transform: translateY(-50%) rotate(-9deg) scaleX(1); }
+  63% { opacity: 0.72; }
+  79%, 100% { opacity: 0; transform: translateY(-50%) rotate(-9deg) scaleX(1.01); }
+}
+@keyframes zr-moon-flash {
+  0%, 28% { opacity: 0; }
+  31% { opacity: 0.92; }
+  34% { opacity: 0.12; }
+  39% { opacity: 0.46; }
+  48%, 100% { opacity: 0; }
+}
+
+/* ── 復帰: the cut lands on the creature, black blood (v18 .is-active) ── */
+
+.zr-break {
+  position: absolute;
+  inset: 0;
+}
+.zr-rift {
+  left: var(--zr-x);
+  top: var(--zr-y);
+  width: clamp(150px, 28vw, 300px);
+  height: clamp(110px, 20vw, 214px);
+  opacity: 0;
+  border-radius: 47% 53% 45% 55% / 58% 42% 56% 44%;
+  background: radial-gradient(ellipse at 50% 50%, #000 0 21%, rgba(13, 2, 10, 0.98) 40%, rgba(92, 9, 28, 0.88) 63%, rgba(255, 196, 93, 0.2) 78%, transparent 82%);
+  box-shadow: 0 0 16px 2px rgba(255, 231, 168, 0.74), 0 0 48px 15px rgba(181, 18, 42, 0.54), 0 0 76px 25px rgba(20, 4, 15, 0.62);
+  animation: zr-rift var(--zr-break) cubic-bezier(0.12, 0.76, 0.16, 1) both;
+}
+.zr-line {
+  left: var(--zr-x);
+  top: var(--zr-y);
+  width: clamp(330px, 78vw, 760px);
+  opacity: 0;
+  transform-origin: 50% 50%;
+}
+.zr-line-primary {
+  height: 7px;
+  background: linear-gradient(90deg, transparent, #f23d52 14%, #fff1be 37%, #fff 50%, #fff1be 63%, #c51534 86%, transparent);
+  box-shadow: 0 0 5px 2px #fff, 0 0 18px 6px rgba(255, 205, 104, 0.9), 0 0 44px 14px rgba(188, 18, 47, 0.76);
+  animation: zr-line var(--zr-break) cubic-bezier(0.04, 0.84, 0.12, 1) both;
+}
+.zr-line-echo {
+  top: calc(var(--zr-y) + 11px);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #b70e2f 18%, #ffd886 45%, #fff 52%, #a70a2a 82%, transparent);
+  box-shadow: 0 0 13px 4px rgba(211, 28, 54, 0.74);
+  animation: zr-echo var(--zr-break) ease-out both;
+}
+.zr-ring {
+  left: var(--zr-x);
+  top: var(--zr-y);
+  width: clamp(140px, 25vw, 276px);
+  height: clamp(76px, 13vw, 150px);
+  margin: clamp(-75px, -6.5vw, -38px) 0 0 clamp(-138px, -12.5vw, -70px);
+  opacity: 0;
+  border-top: 3px solid rgba(255, 238, 189, 0.9);
+  border-right: 2px solid rgba(220, 28, 55, 0.72);
+  border-bottom: 1px solid transparent;
+  border-left: 3px solid rgba(255, 191, 83, 0.76);
+  border-radius: 50%;
+  box-shadow: 0 0 24px rgba(207, 24, 50, 0.58);
+  animation: zr-ring var(--zr-break) ease-out both;
+}
+.zr-flash {
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at var(--zr-x) var(--zr-y), #fff 0 4%, rgba(255, 232, 170, 0.96) 12%, rgba(194, 17, 46, 0.44) 34%, transparent 65%),
+    linear-gradient(105deg, rgba(150, 7, 31, 0.28), rgba(255, 250, 226, 0.7), rgba(25, 3, 10, 0.2));
+  mix-blend-mode: screen;
+  animation: zr-flash var(--zr-break) linear both;
+}
+/* BLACK BLOOD (v18 .hero-blood-splatter): a dark core, its mist, drops. */
+.zr-blood {
+  left: var(--zr-x);
+  top: var(--zr-y);
+  width: 1px;
+  height: 1px;
+}
+.zr-blood::before,
+.zr-blood::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.zr-blood::before {
+  width: clamp(82px, 15vw, 148px);
+  height: clamp(58px, 10vw, 104px);
+  border-radius: 46% 54% 38% 62% / 57% 41% 59% 43%;
+  background:
+    radial-gradient(ellipse at 22% 66%, #020103 0 14%, transparent 16%),
+    radial-gradient(ellipse at 78% 31%, #050104 0 11%, transparent 13%),
+    radial-gradient(ellipse at 48% 51%, #010103 0 43%, #190008 58%, rgba(89, 0, 19, 0.72) 69%, transparent 72%);
+  box-shadow: 0 0 15px rgba(94, 0, 19, 0.7);
+  animation: zr-blood-core var(--zr-break) cubic-bezier(0.12, 0.78, 0.18, 1) both;
+}
+.zr-blood::after {
+  width: clamp(210px, 36vw, 380px);
+  height: clamp(120px, 20vw, 215px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(48, 0, 14, 0.58) 0 10%, rgba(19, 0, 7, 0.34) 24%, transparent 66%);
+  filter: blur(8px);
+  animation: zr-blood-mist var(--zr-break) ease-out both;
+}
+.zr-blood i {
+  --x: 0px;
+  --y: -72px;
+  --w: 5px;
+  --r: 0deg;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  height: calc(var(--w) * 2.8);
+  margin: calc(var(--w) * -1.4) 0 0 calc(var(--w) * -0.5);
+  opacity: 0;
+  border-radius: 75% 25% 65% 35% / 82% 36% 64% 18%;
+  background: linear-gradient(180deg, #420012, #090105 48%, #000 100%);
+  box-shadow: 0 0 5px rgba(116, 0, 24, 0.86);
+  animation: zr-blood-drop var(--zr-break) cubic-bezier(0.14, 0.7, 0.2, 1) both;
+}
+.zr-blood i:nth-child(1) { --x: -104px; --y: -74px; --w: 7px; --r: -58deg; }
+.zr-blood i:nth-child(2) { --x: -138px; --y: -22px; --w: 4px; --r: -83deg; }
+.zr-blood i:nth-child(3) { --x: -96px; --y: 46px; --w: 6px; --r: -118deg; }
+.zr-blood i:nth-child(4) { --x: -48px; --y: -116px; --w: 5px; --r: -26deg; }
+.zr-blood i:nth-child(5) { --x: 18px; --y: -132px; --w: 6px; --r: 10deg; }
+.zr-blood i:nth-child(6) { --x: 76px; --y: -86px; --w: 8px; --r: 42deg; }
+.zr-blood i:nth-child(7) { --x: 124px; --y: -35px; --w: 4px; --r: 72deg; }
+.zr-blood i:nth-child(8) { --x: 142px; --y: 31px; --w: 6px; --r: 103deg; }
+.zr-blood i:nth-child(9) { --x: 91px; --y: 82px; --w: 7px; --r: 132deg; }
+.zr-blood i:nth-child(10) { --x: 39px; --y: 107px; --w: 5px; --r: 164deg; }
+.zr-blood i:nth-child(11) { --x: -19px; --y: 96px; --w: 8px; --r: 192deg; }
+.zr-blood i:nth-child(12) { --x: -71px; --y: 75px; --w: 4px; --r: 218deg; }
+.zr-blood i:nth-child(13) { --x: -127px; --y: 18px; --w: 5px; --r: 252deg; }
+.zr-blood i:nth-child(14) { --x: 61px; --y: 38px; --w: 9px; --r: 116deg; }
+.zr-fragments {
+  left: var(--zr-x);
+  top: var(--zr-y);
+  width: 1px;
+  height: 1px;
+}
+.zr-fragments i {
+  --x: 0px;
+  --y: -80px;
+  --s: 7px;
+  --r: 0deg;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--s);
+  height: calc(var(--s) * 2.25);
+  opacity: 0;
+  background: linear-gradient(155deg, #f2515a 0 5%, #27000b 27%, #020103 72%, #000);
+  box-shadow: 0 0 7px rgba(125, 0, 28, 0.82);
+  clip-path: polygon(45% 0, 100% 78%, 18% 100%, 0 25%);
+  animation: zr-fragment var(--zr-break) cubic-bezier(0.1, 0.7, 0.18, 1) both;
+}
+.zr-fragments i:nth-child(1) { --x: -168px; --y: -49px; --s: 7px; --r: -72deg; }
+.zr-fragments i:nth-child(2) { --x: -132px; --y: 72px; --s: 10px; --r: -128deg; }
+.zr-fragments i:nth-child(3) { --x: -81px; --y: -119px; --s: 6px; --r: -34deg; }
+.zr-fragments i:nth-child(4) { --x: -35px; --y: 131px; --s: 8px; --r: -171deg; }
+.zr-fragments i:nth-child(5) { --x: 22px; --y: -139px; --s: 9px; --r: 12deg; }
+.zr-fragments i:nth-child(6) { --x: 67px; --y: 118px; --s: 6px; --r: 151deg; }
+.zr-fragments i:nth-child(7) { --x: 116px; --y: -98px; --s: 11px; --r: 48deg; }
+.zr-fragments i:nth-child(8) { --x: 157px; --y: 47px; --s: 7px; --r: 103deg; }
+.zr-fragments i:nth-child(9) { --x: -188px; --y: 8px; --s: 5px; --r: -91deg; }
+.zr-fragments i:nth-child(10) { --x: 190px; --y: -11px; --s: 5px; --r: 88deg; }
+.zr-fragments i:nth-child(11) { --x: -92px; --y: 28px; --s: 12px; --r: -109deg; }
+.zr-fragments i:nth-child(12) { --x: 99px; --y: -26px; --s: 10px; --r: 71deg; }
+@keyframes zr-rift {
+  0%, 3% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scale(0.03); }
+  11% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(0.7); }
+  27% { opacity: 0.98; transform: translate(-50%, -50%) rotate(-2deg) scale(1.12); }
+  64% { opacity: 0.66; transform: translate(-50%, -50%) rotate(5deg) scale(1.36); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(12deg) scale(1.56); }
+}
+@keyframes zr-line {
+  0%, 4% { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scaleX(0.015); }
+  9% { opacity: 1; transform: translate(-50%, -50%) rotate(-14deg) scaleX(1.08); }
+  18% { opacity: 1; transform: translate(-50%, -50%) rotate(-14deg) scaleX(1); }
+  38% { opacity: 0.82; }
+  61%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scaleX(1.06); }
+}
+@keyframes zr-echo {
+  0%, 10% { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scaleX(0.04); }
+  16% { opacity: 0.88; transform: translate(-50%, -50%) rotate(-14deg) scaleX(1); }
+  49% { opacity: 0.46; }
+  69%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scaleX(1.04); }
+}
+@keyframes zr-ring {
+  0%, 8% { opacity: 0; transform: rotate(-13deg) scale(0.08); }
+  17% { opacity: 1; transform: rotate(-10deg) scale(0.52); }
+  77%, 100% { opacity: 0; transform: rotate(3deg) scale(3.7); }
+}
+@keyframes zr-flash {
+  0%, 6% { opacity: 0; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.07; }
+  25% { opacity: 0.5; }
+  34% { opacity: 0.1; }
+  44%, 100% { opacity: 0; }
+}
+@keyframes zr-blood-core {
+  0%, 13% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scale(0.08); }
+  22% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1.08); }
+  53% { opacity: 0.95; transform: translate(-50%, -50%) rotate(-2deg) scale(1); }
+  82% { opacity: 0.72; transform: translate(-50%, -43%) rotate(5deg) scale(1.04); }
+  100% { opacity: 0; transform: translate(-50%, -31%) rotate(9deg) scale(0.96); }
+}
+@keyframes zr-blood-mist {
+  0%, 14% { opacity: 0; transform: translate(-50%, -50%) scale(0.25); }
+  28% { opacity: 0.86; transform: translate(-50%, -50%) scale(0.72); }
+  68% { opacity: 0.5; transform: translate(-50%, -48%) scale(1.25); }
+  100% { opacity: 0; transform: translate(-50%, -42%) scale(1.65); }
+}
+@keyframes zr-blood-drop {
+  0%, 14% { opacity: 0; transform: translate3d(0, 0, 0) rotate(var(--r)) scale(0.08); }
+  22% { opacity: 1; transform: translate3d(calc(var(--x) * 0.34), calc(var(--y) * 0.34), 0) rotate(var(--r)) scale(1.16); }
+  63% { opacity: 0.96; transform: translate3d(var(--x), var(--y), 0) rotate(var(--r)) scale(1); }
+  100% { opacity: 0; transform: translate3d(var(--x), calc(var(--y) + 34px), 0) rotate(calc(var(--r) + 18deg)) scale(0.74); }
+}
+@keyframes zr-fragment {
+  0%, 10% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--r)) scale(0.08); }
+  19% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r)) scale(1.24); }
+  66% {
+    opacity: 0.92;
+    transform: translate3d(calc(-50% + var(--x)), calc(-50% + var(--y)), 0) rotate(calc(var(--r) + 100deg)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--x)), calc(-50% + var(--y) + 42px), 0) rotate(calc(var(--r) + 210deg)) scale(0.48);
+  }
+}
+
+/* ── Still, for those who asked for less motion ────────────────── */
+/* He is still shown where each step puts him, and the moon and the cut
+   are still drawn — only without the travel and the shaking. */
+@media (prefers-reduced-motion: reduce) {
+  .bp-stage[data-scene='zero'] .bp-hero,
+  .bp-stage[data-scene='zero'],
+  .bp-scene-over[data-scene='zero'],
+  .bp-enemy[data-scene-enemy='broken'],
+  .zr-moon-scene {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+:root[data-reduced-motion='on'] .bp-stage[data-scene='zero'] .bp-hero,
+:root[data-reduced-motion='on'] .bp-stage[data-scene='zero'],
+:root[data-reduced-motion='on'] .bp-scene-over[data-scene='zero'],
+:root[data-reduced-motion='on'] .bp-enemy[data-scene-enemy='broken'],
+:root[data-reduced-motion='on'] .zr-moon-scene {
+  animation: none !important;
+  transition: none !important;
+}

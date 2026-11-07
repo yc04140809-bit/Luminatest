@@ -1,0 +1,100 @@
+{
+  "capturedAt": "2026-09-07T12:37:51.122Z",
+  "viewport": {
+    "width": 844,
+    "height": 390
+  },
+  "shots": [
+    {
+      "file": "01_tavern.png",
+      "screen": "TAVERN / TALK",
+      "reason": "絵本来の色・暗さ・コントラストが戻っているか。白は UI だけか"
+    },
+    {
+      "file": "02_greenwood_forest.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
+    },
+    {
+      "file": "03_greenwood_walking_side.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
+    },
+    {
+      "file": "04_moss_rabbit_life_choice.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
+    },
+    {
+      "file": "05_gald_encounter.png",
+      "screen": "GALD ENCOUNTER",
+      "reason": "横画面の会話。ガルドが全身で立っているか（膝から下だけになっていないか）、背景が画面全面か、文章帯が横長で読めるか"
+    },
+    {
+      "file": "06_gald_battle.png",
+      "screen": "GALD BATTLE / MAGIC",
+      "reason": "横画面の戦闘。敵＝左／味方＝右（主人公が前・ケイオスが後ろ）、3人が同じ地面に立っているか、誰も重なっていないか、上のHPが読めるか、背景の森が見えるか"
+    },
+    {
+      "file": "07_magic_tray.png",
+      "screen": "GALD BATTLE / MAGIC",
+      "reason": "《魔法》トレイ。星光弾とMP消費が読めるか、横画面スマホの親指で押せる大きさか、上のHP/MP帯が隠れていないか"
+    },
+    {
+      "file": "08_life_choice.png",
+      "screen": "LIFE CHOICE / ENDING",
+      "reason": "背景を持つ絵に額を付けた結果"
+    },
+    {
+      "file": "09_battle_prototype.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
+    }
+  ],
+  "notPhotographed": [
+    {
+      "screen": "TITLE",
+      "reason": "中身は無変更です。ただし縦持ちの端末では見え方が変わります（90度回転をやめ、16:9ステージを縮小表示＋「端末を横向きにしてください」）"
+    },
+    {
+      "screen": "HOME",
+      "reason": "無変更です"
+    },
+    {
+      "screen": "EXPLORE",
+      "reason": "無変更です"
+    },
+    {
+      "screen": "SETTINGS",
+      "reason": "無変更です"
+    },
+    {
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "無変更です"
+    },
+    {
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "無変更です"
+    },
+    {
+      "screen": "OPENING THEME / SKIP",
+      "reason": "無変更です（楽曲はまだ入っていません）"
+    },
+    {
+      "screen": "PROLOGUE / KAOS",
+      "reason": "会話レイアウトの変更は受けますが、ケイオスの語りは中央寄せの別レイアウトなので見た目は無変更です"
+    },
+    {
+      "screen": "WORLD MEMORY",
+      "reason": "無変更"
+    },
+    {
+      "screen": "PLAYTEST SURVEY",
+      "reason": "無変更"
+    },
+    {
+      "screen": "DEV REVIEW HUB",
+      "reason": "無変更"
+    }
+  ]
+}

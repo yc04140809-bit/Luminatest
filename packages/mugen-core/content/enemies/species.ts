@@ -1,0 +1,284 @@
+// ENEMY SPECIES — what lives in a place, and how it fights.
+//
+// A species is not a character. Most of what the player meets in the
+// forest is one of many: killing one moss rabbit does not remove moss
+// rabbits from Greenwood, any more than it removes rabbits from a wood.
+// So everything here describes a KIND, and nothing here is an
+// individual — individuals are minted by the world, only when one of
+// them turns out to have a life the player can change.
+//
+// This is also the template every ordinary enemy after this one uses:
+// one normal attack, one skill, numbers in the units the battle already
+// speaks, and lines that let an animal be an animal.
+
+import { starAffinity } from '../../game/battle/damageType';
+import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
+import type { EnemyAffinity } from '../../game/battle/damageType';
+import type { LifeChoiceId } from '../../core/flow/types';
+import { FUUMIMI, FUUMIMI_INDIVIDUAL_ID } from './fuumimi';
+import { HYOUREI } from './hyourei';
+import { IWAHORO } from './iwahoro';
+import { KOKEMARU } from './kokemaru';
+import type { DialogueLine } from '../dialogue/prologue';
+
+export type SpeciesId = 'moss_rabbit' | 'fuumimi' | 'hyourei' | 'iwahoro' | 'kokemaru';
+
+export interface SpeciesSkill {
+  name: string;
+  /** How many of the player's blows it softens. */
+  turns: number;
+  /** What fraction of a blow still lands while it holds. */
+  damageTaken: number;
+  /** How likely it is to use it on a turn it could. */
+  chance: number;
+  /** Turns before it may be used again — it must not stall a fight. */
+  cooldown: number;
+  /** And a hard ceiling per battle, for the same reason. */
+  maxUses: number;
+  /** Shown when it goes up. */
+  line: string;
+}
+
+/**
+ * Where the drawing actually is inside its file.
+ *
+ * The one definition now lives with the art layer; this re-export is
+ * kept so nothing that already speaks in ArtBox has to be rewritten.
+ */
+export type { ArtBox } from '../../core/art/artStates';
+
+export interface EnemySpeciesDef {
+  speciesId: SpeciesId;
+  name: string;
+  /** Where it lives. One place for now; a list when there are two. */
+  habitat: string;
+  // THERE IS NO `portrait` FIELD, and that is deliberate.
+  //
+  // There was one, holding the URL the art registry gave for this
+  // creature's `front` state. It was already a copy of something the
+  // registry knew — the registry is keyed by the same `speciesId` sat
+  // a few lines above — and holding the copy meant this file imported
+  // two pictures of a rabbit, 4.9 MB of them, so that the BATTLE
+  // NUMBERS below could be read. Every front end importing a
+  // creature's stats bought its portraits.
+  //
+  // A screen that wants the picture asks the resolver for it:
+  //
+  //     enemyArtFor(species.speciesId, 'portrait').asset?.src
+  //
+  // which gives the same image through the same fallback chain, and
+  // gives it only to whoever actually draws.
+
+  /** Battle numbers, in the units the existing battle already uses. */
+  hp: number;
+  /**
+   * Its footing, and how it changes as it is hurt.
+   *
+   * The two places a creature gets to be a creature rather than a
+   * health bar. Both optional: an enemy written without them fights
+   * exactly as everything did before they existed.
+   */
+  poise?: EnemyPoiseSpec;
+  phases?: readonly EnemyPhase[];
+  /**
+   * What it is tough against and what it is soft against.
+   *
+   * The field that makes "who should swing at this one" a question. An
+   * empty object means it has no opinion, which is what most creatures
+   * should be — a bestiary where everything has a weakness is a
+   * bestiary where the weakness chart is the game.
+   */
+  affinity?: EnemyAffinity;
+  attackMin: number;
+  attackMax: number;
+  /** Its one normal attack. */
+  attackName: string;
+  skill: SpeciesSkill;
+  /** First sight of it, in the battle log. */
+  appearLine: string;
+  /** When it is beaten. Nothing dies here unless the player decides so. */
+  defeatedText: string;
+  /**
+   * What happens on the rare occasion that one of them turns out to
+   * have a life the player can change.
+   *
+   * Every ordinary enemy after this one fills in the same five things,
+   * which is the whole of the template: why this one is different, the
+   * question, the four answers in this creature's own words, and what
+   * each answer leaves behind. Nothing here argues for an answer.
+   */
+  individual: {
+    /** Why this one is not just another of its kind. */
+    scene: DialogueLine[];
+    prompt: string;
+    options: { id: LifeChoiceId; label: string; sub: string }[];
+    /** One line each, and no two of them the same in meaning. */
+    aftermath: Record<LifeChoiceId, string>;
+  };
+}
+
+/**
+ * MOSS RABBIT — the first ordinary enemy in Greenwood.
+ *
+ * Small, timid and not a predator. It fights because something walked
+ * into where it lives, or came at it too fast, or frightened it — not
+ * because it is evil, and the game never says either that killing it is
+ * wrong or that it is fine. That judgement is the player's, which is
+ * the whole point of the four answers waiting at the end.
+ *
+ * It is also the enemy a player learns the battle on, so it is weak on
+ * purpose: it hits for a little, it protects itself sometimes, and it
+ * is beaten in a handful of turns.
+ */
+export const MOSS_RABBIT: EnemySpeciesDef = {
+  speciesId: 'moss_rabbit',
+  name: 'モスラビット',
+  habitat: 'GREENWOOD_FOREST',
+  // Raised from 22, and NOT because a bigger number is more exciting.
+  // At 22 the fight was over in two or three taps: no music got heard,
+  // the creature never got to do the one thing it does, and the four
+  // answers arrived before the player had formed an opinion about the
+  // animal they were being asked about. What fills the extra time is
+  // the poise and the phases below, not the health bar.
+  hp: 124,
+  attackMin: 2,
+  attackMax: 5,
+  attackName: 'リーフタックル',
+  /**
+   * SOFT TO HER LIGHT.
+   *
+   * Nothing about it is armoured, so a sword is a sword to it and
+   * always will be — the blade is the constant that everything else in
+   * a fight is judged against. What it does have is the mat of living
+   * moss it hides under, which is the whole of the animal's answer to
+   * being found: it lives in the deep shade of Greenwood under a thing
+   * that grows there because the light does not reach it.
+   *
+   * So the star is the one thing it has no answer to, and that is why
+   * this is the creature the weakness belongs on rather than the man.
+   * He is a fight about a guard — a question of WHEN to cast. This is
+   * the first fight that asks WHETHER, and it is the first animal a
+   * player meets, which is where a rule wants teaching.
+   *
+   * It does not make the fight free: the star is nine and a swing is
+   * eight to twelve, so half again on the smaller of the two is a
+   * reason to use her, not a reason to stop swinging. And her power is
+   * finite while the blade is not.
+   */
+  affinity: starAffinity('WEAK'),
+  /**
+   * ITS FOOTING. A small animal braced under a mat of moss: hit it and
+   * it slips, hit it while it is bracing and it slips further, and when
+   * it has nothing left it sits down hard and you get two free swings.
+   *
+   * This is what 苔かくれ is FOR, from the player's side: not a wall to
+   * wait out but something to break.
+   */
+  poise: {
+    max: 5,
+    perHit: 1,
+    perGuardedHit: 2,
+    staggerTurns: 2,
+    staggerDamageTaken: 1.5,
+    breakLine: 'モスラビットの体勢が崩れた！ 苔が肩から滑り落ちる。',
+    recoverLine: 'モスラビットは足を踏みなおし、こちらを見た。',
+  },
+  /**
+   * HOW IT CHANGES. Two, and neither of them makes it a better fighter
+   * in a way that is only a bigger number: first it stops facing you
+   * and starts hiding, and then — cornered, with nowhere behind it —
+   * it comes at you. It is a frightened animal, and the fight is
+   * supposed to read that way by the end of it.
+   */
+  phases: [
+    {
+      id: 'WARY',
+      atOrBelow: 0.6,
+      line: 'モスラビットは耳を伏せ、苔の下に身を沈めた。',
+      // It hides far more readily. Which is what poise is the answer to.
+      skillChance: 0.65,
+    },
+    {
+      id: 'CORNERED',
+      atOrBelow: 0.28,
+      line: 'モスラビットは後ずさり、それ以上下がれないと知った。',
+      attack: 1.5,
+      // And it stops hiding: there is no time left for that.
+      skillChance: 0.15,
+    },
+  ],
+  skill: {
+    name: '苔かくれ',
+    turns: 2,
+    damageTaken: 0.5,
+    chance: 0.4,
+    cooldown: 3,
+    maxUses: 2,
+    // Named in the line, so the player learns what the move is called
+    // the same way they learn the attack's name.
+    line: 'モスラビットの苔かくれ！ 身を低く丸め、苔と葉が身体を覆う。',
+  },
+  appearLine: 'モスラビットが飛び出してきた。',
+  // Beaten, and looking at you. Nothing here says it is dying.
+  defeatedText: 'モスラビットは草の上に伏せ、こちらを見ている。',
+  individual: {
+    // A reason, not a lesson. The player is told what is in front of
+    // them and nothing about what to feel — which is what makes HELP
+    // something other than a nicer word for SPARE.
+    scene: [
+      { speaker: null, text: '伏せたモスラビットの後ろ足に、古い蔓がきつく巻きついている。' },
+      { speaker: null, text: '逃げようとして、逃げきれなかったのだと分かる。' },
+      { speaker: 'ケイオス', text: '……この子、ずっとここにいたのかな。', kaosFace: 'SAD' },
+    ],
+    prompt: 'この子を、どうしますか？',
+    options: [
+      { id: 'KILL', label: 'とどめを刺す', sub: 'KILL' },
+      { id: 'SPARE', label: 'そのまま行く', sub: 'SPARE' },
+      { id: 'HELP', label: '蔓を外してやる', sub: 'HELP' },
+      { id: 'CAPTURE', label: '連れて行く', sub: 'CAPTURE' },
+    ],
+    aftermath: {
+      KILL: '小さな体から力が抜けた。苔と葉が、ゆっくりとほどけて落ちた。',
+      SPARE: '距離を取って歩きだすと、蔓に繋がれたまま、こちらを見ていた。',
+      HELP: '蔓を切ってやると、二、三歩たしかめるように歩いて、林の奥へ消えた。',
+      CAPTURE: '腕の中でしばらく震えて、やがて静かになった。連れて歩くことになりそうだ。',
+    },
+  },
+};
+
+export const ENEMY_SPECIES: Record<SpeciesId, EnemySpeciesDef> = {
+  moss_rabbit: MOSS_RABBIT,
+  fuumimi: FUUMIMI,
+  hyourei: HYOUREI,
+  iwahoro: IWAHORO,
+  kokemaru: KOKEMARU,
+};
+
+/**
+ * INDIVIDUALS WHO ARRIVE WITH A NAME OF THEIR OWN — FORGE's individual IDs,
+ * kept exactly as FORGE wrote them (never minted, never turned into an
+ * NPC_ID), with the species each belongs to.
+ */
+export const FIXED_INDIVIDUALS: Readonly<Record<string, SpeciesId>> = {
+  [FUUMIMI_INDIVIDUAL_ID]: 'fuumimi',
+};
+
+/**
+ * The species an individual belongs to, read off its id.
+ *
+ * Individual ids are `<speciesId>_001`, so the species is in the name.
+ * That is deliberate: WORLD MEMORY stores an actor id and nothing else,
+ * and a fact about a creature has to stay readable years later without
+ * a lookup table having survived alongside it.
+ */
+export function speciesOfIndividual(individualId: string): EnemySpeciesDef | null {
+  const fixed = FIXED_INDIVIDUALS[individualId];
+  if (fixed) return ENEMY_SPECIES[fixed];
+  const speciesId = individualId.replace(/_\d+$/, '');
+  return (ENEMY_SPECIES as Record<string, EnemySpeciesDef>)[speciesId] ?? null;
+}
+
+/** What to call an individual in a sentence. */
+export function individualName(individualId: string): string {
+  return speciesOfIndividual(individualId)?.name ?? individualId;
+}
