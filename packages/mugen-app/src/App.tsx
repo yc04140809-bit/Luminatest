@@ -81,6 +81,10 @@ import { availableMagic } from '@mugen/core/magic/magic';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { kaosHasAwakened } from '@mugen/core/magic/awakened';
 import { FinaleRun, type FinaleMusic } from './ui/finale';
+import { ChapterEnd } from './ui/chapterEnd';
+import { onPersonMet } from './ui/common/peopleMet';
+import { chapterSummaryRows, metMark, CHAPTER_ONE_PEOPLE } from '@mugen/content/story/chapterSummary';
+import { BAKERY_LINA_FIRST_MARK } from '@mugen/content/dialogue/bakeryTalk';
 import { KAOS_MP_REGEN } from '@mugen/content/characters/kaosMpRegen';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
@@ -324,6 +328,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (!finale) setFinaleBgm(null);
   }, [finale]);
+  /** The chapter ended just now (its end card first, then 「あなたの第1章」); a world already ended goes straight to the summary. */
+  const [chapterJustEnded, setChapterJustEnded] = useState(false);
+  // 出会った人 (「あなたの第1章」): somebody of the chapter with a name, heard speaking for the first time — kept.
+  useEffect(
+    () =>
+      onPersonMet((person) => {
+        const mark = metMark(person);
+        if (!world.isRead(mark)) void world.markRead([mark]).catch(() => {});
+      }),
+    [world],
+  );
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -902,6 +917,33 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         />
       );
     case 'HOME':
+      if (finale && (chapterJustEnded || world.getFinaleStage() === 'ENDED')) {
+        const gald = world.getGaldLifeChoice();
+        // Met: whoever was heard speaking (met:<id>), and those the story itself made sure of.
+        const met = new Set(CHAPTER_ONE_PEOPLE.map((p) => p.id).filter((id) => world.isRead(metMark(id))));
+        if (gald) met.add('gald');
+        if (world.isRead(GRAVE_MEETING_MARK)) met.add('grave');
+        if (world.isRead(BAKERY_LINA_FIRST_MARK)) met.add('lina');
+        for (const id of ['aria', 'levi']) met.add(id);
+        return (
+          <ChapterEnd
+            from={chapterJustEnded ? 'END' : 'SUMMARY'}
+            heroName={world.getHeroName()}
+            galdChoice={gald}
+            rows={chapterSummaryRows({
+              days: toAbsoluteDay(world.getClock()),
+              gald,
+              fuumimi: world.getFuumimiAnswer()?.choice ?? null,
+              met: met.size,
+              rumors: world.countRead('rumor'),
+              records: world.getLifeArchive().reduce((n, e) => n + e.chapters.length, 0),
+              unknown: Math.max(0, world.getEvents().length - world.getKnownEvents().length),
+            })}
+            // Back to the title, by starting the page again (「つづきから」 comes back here).
+            onTitle={() => window.location.reload()}
+          />
+        );
+      }
       if (finale) {
         // A test may make ヴァルシール quick to beat (DEV only).
         const quick = <T extends { hp: number }>(spec: T): T => {
@@ -916,8 +958,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               VALSHEEL_FORM1: { spec: quick(VALSHEEL_FORM1_PROVISIONAL), artId: 'valsheel' },
               VALSHEEL_FORM2: { spec: quick(VALSHEEL_FORM2_PROVISIONAL), artId: 'valsheel_form2' },
             }}
-            // Written up to the stop and what follows it (to Aria and Levi); the village after is 手順6.
-            until="STOPPED"
+            // The trial is played to the chapter's end (段階5, 作者 2026-11-07): the village rebuilt, the departure,
+            // straight on — then CHAPTER 1 END and 「あなたの第1章」.
+            departs
+            onEnded={() => setChapterJustEnded(true)}
             party={() => {
               const stats = world.getPartyStats();
               // A test may send them in on their last legs (DEV only), to see a lost fight.
@@ -937,7 +981,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             }}
             autoAvailable={autoOpen}
             // Each point reached: kept — and a little of her magic back (KAOS_MP_REGEN).
-            onReach={(stage) => world.advanceFinaleStage(stage).then(() => world.recoverKaosMp(KAOS_MP_REGEN.STORY_STEP))}
+            onReach={(stage) => {
+              // The chapter ending now: its end card first (said before the stage is kept, which draws this again).
+              if (stage === 'ENDED') setChapterJustEnded(true);
+              return world.advanceFinaleStage(stage).then(() => world.recoverKaosMp(KAOS_MP_REGEN.STORY_STEP));
+            }}
             onWon={(members) => {
               const hero = members.find((m) => m.id === 'hero');
               const kaos = members.find((m) => m.id === 'kaos');

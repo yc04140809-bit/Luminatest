@@ -401,6 +401,8 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: ARIA, text: '……見張っておくだけよ。' },
     { speaker: LEVI, text: 'へいへい。' },
     { speaker: KAOS, text: '……いってらっしゃい♪', kaosFace: 'SMILE' },
+    // C2 (作者 2026-11-07): the memo once more, here and only here — no frame of its own after the summary.
+    { speaker: null, text: '{HERO}は、あのメモを取り出した。「エルナへ」――まだ会ったことのない名前だった。' },
     { speaker: null, text: '槌の音を背に、三人は歩き出した。' },
   ]),
 };

@@ -181,8 +181,12 @@ export function VillageScreen({
                   Lv.{progress.level}
                 </span>
                 {them && (
+                  // Read as 「HP 100/100　MP 48/48」; drawn closer (the labels small, the gap narrow) so a panel
+                  // as narrow as a 640-wide phone's keeps the MP whole (作者 2026-11-07).
                   <span className="vg-bars" data-testid={`party-${id}`}>
-                    HP {them.currentHp}/{them.maxHp}　MP {them.currentMp}/{them.maxMp}
+                    <i className="vg-stat">HP</i> {them.currentHp}/{them.maxHp}
+                    <span className="vg-gap">　</span>
+                    <i className="vg-stat">MP</i> {them.currentMp}/{them.maxMp}
                   </span>
                 )}
               </p>

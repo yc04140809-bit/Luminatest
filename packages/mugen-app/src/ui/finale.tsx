@@ -33,6 +33,7 @@ import { audioManager, playSfx } from '../platform/audio';
 import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
 import { sayKaosLine } from './audio/kaosLineVoice';
+import { noteSpeaker } from './common/peopleMet';
 import { withHeroName } from './common/heroName';
 import { Typed } from './common/Typed';
 
@@ -79,6 +80,13 @@ export interface FinaleRunProps {
   autoAvailable: boolean;
   /** Played up to here for now: once the stage reaches it, 「つづく」. */
   until?: FinaleStage;
+  /**
+   * The departure played straight on, not waited for (試遊版, 段階5 — 作者 2026-11-07: 第1章の終わりまで通す):
+   * the village rebuilt, then 旅立ち, then `onEnded`.
+   */
+  departs?: boolean;
+  /** The chapter over (ENDED kept): whoever shows it shows what comes after (「あなたの第1章」). */
+  onEnded?: () => void;
   /** Keep a stage reached; the next beat waits for it. */
   onReach: (stage: FinaleStage) => Promise<unknown>;
   /** A fight won: how the party came out of it (wounds carried). */
@@ -111,19 +119,22 @@ type Phase =
   | { kind: 'PAUSE' };
 
 /** What the stage leads to, and whether it can be played yet. */
-function playable(stage: FinaleStage, fights: FinaleRunProps['fights'], until: FinaleStage | undefined) {
+function playable(stage: FinaleStage, fights: FinaleRunProps['fights'], until: FinaleStage | undefined, departs = false) {
   if (until && finaleReached(stage, until)) return null;
   const beat = finaleBeat(stage);
-  // Not begun: nothing left, a beat the player chooses (旅立つ) or the end screen (手順6), a fight not written yet.
-  if (!beat || beat.trigger === 'DEPART' || beat.then === 'END_SCREEN') return null;
+  // Not begun: nothing left, a beat the player chooses (旅立つ) or the end screen (手順6) — unless the departure is
+  // played straight on (`departs`) — a fight not written yet.
+  if (!beat) return null;
+  if (!departs && (beat.trigger === 'DEPART' || beat.then === 'END_SCREEN')) return null;
+  if (beat.then === 'END_SCREEN') return beat;
   if (beat.then && !fights[beat.then]) return null;
   return beat;
 }
 
-export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, until, onReach, onWon, onLost, onMusic, onPause, unlockNew, onUnlockSeen }: FinaleRunProps) {
+export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, until, departs, onEnded, onReach, onWon, onLost, onMusic, onPause, unlockNew, onUnlockSeen }: FinaleRunProps) {
   const [stage, setStage] = useState<FinaleStage>(from);
-  const beat = useMemo(() => playable(stage, fights, until), [stage, fights, until]);
-  const [phase, setPhase] = useState<Phase>(() => (playable(from, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
+  const beat = useMemo(() => playable(stage, fights, until, departs), [stage, fights, until, departs]);
+  const [phase, setPhase] = useState<Phase>(() => (playable(from, fights, until, departs) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
   const [busy, setBusy] = useState(false);
   /** The fight (by its round) whose breath before it is still being held. */
   const [breath, setBreath] = useState<number | null>(null);
@@ -154,7 +165,8 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       .finally(() => {
         setBusy(false);
         setStage(next);
-        setPhase(playable(next, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' });
+        setPhase(playable(next, fights, until, departs) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' });
+        if (next === 'ENDED') onEnded?.();
       });
   };
 
@@ -334,6 +346,8 @@ function FinaleScene({
   }, [sceneId, at]);
   // Her words, heard as they come up — after the line's 間, with them (ボイスパック12).
   useEffect(() => {
+    // Met as the line comes up, whether or not its voice waits for the 間 (「あなたの第1章」).
+    noteSpeaker(voiced);
     const t = window.setTimeout(() => sayKaosLine(`finale:${sceneId}:${at}`, { speaker: voiced, text }), pause);
     return () => window.clearTimeout(t);
   }, [sceneId, at]);

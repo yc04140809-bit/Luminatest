@@ -12,7 +12,8 @@ import { placeButton } from './village';
  *   village → the lure → the village meanwhile → the grassland's words → the
  *   first form → its HP at nought: the shell breaks → the second form (the
  *   party carried) → the finishers, the stop (quiet), the return… Aria and
- *   Levi → 「つづく」 (the village after is the next step).
+ *   Levi → the village rebuilt → the departure → CHAPTER 1 END → 「あなたの第1章」
+ *   (段階5: the trial is played to the chapter's end).
  *
  * Saved at each point (襲撃発生済み RAID, 草原誘導済み LURED, 第2形態移行済み
  * FORM1_WON, 戦闘終了済み FORM2_WON, STOPPED): closing the game mid-way resumes
@@ -215,8 +216,8 @@ test('PHASE 3: the rest is the night before — ruins, raid, lure, the grassland
   expect(words.join('\n')).not.toMatch(DEATH);
 });
 
-test('the first form at nought: the shell breaks, the second form (the party carried) — then the finishers, the stop in quiet, the return… つづく; 「つづきから」 comes back to つづく', async ({ page }) => {
-  test.setTimeout(240_000);
+test('the first form at nought: the shell breaks, the second form (the party carried) — then the finishers, the stop in quiet, the return, the village rebuilt, the departure (the memo once more) — CHAPTER 1 END, 「あなたの第1章」; 「つづきから」 comes back to the summary', async ({ page }) => {
+  test.setTimeout(300_000);
   await heaviestVillage(page);
   await page.evaluate(() => ((window as unknown as { __mugenFinaleFoeHp?: number }).__mugenFinaleFoeHp = 1));
   await (await placeButton(page, 'rest-button')).click();
@@ -261,14 +262,32 @@ test('the first form at nought: the shell breaks, the second form (the party car
     'GRAVE_STAYS',
     'ARIA_LEVI',
   ]);
-  await expect(page.getByTestId('finale-pause')).toBeVisible();
+  // The trial goes on to the chapter's end (段階5, 作者 2026-11-07): no 「つづく」 — the village rebuilt, then the departure.
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'REBUILD');
   await expect.poll(() => stage(page)).toBe('STOPPED');
+  expect(await readWhile(page, ['REBUILD', 'DEPARTURE'], words)).toEqual(['REBUILD', 'DEPARTURE']);
+  await expect(page.getByTestId('finale-pause')).toHaveCount(0);
   expect(words.join('\n')).not.toMatch(DEATH);
   expect(words.join('\n')).toContain('みんな、生きてる');
+  // C2: the memo once more, just before they walk off — his name in it, the narration's.
+  const hero = await world<string>(page, `(w) => w.getHeroName()`);
+  expect(words.slice(-2)).toEqual([`${hero}は、あのメモを取り出した。「エルナへ」――まだ会ったことのない名前だった。`, '槌の音を背に、三人は歩き出した。']);
 
-  await page.getByTestId('finale-pause-ok').click();
+  // CHAPTER 1 END, its four lines; then 「あなたの第1章」.
+  await expect(page.getByTestId('chapter-end')).toBeVisible();
+  await expect.poll(() => stage(page)).toBe('ENDED');
+  await expect(page.getByTestId('chapter-end-line')).toHaveText(['人は、生き残った。', 'けれど、村は壊れた。', '失ったものは、元には戻らない。', 'それでも――人はまた、作り直していく。']);
+  await page.getByTestId('chapter-end-next').click();
+  await expect(page.getByTestId('chapter-summary')).toBeVisible();
+  await expect(page.getByTestId('chapter-summary-row')).toHaveCount(7);
+  await expect(page.locator('[data-row="GALD"] dd')).toHaveText('見逃した');
+  // Everyone of the finale with a name, heard speaking: him, Grave, Mirei, Rizel, Lina, the baker, Aria, Levi.
+  await expect(page.locator('[data-row="MET"] dd')).toHaveText('8人');
+
+  await page.getByTestId('chapter-summary-title').click();
   await page.getByTestId('continue-button').click();
-  await expect(page.getByTestId('finale-pause')).toBeVisible();
+  await expect(page.getByTestId('chapter-summary')).toBeVisible();
+  await expect(page.getByTestId('chapter-end')).toHaveCount(0);
   await expect(page.getByTestId('world-clock')).toHaveCount(0);
 });
 

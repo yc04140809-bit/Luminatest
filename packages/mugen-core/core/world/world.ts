@@ -1268,6 +1268,14 @@ export class World {
     return this.readMarks.has(id);
   }
 
+  /** How many marks of one kind are kept (`rumor`, `met`…) — what 「あなたの第1章」 counts. */
+  countRead(kind: string): number {
+    const prefix = `${kind}:`;
+    let n = 0;
+    for (const m of this.readMarks) if (m.startsWith(prefix)) n += 1;
+    return n;
+  }
+
   /**
    * Marks these as looked at. Writes only when something is new to the
    * list; returns whether it wrote.

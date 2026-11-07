@@ -10,6 +10,7 @@
 //   talk:<id>    a one-time talk heard to its end
 //   event:<id>   a one-time scene seen to its end, or a thing that happened
 //                in the world after one (the first time back at the ruins)
+//   met:<id>     somebody of the first chapter with a name, first heard speaking (content/story/chapterSummary.ts)
 //   celebrated:<id>  a thing first had, a handwork first made, a thing first
 //                seen — the two of them high-fived once (content/rewards/celebrate.ts)
 //

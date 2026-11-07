@@ -48,6 +48,14 @@ describe('a world', () => {
     expect(world.getKnownEvents().length).toBe(events);
   });
 
+  it('counts the marks of one kind (「あなたの第1章」)', async () => {
+    const world = await open(fresh());
+    expect(world.countRead('rumor')).toBe(0);
+    await world.markRead(['rumor:A', 'rumor:B', 'met:lina', 'dest:X', 'rumorish:Z']);
+    expect(world.countRead('rumor')).toBe(2);
+    expect(world.countRead('met')).toBe(1);
+  });
+
   it('many marked at once, none lost', async () => {
     const name = fresh();
     const world = await open(name);

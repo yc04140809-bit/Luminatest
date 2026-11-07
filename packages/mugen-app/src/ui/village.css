@@ -64,19 +64,31 @@
   padding: 5px 2px 0;
   border-top: 1px solid rgba(29, 36, 72, 0.25);
 }
+.vg-party { container-type: inline-size; min-width: 0; }
 .vg-member {
   margin: 0;
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  /* The name gives way first (a long one is cut with …): HP and MP are never cut. */
+  grid-template-columns: minmax(0, auto) auto 1fr;
   align-items: baseline;
   column-gap: 6px;
   font-size: 12px;
   line-height: 1.45;
   white-space: nowrap;
 }
-.vg-name { font-weight: 700; }
+.vg-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .vg-level { opacity: 0.8; }
 .vg-bars { font-variant-numeric: tabular-nums; justify-self: end; }
+.vg-stat { font-style: normal; font-size: 0.82em; opacity: 0.8; }
+.vg-gap { font-size: 0.5em; }
+/* A narrow panel (a phone held sideways): all of it a little smaller and closer. */
+@container (max-width: 200px) {
+  .vg-member { font-size: 11px; column-gap: 4px; }
+  .vg-level { font-size: 0.9em; }
+  .vg-bars { font-size: 10.5px; letter-spacing: -0.02em; word-spacing: -0.12em; }
+  .vg-stat { font-size: 0.78em; }
+  .vg-gap { font-size: 0.35em; }
+}
 .vg-hint { margin: 2px 0 0; font-size: 13px; line-height: 1.65; opacity: 0.9; }
 
 .vg-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; }

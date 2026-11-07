@@ -1,5 +1,6 @@
 import { lineVoice } from '../../platform/voice';
 import { playVoice } from '../../platform/audio';
+import { noteSpeaker } from '../common/peopleMet';
 
 /**
  * ケイオス'S WORDS IN CHAPTER 1, HEARD AS THEY COME UP (ボイスパック12, 2026-11-01).
@@ -25,6 +26,8 @@ export function sayKaosLine(
   options?: { wait?: boolean },
 ): boolean {
   if (!line) return false;
+  // Whoever speaks, voiced or not: met (「あなたの第1章」).
+  noteSpeaker(line.speaker);
   const id = lineVoice(line.speaker, line.text);
   if (!id) return false;
   const now = performance.now();
