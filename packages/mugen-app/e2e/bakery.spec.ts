@@ -219,7 +219,8 @@ test('village → bakery → the shop, the owner and Lina, Lina’s first talk �
   // readMarks — and nothing else, row for row.
   await page.waitForTimeout(500);
   const after = await everythingSaved(page);
-  expect(readMarksOf(after)).toEqual([...((readMarksOf(before) as string[]) ?? []), 'talk:BAKERY_LINA_FIRST']);
+  // …and, as she first speaks, that they have met (「あなたの第1章」 — met:lina).
+  expect(readMarksOf(after)).toEqual([...((readMarksOf(before) as string[]) ?? []), 'met:lina', 'talk:BAKERY_LINA_FIRST']);
   expect(withoutReadMarks(after)).toEqual(withoutReadMarks(before));
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-empty')).toBeVisible();

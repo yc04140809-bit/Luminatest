@@ -220,7 +220,8 @@ test('village → tavern → the room, the master, a talk → back to the villag
   // key, row for row. (The way into Alden was already read before the village.)
   await page.waitForTimeout(500);
   const after = await everythingSaved(page);
-  expect(readMarksOf(after)).toEqual([INTRO, PURSE, 'talk:GRAVE_MEETING']);
+  // …and, as he first speaks, that they have met (「あなたの第1章」 — met:grave).
+  expect(readMarksOf(after)).toEqual([INTRO, PURSE, 'met:grave', 'talk:GRAVE_MEETING']);
   expect(readMarksOf(before)).toEqual([INTRO, PURSE]);
   expect(rowOf(after, 'musicUnlocks')).toEqual([...((rowOf(before, 'musicUnlocks') as string[]) ?? []), 'TAVERN']);
   expect(without(after, 'musicUnlocks')).toEqual(without(before, 'musicUnlocks'));
@@ -336,7 +337,7 @@ test('his meeting happens once in a new save: not again on walking back in, not 
   await page.getByTestId('tavern-leave').click();
 
   // The app closed and opened: still his greeting.
-  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual([INTRO, PURSE, 'talk:GRAVE_MEETING']);
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual([INTRO, PURSE, 'met:grave', 'talk:GRAVE_MEETING']);
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
@@ -362,7 +363,7 @@ test('a save from before the mark (no readMarks row) opens, and meets him once',
   const meeting = await readTalk(page);
   expect(meeting[0]).toBe(FIRST_LINE);
   await page.getByTestId('tavern-leave').click();
-  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['talk:GRAVE_MEETING']);
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['met:grave', 'talk:GRAVE_MEETING']);
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await (await placeButton(page, 'tavern-button')).click();
