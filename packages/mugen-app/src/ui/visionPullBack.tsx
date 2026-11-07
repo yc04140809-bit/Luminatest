@@ -6,12 +6,15 @@ import {
   PULL_BACK_UNKNOWN,
 } from '@mugen/content/events/visionPullBack';
 import { audioManager } from '../platform/audio';
+import { areaArt } from '../assets/areas';
+import { usePicture } from './scene';
 import './visionPullBack.css';
 
 /**
  * 引く演出 (作者 2026-11-03 採用 — TIME SHIFT の直後、第1章の中盤の山場).
  *
- *   HOLD    his three years' picture where it was, a moment longer; the music falls away
+ *   HOLD    his three years' picture where it was, a moment longer; the music falls away, and the village behind
+ *           darkens slowly into the night of the pages (作者 2026-11-07 — not a cut)
  *   SHRINK  the picture draws back into a page of the life record — his, 「盗賊」
  *   PAGES   around it, one after another, other people's pages: a name, 「？？？」, 「まだ知らない出来事」
  *   WORDS   「見ていない間も、人生は続いている。」
@@ -52,6 +55,8 @@ export function VisionPullBack({
   const [stage, setStage] = useState<PullBackStage>(() => (lessMotion() ? 'DONE' : 'HOLD'));
   const [ratio, setRatio] = useState(2 / 3);
   const timers = useRef<number[]>([]);
+  // The ground SEE stood on (the village, held back), for the night to come over slowly.
+  const ground = usePicture(() => areaArt('ALDEN').then((a) => a.background), 'backdrop:ALDEN');
   const left = useRef(false);
 
   useEffect(() => {
@@ -84,6 +89,8 @@ export function VisionPullBack({
       style={{ ['--vp-ratio' as string]: String(ratio) }}
       onClick={finish}
     >
+      {ground && <img className="vp-backdrop" src={ground} alt="" aria-hidden="true" data-testid="vision-pull-ground" />}
+      <span className="vp-sky" aria-hidden="true" data-testid="vision-pull-sky" />
       <span className="vp-veil" aria-hidden="true" />
       {/* His page: the picture, then the page round it. */}
       <div className="vp-page vp-his" data-testid="vision-pull-his">

@@ -133,6 +133,10 @@ test.describe('with motion', () => {
     await page.getByTestId('future-vision-next').click();
     const pull = page.getByTestId('vision-pull');
     await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'PULL');
+    // Not a cut (作者 2026-11-07): the village SEE stood on is still there, the night not yet over it…
+    const sky = () => page.getByTestId('vision-pull-sky').evaluate((el) => parseFloat(getComputedStyle(el).opacity));
+    await expect(page.getByTestId('vision-pull-ground')).toBeVisible();
+    expect(await sky()).toBeLessThan(0.5);
     // Each stage seen, in order (read as it goes).
     const seen: string[] = [];
     for (let i = 0; i < 120 && seen.at(-1) !== 'DONE'; i++) {
@@ -141,6 +145,8 @@ test.describe('with motion', () => {
       await page.waitForTimeout(80);
     }
     expect(seen).toEqual(['HOLD', 'SHRINK', 'PAGES', 'WORDS', 'DONE']);
+    // …and by the end it has come over it, slowly.
+    expect(await sky()).toBeGreaterThan(0.95);
     // The music fell away as it began.
     expect((await ducks(page))[0]).toBeLessThan(0.5);
     // His page, as the record names him; the others: a name and nothing known yet.

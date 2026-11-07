@@ -7,9 +7,30 @@
   inset: 0;
   z-index: 30;
   overflow: hidden;
-  background: radial-gradient(120% 120% at 50% 30%, #1b2350 0%, #0b0f24 55%, #05070f 100%);
+  /* The look ahead's own ground first (the village, held back — as SEE showed it), then the night of the pages
+     coming over it slowly (作者 2026-11-07: 背景はゆっくり暗くして切り替える). */
+  background: var(--bg);
   color: #f2f4f8;
   cursor: default;
+}
+.vp-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+}
+.vp-sky {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 120% at 50% 30%, #1b2350 0%, #0b0f24 55%, #05070f 100%);
+  opacity: 0;
+  animation: vp-sky-in 2.8s ease-in-out 0.3s forwards;
+}
+@keyframes vp-sky-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .vp-veil {
   position: absolute;
@@ -17,7 +38,7 @@
   background: rgba(3, 4, 10, 0.55);
   transition: opacity 1.6s ease;
 }
-.vp-hold .vp-veil { opacity: 0.85; }
+.vp-hold .vp-veil { opacity: 0; }
 .vp-shrink .vp-veil, .vp-pages .vp-veil, .vp-words .vp-veil, .vp-done .vp-veil { opacity: 0.25; }
 
 /* A page of the life record: the crystal plate (as the record's own screens), a little translucent. */
@@ -146,4 +167,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vision-pull *, .vision-pull { transition: none !important; animation: none !important; }
+  .vp-sky { opacity: 1; }
 }
