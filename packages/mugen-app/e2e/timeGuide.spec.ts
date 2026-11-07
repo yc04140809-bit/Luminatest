@@ -7,6 +7,17 @@ import { throughTheOpening, pastTheIntro } from './opening';
  *   - written, to be looked at again from 噂話 and 設定: じっくり派・がっつり派 and the ※
  *   - after セキリュウガ, while the signs have not risen, the objective says 「出かけて、夜は休もう」 under it
  */
+// The suite passes her five lines (playwright.config, mugen_dev_time_guide=off): here they are what is tested.
+test.use({
+  storageState: {
+    cookies: [
+      { name: 'mugen_dev_theme_intro', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
+      { name: 'mugen_dev_time_pass', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
+    ],
+    origins: [],
+  },
+});
+
 type DevWorld = {
   isRead(id: string): boolean;
   markRead(ids: string[]): Promise<unknown>;
@@ -92,7 +103,8 @@ test('the first time back in: her five lines, in her voice, in order — then ne
   await expect
     .poll(async () => (await heard()).slice(before).filter((f) => /^v_ch1_chaos17[1-5]/.test(f)), { timeout: 10_000 })
     .toEqual(['v_ch1_chaos171.mp3', 'v_ch1_chaos172.mp3', 'v_ch1_chaos173.mp3', 'v_ch1_chaos174.mp3', 'v_ch1_chaos175.mp3']);
-  expect(await world<boolean>(page, `(w) => w.isRead('guide:time')`)).toBe(true);
+  // Kept as said (written a moment after it is closed).
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('guide:time')`)).toBe(true);
 
   // Out and back again, and after a restart: not again.
   await outAndBack(page);

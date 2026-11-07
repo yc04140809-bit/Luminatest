@@ -42,6 +42,8 @@ export default defineConfig({
       cookies: [
         { name: 'mugen_dev_theme_intro', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
         { name: 'mugen_dev_time_pass', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
+        // 時間の使い方 (段階4): her five lines the first time back in — passed, as the intro is; its own spec keeps it.
+        { name: 'mugen_dev_time_guide', value: 'off', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' },
       ],
       origins: [],
     },

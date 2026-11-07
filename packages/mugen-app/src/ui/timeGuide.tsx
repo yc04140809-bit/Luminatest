@@ -36,3 +36,17 @@ export function TimeGuideButton({ onClick, testId }: { onClick: () => void; test
     </button>
   );
 }
+
+/**
+ * The dev server's tests come back into the village as they always have: a cookie (`mugen_dev_time_guide=off`, set
+ * for the whole suite by playwright.config) passes her five lines. Its own spec (timeGuide.spec) clears it. DEV only
+ * — a build never reads it.
+ */
+export function timeGuideSkipped(): boolean {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return document.cookie.split('; ').includes('mugen_dev_time_guide=off');
+  } catch {
+    return false;
+  }
+}

@@ -96,6 +96,7 @@ import { banterFor } from './ui/banterRoll';
 import { NewsAside, newsFor } from './ui/aldenNews';
 import { NudgeAside, homecomingTalk, newTalkMemo, settingOutSaid, settingOutTalk } from './ui/kaosNudge';
 import { TIME_GUIDE_LINES, TIME_GUIDE_MARK } from '@mugen/content/story/timeGuide';
+import { timeGuideSkipped } from './ui/timeGuide';
 import type { VillageRumor } from '@mugen/content/story/villageRumors';
 import type { KaosNudge } from '@mugen/content/story/kaosNudges';
 import type { KaosBanter } from '@mugen/content/story/kaosBanter';
@@ -1300,7 +1301,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             setHomeBanter(banter);
             setHomeNews(news);
             // The first time back in from outside: how time is spent here (時間の使い方) — before anything else.
-            const guide = !world.isRead(TIME_GUIDE_MARK);
+            const guide = !world.isRead(TIME_GUIDE_MARK) && !timeGuideSkipped();
             setHomeGuide(guide);
             // Her word only when nothing else is said, and once a day at most (状況別の会話 included).
             setHomeNudge(homecomingTalk(world, talkMemo.current, !guide && !daily && !banter && !news));
