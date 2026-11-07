@@ -10,6 +10,7 @@ import type { EventCgKey } from '@mugen/assets/keys';
 import { eventCg } from '../assets/eventCg';
 import { NavyButton, NavyPlate } from './kit/NavyPlate';
 import { canShareFile, makeShareImage, SHARE_FILE_NAME } from './chapterShare';
+import { inNativeShell, saveNative, shareNative } from '../platform/keepPicture';
 import './chapterEnd.css';
 
 /**
@@ -73,7 +74,8 @@ function EndCard({ onDone }: { onDone: () => void }) {
   );
 }
 
-type Kept = { url: string; file: File; shareable: boolean } | 'MAKING' | 'FAILED' | null;
+type Picture = { url: string; file: File; shareable: boolean; native: boolean };
+type Kept = Picture | 'MAKING' | 'FAILED' | null;
 
 function ChapterSummary({
   rows,
@@ -104,7 +106,8 @@ function ChapterSummary({
     const file = new File([blob], SHARE_FILE_NAME, { type: 'image/png' });
     if (url.current) URL.revokeObjectURL(url.current);
     url.current = URL.createObjectURL(blob);
-    setKept({ url: url.current, file, shareable: canShareFile(file) });
+    const native = inNativeShell();
+    setKept({ url: url.current, file, shareable: native || canShareFile(file), native });
   };
 
   return (
@@ -131,9 +134,24 @@ function ChapterSummary({
   );
 }
 
-function SharePreview({ kept, onClose }: { kept: { url: string; file: File; shareable: boolean }; onClose: () => void }) {
+function SharePreview({ kept, onClose }: { kept: Picture; onClose: () => void }) {
   const [said, setSaid] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // In the APK (作者 2026-11-07: 審査もテスター配布も APK): through Capacitor — the share sheet, and Documents.
+  const shareInShell = async () => {
+    setBusy(true);
+    const r = await shareNative(kept.file, kept.file.name, CHAPTER_SUMMARY_TITLE);
+    setBusy(false);
+    if (!r.ok && !r.cancelled) setSaid('共有できませんでした。「保存する」を使ってください。');
+  };
+  const saveInShell = async () => {
+    setBusy(true);
+    const r = await saveNative(kept.file, kept.file.name);
+    setBusy(false);
+    setSaid(r.ok ? `端末の「${r.where}」に保存しました。` : '保存できませんでした。「共有する」から保存先を選んでください。');
+  };
   const share = async () => {
+    if (kept.native) return shareInShell();
     try {
       await navigator.share({ files: [kept.file], title: 'MUGEN ZERO', text: CHAPTER_SUMMARY_TITLE });
     } catch (e) {
@@ -146,13 +164,21 @@ function SharePreview({ kept, onClose }: { kept: { url: string; file: File; shar
       <NavyPlate className="chapter-share-card">
         <img className="chapter-share-image" src={kept.url} alt={CHAPTER_SUMMARY_TITLE} data-testid="chapter-share-image" />
         <div className="chapter-summary-actions">
-          {kept.shareable && <NavyButton testId="chapter-share-send" label="共有する" onClick={() => void share()} />}
-          <a className="navy-btn chapter-share-save" data-testid="chapter-share-save" href={kept.url} download={SHARE_FILE_NAME}>
-            保存する
-          </a>
+          {kept.shareable && <NavyButton testId="chapter-share-send" label="共有する" disabled={busy} onClick={() => void share()} />}
+          {kept.native ? (
+            <NavyButton testId="chapter-share-save" label="保存する" disabled={busy} onClick={() => void saveInShell()} />
+          ) : (
+            <a className="navy-btn chapter-share-save" data-testid="chapter-share-save" href={kept.url} download={SHARE_FILE_NAME}>
+              保存する
+            </a>
+          )}
           <NavyButton testId="chapter-share-close" label="とじる" onClick={onClose} />
         </div>
-        {said && <p className="chapter-summary-note">{said}</p>}
+        {said && (
+          <p className="chapter-summary-note" data-testid="chapter-share-said">
+            {said}
+          </p>
+        )}
       </NavyPlate>
     </div>
   );
