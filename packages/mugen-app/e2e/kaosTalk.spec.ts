@@ -30,6 +30,11 @@ async function freshVillage(page: Page) {
   await page.getByTestId('naming-default').click();
   await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
+  // 時間の使い方 (段階4) — said the first time back in — is its own spec's (timeGuide.spec): heard already here, so
+  // what this spec waits for on coming back is what comes.
+  await page.evaluate(() =>
+    (window as unknown as { __mugenWorld: { markRead(ids: string[]): Promise<void> } }).__mugenWorld.markRead(['guide:time']),
+  );
 }
 
 const roll = (page: Page, r: number) =>

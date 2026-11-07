@@ -146,6 +146,12 @@ export const KAOS_CH1_LINES: Readonly<Record<string, string>> = {
   "決まったね！ わたしの応援のおかげ♪": 'v_ch1_chaos152',
   // ボイスパック23 (2026-11-03): ガルドの荷からこぼれた薬包を見て — 発見シーン (ui/gald.tsx).
   "……薬？": 'v_ch1_chaos170',
+  // ボイスパック23 (2026-11-03; 175 は 2026-11-05 録り直し): 時間の使い方 — 最初に村へ帰ってきたとき (content/story/timeGuide).
+  "ねえねえ、時間の使い方、大事なこと言うね": 'v_ch1_chaos171',
+  "この村はね、『休息』すると日が進んで、みんなの人生も、物語も動くの": 'v_ch1_chaos172',
+  "じっくり派は休息ひかえめ。村をたっぷり味わう進み方": 'v_ch1_chaos173',
+  "がっつり派は、噂のNEWを追って、休息でどんどん進める": 'v_ch1_chaos174',
+  "どっちが正解でもないよ。あなたの時間は、あなたが決めて": 'v_ch1_chaos175',
 };
 
 /** Her spells' names, said as the cut-in comes in: the spell's id → its file. */

@@ -28,7 +28,7 @@ import { FutureSiteScreen } from './ui/futureSite';
 import { TavernScreen, tavernHasNews } from './ui/tavern';
 import { bakeryHasNews, shopHasNews } from './ui/talkNews';
 import { guestLabelOf, tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
-import { nextObjective, villagePresence } from '@mugen/content/locations/aldenVillageMap';
+import { nextObjective, objectiveHint, villagePresence } from '@mugen/content/locations/aldenVillageMap';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import type { BgmId } from '@mugen/assets';
 import { BakeryScreen } from './ui/bakery';
@@ -95,6 +95,7 @@ import { BanterAside } from './ui/kaosBanter';
 import { banterFor } from './ui/banterRoll';
 import { NewsAside, newsFor } from './ui/aldenNews';
 import { NudgeAside, homecomingTalk, newTalkMemo, settingOutSaid, settingOutTalk } from './ui/kaosNudge';
+import { TIME_GUIDE_LINES, TIME_GUIDE_MARK } from '@mugen/content/story/timeGuide';
 import type { VillageRumor } from '@mugen/content/story/villageRumors';
 import type { KaosNudge } from '@mugen/content/story/kaosNudges';
 import type { KaosBanter } from '@mugen/content/story/kaosBanter';
@@ -275,6 +276,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const [homeNews, setHomeNews] = useState<VillageRumor | null>(null);
   // ケイオスの軽い誘い: when nothing else is said on coming back — at most once a day (ui/kaosNudge).
   const [homeNudge, setHomeNudge] = useState<KaosNudge | null>(null);
+  // 時間の使い方 (段階4, 作者 2026-11-03): her five lines, the first time they come back in from outside — before
+  // anything else said, once in a world (content/story/timeGuide).
+  const [homeGuide, setHomeGuide] = useState(false);
   // 状況別の会話 (2026-10-11): what was said lately, today's comings and goings (ui/kaosNudge, nothing saved).
   const talkMemo = useRef(newTalkMemo());
   /**
@@ -1030,17 +1034,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           />
         );
       }
+      const objectiveFacts = {
+        galdDecided: world.getGaldLifeChoice() !== null,
+        arcOpen: world.isSekiryugaArcOpen(),
+        stage: world.getSekiryugaStage(),
+        phase: world.getIncidentPhase(),
+      };
       return (
         // アルデン村の縮図 (作者 改修指示書 2026-10-16): the village from above — who is
         // where (worked out, never kept), its places' doors on the left, the roads out to the map.
         <VillageScreen
           world={world}
-          objective={nextObjective({
-            galdDecided: world.getGaldLifeChoice() !== null,
-            arcOpen: world.isSekiryugaArcOpen(),
-            stage: world.getSekiryugaStage(),
-            phase: world.getIncidentPhase(),
-          })}
+          objective={nextObjective(objectiveFacts)}
+          objectiveHint={objectiveHint(objectiveFacts)}
           presence={villagePresence({
             graveMet: tavernMet || hasMetGrave((id) => world.isRead(id), world.getSekiryugaStage()),
             tavernGuest: guestLabelOf(tonightsGuestTalk(toAbsoluteDay(world.getClock()))),
@@ -1099,7 +1105,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ) — at the top.
           happening={
             <>
-              {homecoming && villageScene ? (
+              {homecoming && homeGuide ? (
+                <NudgeAside
+                  key="TIME_GUIDE"
+                  world={world}
+                  nudge={{ id: 'TIME_GUIDE', lines: TIME_GUIDE_LINES }}
+                  onDone={() => {
+                    setHomeGuide(false);
+                    void world.markRead([TIME_GUIDE_MARK]).catch(() => {});
+                  }}
+                />
+              ) : homecoming && villageScene ? (
                 <DailyAside key={villageScene.id} world={world} scene={villageScene} />
               ) : homecoming && homeBanter ? (
                 // Nothing small happening today: now and then, one of their short exchanges.
@@ -1283,8 +1299,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             const news = newsFor(world);
             setHomeBanter(banter);
             setHomeNews(news);
+            // The first time back in from outside: how time is spent here (時間の使い方) — before anything else.
+            const guide = !world.isRead(TIME_GUIDE_MARK);
+            setHomeGuide(guide);
             // Her word only when nothing else is said, and once a day at most (状況別の会話 included).
-            setHomeNudge(homecomingTalk(world, talkMemo.current, !daily && !banter && !news));
+            setHomeNudge(homecomingTalk(world, talkMemo.current, !guide && !daily && !banter && !news));
             flow.goTo('HOME');
             // 第1章終盤: the signs at their heaviest — coming back in, that night is the night before.
             if (eveDue({ phase: world.getIncidentPhase(), stage: world.getFinaleStage() })) setFinale(true);

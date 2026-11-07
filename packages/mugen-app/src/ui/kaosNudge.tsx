@@ -145,7 +145,7 @@ export function settingOutSaid(world: World, memo: TalkMemo, talk: KaosNudge): v
   said(memo, talk.id);
 }
 
-export function NudgeAside({ world, nudge, onDone }: { world: World; nudge: KaosNudge; onDone: () => void }) {
+export function NudgeAside({ world, nudge, onDone }: { world: World; nudge: Pick<KaosNudge, 'id' | 'lines'>; onDone: () => void }) {
   const [at, setAt] = useState(0);
   const line = nudge.lines[Math.min(at, nudge.lines.length - 1)];
   // Her line, heard as it comes up (ボイスパック12).

@@ -16,6 +16,7 @@ import { Typed } from '../common/Typed';
 import { explorePref, setExplorePref } from '../../platform/explorePrefs';
 import { buzz } from '../../platform/haptics';
 import { adminUnlocks, requestSaveReset } from '../../platform/adminReset';
+import { TimeGuideButton, TimeGuidePanel } from '../timeGuide';
 import './settings.css';
 
 /**
@@ -62,6 +63,7 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
   const [wrong, setWrong] = useState(false);
   const screen = useSyncExternalStore(watchDisplaySettings, displaySettings);
   const [vibration, setVibration] = useState(() => explorePref('vibration'));
+  const [guide, setGuide] = useState(false);
 
   const change = (next: SoundSettings) => {
     setSound(next);
@@ -204,6 +206,8 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
             </section>
 
             <div className="settings-actions">
+              {/* 時間の使い方, to be looked at again (段階4). */}
+              <TimeGuideButton testId="settings-time-guide" onClick={() => setGuide(true)} />
               {onTitle && <CrystalButton kind="confirm" testId="settings-title" label="タイトルに戻る" onClick={() => setAsk('TITLE')} />}
               <CrystalButton kind="back" testId="settings-close" label="閉じる" onClick={onClose} />
             </div>
@@ -265,6 +269,7 @@ export function SettingsPanel({ onClose, onTitle }: { onClose: () => void; onTit
           <Confirm ask={ask} onTitle={onTitle} onAsk={setAsk} />
         )}
       </CrystalPanel>
+      {guide && <TimeGuidePanel onClose={() => setGuide(false)} />}
     </div>
   );
 }

@@ -258,12 +258,12 @@ describe('a line spoken', () => {
 });
 
 describe('第1章のケイオス (ボイスパック12): what she says on screen, by its text', () => {
-  it('all 151 files delivered and found: 144 lines (発見の「……薬？」 of ボイスパック23 the last), 5 spells, and the two registered before', () => {
-    expect(Object.keys(KAOS_CH1_LINES)).toHaveLength(144);
+  it('all 156 files delivered and found: 149 lines (ボイスパック23 — 発見の「……薬？」, 時間の使い方の5本 — the last), 5 spells, and the two registered before', () => {
+    expect(Object.keys(KAOS_CH1_LINES)).toHaveLength(149);
     expect(Object.keys(KAOS_CH1_SPELLS)).toHaveLength(5);
     const ids = [...Object.values(KAOS_CH1_LINES).map((f) => `ch1.${f}`), ...Object.keys(KAOS_CH1_SPELLS).map((s) => `battle.${s}`)];
     for (const id of ids) expect(voiceUrl(id), id).not.toBeNull();
-    expect(new Set(ids.map((id) => VOICE_LINES[id].files[0])).size).toBe(149);
+    expect(new Set(ids.map((id) => VOICE_LINES[id].files[0])).size).toBe(154);
     expect(voiceUrl('op.op_choice_comic.SMILE')).not.toBeNull();
     expect(voiceUrl('daily.LINA_BURNT_BREAD.4')).not.toBeNull();
   });
@@ -356,6 +356,9 @@ describe('第1章のケイオス (ボイスパック12): what she says on screen
     expect(lineVoice('盗賊', '……なんのつもりだ。')).toBe('ch1.v_ch1_gald015');
     // 発見 (ボイスパック23・24): her 「……薬？」 and his answer, both quiet takes played 6 dB up.
     expect(lineVoice('ケイオス', '……薬？')).toBe('ch1.v_ch1_chaos170');
+    // 時間の使い方 (ボイスパック23): the five, by their text — 175 the take recorded again (「あなた」).
+    expect(lineVoice('ケイオス', 'ねえねえ、時間の使い方、大事なこと言うね')).toBe('ch1.v_ch1_chaos171');
+    expect(lineVoice('ケイオス', 'どっちが正解でもないよ。あなたの時間は、あなたが決めて')).toBe('ch1.v_ch1_chaos175');
     expect(lineVoice('盗賊 ガルド', '妹だ。病気なんだ')).toBe('ch1.v_ch1_gald016');
     expect(voiceGainOf(voiceUrl('ch1.v_ch1_chaos170')!)).toBeCloseTo(10 ** (6 / 20), 3);
     expect(voiceGainOf(voiceUrl('ch1.v_ch1_gald016')!)).toBeCloseTo(10 ** (6 / 20), 3);

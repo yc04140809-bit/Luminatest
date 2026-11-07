@@ -23,6 +23,7 @@
 
 import type { SekiryugaStage } from '../../core/world/storyArc';
 import type { IncidentPhase } from '../../core/world/aldenIncident';
+import { OBJECTIVE_HINT } from '../story/timeGuide';
 
 export type VillageSpotKind = 'FACILITY' | 'PLAZA' | 'HOUSE' | 'ROAD';
 
@@ -97,6 +98,14 @@ export interface ObjectiveFacts {
   arcOpen: boolean;
   stage: SekiryugaStage;
   phase: IncidentPhase;
+}
+
+/**
+ * A few words more under it, where the way on is not obvious (作者採用 2026-11-04): after セキリュウガ, while the
+ * signs have not risen (phase 0〜1), the days move only by a rest after a day spent out — so it says so. Else null.
+ */
+export function objectiveHint(facts: ObjectiveFacts): string | null {
+  return facts.galdDecided && facts.arcOpen && facts.stage === 'SETTLED' && facts.phase < 2 ? OBJECTIVE_HINT : null;
 }
 
 /** Where the story goes on from here, in a few words. */

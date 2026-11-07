@@ -2153,6 +2153,8 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 .rumor-group { margin-bottom: 10px; }
+/* The foot: 時間の使い方 (small) beside もどる (段階4). */
+.rumor-foot { flex: none; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .rumor-category {
   margin: 4px 0;
   color: var(--gold, #c9a961);

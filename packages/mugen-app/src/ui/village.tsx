@@ -48,6 +48,7 @@ export interface VillageNews {
 export function VillageScreen({
   world,
   objective,
+  objectiveHint = null,
   presence,
   ruinsOpen,
   graveMet = false,
@@ -73,6 +74,8 @@ export function VillageScreen({
   onSettings?: () => void;
   /** 次の目的 (content `nextObjective`). */
   objective: string;
+  /** A few words more under it (content: objectiveHint), or none. */
+  objectiveHint?: string | null;
   /** Who is where now (content `villagePresence`) — worked out by the caller, never kept. */
   presence: Partial<Record<VillageSpotId, readonly VillagePerson[]>>;
   /** 遺跡への道 open (the master has told what was sealed there). */
@@ -308,6 +311,12 @@ export function VillageScreen({
               <span data-testid="next-objective-text" data-kit-text="">
                 {objective}
               </span>
+              {/* A few words more where the way on is not obvious (段階4: 出かけて、夜は休もう). */}
+              {objectiveHint && (
+                <small className="vg-objective-hint" data-testid="next-objective-hint">
+                  {objectiveHint}
+                </small>
+              )}
             </KitPanel>
         </div>
       </section>

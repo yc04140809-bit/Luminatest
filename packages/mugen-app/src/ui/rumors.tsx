@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TimeGuideButton, TimeGuidePanel } from './timeGuide';
 import type { World } from '@mugen/core/world/world';
 import {
   RUMOR_CATEGORY_LABEL,
@@ -37,6 +38,7 @@ export function rumorsOf(world: World): { rumors: VillageRumor[]; unread: number
 export function RumorScreen({ world, onLeave }: { world: World; onLeave: () => void }) {
   const { rumors } = rumorsOf(world);
   const [open, setOpen] = useState<string | null>(null);
+  const [guide, setGuide] = useState(false);
 
   const read = (rumor: VillageRumor) => {
     setOpen((now) => (now === rumor.id ? null : rumor.id));
@@ -83,9 +85,14 @@ export function RumorScreen({ world, onLeave }: { world: World; onLeave: () => v
           );
         })}
       </div>
-      <button className="btn primary" data-testid="rumor-leave" onClick={onLeave}>
-        もどる
-      </button>
+      <div className="rumor-foot">
+        {/* 時間の使い方, to be looked at again (段階4): the NEW here are what moves on with the days. */}
+        <TimeGuideButton testId="rumor-time-guide" onClick={() => setGuide(true)} />
+        <button className="btn primary" data-testid="rumor-leave" onClick={onLeave}>
+          もどる
+        </button>
+      </div>
+      {guide && <TimeGuidePanel onClose={() => setGuide(false)} />}
     </div>
   );
 }
